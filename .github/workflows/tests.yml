@@ -65,8 +65,8 @@ jobs:
       - name: Wait for Redis Cluster to be ready
         run: |
           echo "Waiting for Redis cluster..."
-          # On attend que le sentinel réponde PONG
-          # Utilisation de docker run pour éviter les problèmes de nom de container avec docker compose exec
+          # Wait for sentinel to respond with PONG
+          # Use docker run to avoid container naming issues with docker compose exec
           until docker run --network host --rm redis:${{ matrix.redis }}-alpine redis-cli -p 26379 -a test ping | grep -q PONG; do
             echo "Sentinel not ready yet..."
             sleep 2

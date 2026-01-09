@@ -10,19 +10,19 @@ use Illuminate\Support\Facades\Session;
 
 describe('Read/Write', function () {
     beforeEach(function () {
-        // Configuration d'une connexion avec replicas activés
+        // Configure a connection with replicas enabled
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
 
-        // On récupère le manager actuel
+        // Get the current manager
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
 
-        // On injecte la nouvelle config via réflexion car le manager garde une copie interne
+        // Inject the new config via reflection because the manager keeps an internal copy
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
         $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
-        // On purge la connexion pour qu'elle soit re-résolue avec la nouvelle config
+        // Purge the connection so it can be re-resolved with the new config
         $manager->purge('phpredis-sentinel');
     });
 
@@ -53,7 +53,7 @@ describe('Read/Write', function () {
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        // Debug: voir la config utilisée par la connexion
+        // Debug: see the config used by the connection
         $reflection = new ReflectionClass($connection);
         $configProp = $reflection->getProperty('config');
         $configProp->setAccessible(true);
@@ -61,18 +61,18 @@ describe('Read/Write', function () {
 
         // expect($connConfig)->toHaveKey('read_only_replicas', true);
 
-        // Vérifier que le connecteur de lecture est présent
+        // Verify that the read connector is present
         $state = getInternalState($connection);
         expect($state['hasReadConnector'])->toBeTrue('Read connector should be present')
             ->and($state['wroteToMaster'])->toBeFalse();
 
-        // Une lecture devrait initialiser le readClient
+        // A read should initialize the readClient
         $connection->get('test-read');
         $state = getInternalState($connection);
         expect($state['hasReadClient'])->toBeTrue()
             ->and($state['wroteToMaster'])->toBeFalse();
 
-        // Une écriture devrait activer la stickiness
+        // A write should activate stickiness
         $connection->set('test-write', 'value');
         $state = getInternalState($connection);
         expect($state['wroteToMaster'])->toBeTrue();
@@ -82,11 +82,11 @@ describe('Read/Write', function () {
         config()->set('cache.default', 'phpredis-sentinel');
         $connection = Redis::connection('phpredis-sentinel');
 
-        // Lecture : pas de stickiness
+        // Read: no stickiness
         Cache::get('cache-key');
         expect(getInternalState($connection)['wroteToMaster'])->toBeFalse();
 
-        // Écriture : stickiness activée
+        // Write: stickiness activated
         Cache::put('cache-key', 'value', 10);
         expect(getInternalState($connection)['wroteToMaster'])->toBeTrue();
     });
@@ -95,17 +95,17 @@ describe('Read/Write', function () {
         config()->set('session.driver', 'phpredis-sentinel');
         config()->set('session.connection', 'phpredis-sentinel');
 
-        // Le démarrage de la session peut impliquer une lecture
+        // Starting the session may involve a read
         Session::start();
         $connection = Redis::connection('phpredis-sentinel');
 
-        // Lecture seule au début
+        // Read-only at first
         Session::get('user_id');
         expect(getInternalState($connection)['wroteToMaster'])->toBeFalse();
 
-        // Écriture en session
+        // Write to session
         Session::put('user_id', 123);
-        // Note: La session n'écrit en Redis que lors du save() ou à la fin de la requête
+        // Note: The session only writes to Redis during save() or at the end of the request
         Session::save();
 
         expect(getInternalState($connection)['wroteToMaster'])->toBeTrue();
@@ -118,13 +118,13 @@ describe('Read/Write', function () {
             'connection' => 'phpredis-sentinel',
         ]);
 
-        // Purger le manager de broadcast pour forcer la relecture de la config
+        // Purge the broadcast manager to force config reload
         app()->forgetInstance(\Illuminate\Contracts\Broadcasting\Factory::class);
 
         $broadcaster = Broadcast::driver('phpredis-sentinel');
         expect($broadcaster)->toBeInstanceOf(\Illuminate\Broadcasting\Broadcasters\RedisBroadcaster::class);
 
-        // Un broadcast direct (PUBLISH) est une écriture
+        // A direct broadcast (PUBLISH) is a write
         $broadcaster->broadcast(['test-channel'], 'test-event', ['data' => 'value']);
 
         $connection = Redis::connection('phpredis-sentinel');
@@ -134,32 +134,32 @@ describe('Read/Write', function () {
     test('stickiness reset between Queue jobs', function () {
         $connection = Redis::connection('phpredis-sentinel');
 
-        // Simuler une écriture d'un job précédent
+        // Simulate a write from a previous job
         $connection->set('prev-job', 'done');
         expect(getInternalState($connection)['wroteToMaster'])->toBeTrue();
 
-        // Simuler le début d'un nouveau job
+        // Simulate the start of a new job
         $job = Mockery::mock(\Illuminate\Contracts\Queue\Job::class);
         $job->shouldReceive('payload')->andReturn([]);
         Event::dispatch(new JobProcessing('phpredis-sentinel', $job));
 
-        // La stickiness doit être réinitialisée
+        // Stickiness should be reset
         expect(getInternalState($connection)['wroteToMaster'])->toBeFalse();
     });
 
     test('stickiness reset in Octane context', function () {
         $connection = Redis::connection('phpredis-sentinel');
 
-        // Simuler une écriture d'une requête précédente
+        // Simulate a write from a previous request
         $connection->set('prev-req', 'done');
         expect(getInternalState($connection)['wroteToMaster'])->toBeTrue();
 
-        // Simuler une nouvelle requête Octane
+        // Simulate a new Octane request
         $eventClass = 'Laravel\Octane\Events\RequestReceived';
         if (class_exists($eventClass)) {
             Event::dispatch(new $eventClass(app(), request()));
         } else {
-            // Fallback manuel si Octane n'est pas présent pour le test
+            // Manual fallback if Octane is not present for the test
             foreach (app('redis')->connections() as $conn) {
                 if ($conn instanceof RedisSentinelConnection) {
                     $conn->resetStickiness();
@@ -171,20 +171,20 @@ describe('Read/Write', function () {
     });
 
     test('Horizon context uses stickiness correctly', function () {
-        // Horizon utilise souvent la connexion 'horizon'
+        // Horizon often uses the 'horizon' connection
         config()->set('horizon.use', 'phpredis-sentinel');
         config()->set('horizon.driver', 'phpredis-sentinel');
 
-        // On force le manager à être en contexte Horizon
-        // Note: RedisSentinelManager::isHorizonContext dépend de la config
+        // Force the manager into Horizon context
+        // Note: RedisSentinelManager::isHorizonContext depends on config
 
         $connection = Redis::connection('phpredis-sentinel');
 
-        // Lecture Horizon
+        // Horizon read
         $connection->get('horizon:status');
         expect(getInternalState($connection)['wroteToMaster'])->toBeFalse();
 
-        // Écriture Horizon (simulée)
+        // Horizon write (simulated)
         $connection->set('horizon:last-heartbeat', time());
         expect(getInternalState($connection)['wroteToMaster'])->toBeTrue();
     });

@@ -11,7 +11,7 @@ test('wrote to master is reset with reset stickiness', function () {
 
     $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
 
-    // Simulation d'une écriture
+    // Simulate a write
     $masterClient->expects('set')->once()->andReturn(true);
     $connection->set('foo', 'bar');
 
@@ -21,7 +21,7 @@ test('wrote to master is reset with reset stickiness', function () {
 
     expect($property->getValue($connection))->toBeTrue();
 
-    // Appel du reset
+    // Call reset
     $connection->resetStickiness();
 
     expect($property->getValue($connection))->toBeFalse();

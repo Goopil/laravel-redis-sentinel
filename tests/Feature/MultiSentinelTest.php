@@ -56,8 +56,8 @@ test('it can connect using multiple sentinels when first is down', function () {
 
     $connector->exposeCreateClient($config);
 
-    // Si on arrive ici sans exception, c'est que ça a marché.
-    // Mockery vérifiera que les méthodes ont été appelées.
+    // If we reach this point without exception, it means it worked.
+    // Mockery will verify that the methods were called.
     expect(true)->toBeTrue();
 });
 
