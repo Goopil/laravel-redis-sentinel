@@ -1,0 +1,51 @@
+services:
+  redis-main:
+    image: redis:${REDIS_VERSION}-alpine
+    command: redis-server --requirepass "test" --masterauth "test" --port 6380 --replica-announce-ip 127.0.0.1
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "-a", "test", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-replica1:
+    image: redis:${REDIS_VERSION}-alpine
+    command: redis-server --slaveof 127.0.0.1 6380 --requirepass "test" --masterauth "test" --port 6381 --replica-announce-ip 127.0.0.1
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6381", "-a", "test", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-replica2:
+    image: redis:${REDIS_VERSION}-alpine
+    command: redis-server --slaveof 127.0.0.1 6380 --requirepass "test" --masterauth "test" --port 6382 --replica-announce-ip 127.0.0.1
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6382", "-a", "test", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-sentinel:
+    image: redis:${REDIS_VERSION}-alpine
+    network_mode: host
+    environment:
+      - SENTINEL_EXTRA_CONFIG=${SENTINEL_EXTRA_CONFIG:-}
+    command: >
+      sh -c "echo 'port 26379' > /tmp/sentinel.conf &&
+      echo 'sentinel monitor master 127.0.0.1 6380 2' >> /tmp/sentinel.conf &&
+      echo 'sentinel auth-pass master test' >> /tmp/sentinel.conf &&
+      echo 'requirepass test' >> /tmp/sentinel.conf &&
+      $SENTINEL_EXTRA_CONFIG
+      echo 'sentinel down-after-milliseconds master 5000' >> /tmp/sentinel.conf &&
+      echo 'sentinel parallel-syncs master 1' >> /tmp/sentinel.conf &&
+      echo 'sentinel failover-timeout master 60000' >> /tmp/sentinel.conf &&
+      redis-sentinel /tmp/sentinel.conf"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "-a", "test", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5

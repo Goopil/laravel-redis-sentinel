@@ -1,0 +1,18 @@
+providers:
+  - Goopil\LaravelRedisSentinel\RedisSentinelServiceProvider
+migrations:
+  - workbench/database/migrations
+seeders:
+  - Workbench\Database\Seeders\DatabaseSeeder
+workbench:
+  start: '/'
+  install: true
+  discovers:
+    web: true
+    api: false
+    commands: true
+    components: false
+    views: false
+  build: []
+  assets: []
+  sync: []

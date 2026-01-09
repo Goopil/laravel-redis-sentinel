@@ -1,0 +1,90 @@
+services:
+  redis-main:
+    image: 'redis:6.2-alpine'
+    command: 'redis-server --requirepass "test" --masterauth "test" --port 6380 --replica-announce-ip 127.0.0.1'
+    network_mode: host
+    ports:
+      - '6380:6380'
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      retries: 3
+      timeout: 5s
+
+  redis-replica1:
+    image: 'redis:6.2-alpine'
+    command: 'redis-server --slaveof 127.0.0.1 6380 --requirepass "test" --masterauth "test" --port 6381 --replica-announce-ip 127.0.0.1'
+    network_mode: host
+    ports:
+      - '6381:6381'
+    depends_on:
+      - redis-main
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      retries: 3
+      timeout: 5s
+
+  redis-replica2:
+    image: 'redis:6.2-alpine'
+    network_mode: host
+    command: 'redis-server --slaveof 127.0.0.1 6380 --requirepass "test" --masterauth "test" --port 6382 --replica-announce-ip 127.0.0.1'
+    ports:
+      - '6382:6382'
+    depends_on:
+      - redis-main
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      retries: 3
+      timeout: 5s
+
+  redis-sentinel:
+    image: 'redis:6.2-alpine'
+    network_mode: host
+    ports:
+      - '26379:26379'
+    command:
+      - "sh"
+      - "-c"
+      - "echo 'port 26379' > /tmp/sentinel.conf && \
+         echo 'sentinel monitor master 127.0.0.1 6380 2' >> /tmp/sentinel.conf && \
+         echo 'sentinel resolve-hostnames yes' >> /tmp/sentinel.conf && \
+         echo 'sentinel announce-hostnames yes' >> /tmp/sentinel.conf && \
+         echo 'sentinel auth-pass master test' >> /tmp/sentinel.conf && \
+         echo 'requirepass test' >> /tmp/sentinel.conf && \
+         echo 'sentinel down-after-milliseconds master 5000' >> /tmp/sentinel.conf && \
+         echo 'sentinel parallel-syncs master 1' >> /tmp/sentinel.conf && \
+         echo 'sentinel failover-timeout master 60000' >> /tmp/sentinel.conf && \
+         cat /tmp/sentinel.conf && \
+         redis-sentinel /tmp/sentinel.conf"
+    depends_on:
+      - redis-main
+      - redis-replica1
+      - redis-replica2
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      retries: 3
+      timeout: 5s
+
+  redis:
+    image: 'redis:alpine'
+    network_mode: host
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      retries: 3
+      timeout: 5s
