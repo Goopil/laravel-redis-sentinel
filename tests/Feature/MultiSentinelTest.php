@@ -45,6 +45,7 @@ test('it can connect using multiple sentinels when first is down', function () {
     };
 
     $config = [
+        'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
             'sentinels' => [

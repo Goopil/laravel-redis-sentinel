@@ -6,12 +6,10 @@ services:
     ports:
       - '6380:6380'
     healthcheck:
-      test:
-        - CMD
-        - redis-cli
-        - ping
+      test: [ "CMD", "redis-cli", "-p", "6380", "-a", "test", "ping" ]
       retries: 3
       timeout: 5s
+    depends_on: []
 
   redis-replica1:
     image: 'redis:6.2-alpine'
@@ -22,10 +20,7 @@ services:
     depends_on:
       - redis-main
     healthcheck:
-      test:
-        - CMD
-        - redis-cli
-        - ping
+      test: [ "CMD", "redis-cli", "-p", "6381", "-a", "test", "ping" ]
       retries: 3
       timeout: 5s
 
@@ -38,10 +33,7 @@ services:
     depends_on:
       - redis-main
     healthcheck:
-      test:
-        - CMD
-        - redis-cli
-        - ping
+      test: [ "CMD", "redis-cli", "-p", "6382", "-a", "test", "ping" ]
       retries: 3
       timeout: 5s
 
@@ -69,10 +61,7 @@ services:
       - redis-replica1
       - redis-replica2
     healthcheck:
-      test:
-        - CMD
-        - redis-cli
-        - ping
+      test: [ "CMD", "redis-cli", "-p", "26379", "-a", "test", "ping" ]
       retries: 3
       timeout: 5s
 
@@ -83,9 +72,6 @@ services:
     ports:
       - '6379:6379'
     healthcheck:
-      test:
-        - CMD
-        - redis-cli
-        - ping
+      test: [ "CMD", "redis-cli", "-p", "6379", "-a", "test", "ping" ]
       retries: 3
       timeout: 5s

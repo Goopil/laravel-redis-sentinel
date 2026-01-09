@@ -42,6 +42,7 @@ test('it retries when master not found', function () {
     };
 
     $config = [
+        'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
             'host' => '127.0.0.1',
@@ -86,6 +87,7 @@ test('it throws after max retries', function () {
     };
 
     $config = [
+        'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
             'host' => '127.0.0.1',
@@ -128,6 +130,7 @@ test('it does not retry unrecognized exceptions', function () {
     };
 
     expect(fn () => $connector->exposeCreateClient([
+        'password' => 'test',
         'sentinel' => ['service' => 'mymaster', 'host' => '127.0.0.1'],
     ]))->toThrow(Exception::class, 'something bad happened');
 

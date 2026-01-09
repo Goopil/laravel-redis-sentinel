@@ -70,8 +70,18 @@ class TestCase extends Orchestra
                 ],
             ]);
 
+            $config->set('database.redis.cache', [
+                'host' => env('REDIS_HOST', '127.0.0.1'),
+                'password' => env('REDIS_PASSWORD', 'test'),
+                'port' => env('REDIS_PORT', 6379),
+                'database' => env('REDIS_DATABASE', '1'),
+                'options' => [
+                    'prefix' => ('cache'.env('REDIS_PREFIX', '')),
+                ],
+            ]);
+
             $config->set('cache.stores.phpredis-sentinel', [
-                'driver' => 'redis',
+                'driver' => 'phpredis-sentinel',
                 'connection' => 'phpredis-sentinel',
                 'lock_connection' => 'phpredis-sentinel',
             ]);

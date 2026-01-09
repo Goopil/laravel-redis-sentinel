@@ -36,6 +36,7 @@ test('it calls sentinel only once when cache is enabled', function () {
     };
 
     $config = [
+        'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
             'host' => '127.0.0.1',
@@ -85,6 +86,7 @@ test('it invalidates cache when refresh is requested', function () {
     };
 
     $config = [
+        'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
             'host' => '127.0.0.1',
