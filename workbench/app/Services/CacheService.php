@@ -27,7 +27,7 @@ class CacheService
      */
     public function rememberExpensiveOperation(string $key, int $ttl = 3600): array
     {
-        return Cache::remember($key, $ttl, function () {
+        return Cache::remember($key, $ttl, static function () {
             // Simulate expensive operation
             return [
                 'data' => 'expensive_result',

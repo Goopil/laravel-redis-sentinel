@@ -174,7 +174,7 @@ class SessionController extends Controller
     public function testPersistence(Request $request): JsonResponse
     {
         $testKey = 'test_persistence_'.time();
-        $testValue = 'test_value_'.rand(1000, 9999);
+        $testValue = 'test_value_'.random_int(1000, 9999);
 
         $request->session()->put($testKey, $testValue);
         $retrieved = $request->session()->get($testKey);

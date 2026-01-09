@@ -87,7 +87,7 @@ class RedisSentinelConnection extends PhpRedisConnection
      *
      * @var callable|null
      */
-    protected $readConnector = null;
+    protected $readConnector;
 
     /**
      * Indicates if a write operation has been performed.
