@@ -4,7 +4,7 @@ services:
     command: redis-server --requirepass "test" --masterauth "test" --port 6380 --replica-announce-ip 127.0.0.1
     network_mode: host
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6380", "-a", "test", "ping"]
+      test: [ "CMD", "redis-cli", "-p", "6380", "-a", "test", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -14,7 +14,7 @@ services:
     command: redis-server --slaveof 127.0.0.1 6380 --requirepass "test" --masterauth "test" --port 6381 --replica-announce-ip 127.0.0.1
     network_mode: host
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6381", "-a", "test", "ping"]
+      test: [ "CMD", "redis-cli", "-p", "6381", "-a", "test", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -24,7 +24,7 @@ services:
     command: redis-server --slaveof 127.0.0.1 6380 --requirepass "test" --masterauth "test" --port 6382 --replica-announce-ip 127.0.0.1
     network_mode: host
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6382", "-a", "test", "ping"]
+      test: [ "CMD", "redis-cli", "-p", "6382", "-a", "test", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -45,7 +45,17 @@ services:
       echo 'sentinel failover-timeout master 60000' >> /tmp/sentinel.conf &&
       redis-sentinel /tmp/sentinel.conf"
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "26379", "-a", "test", "ping"]
+      test: [ "CMD", "redis-cli", "-p", "26379", "-a", "test", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
+
+  redis:
+    image: 'redis:${REDIS_VERSION}-alpine
+    network_mode: host
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-p", "6380", "-a", "test", "ping" ]
+      retries: 3
+      timeout: 5s
