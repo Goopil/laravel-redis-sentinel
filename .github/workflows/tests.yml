@@ -27,7 +27,7 @@ jobs:
 #        run: composer run lint
 
   tests:
-    needs: [lint]
+#    needs: [lint]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
