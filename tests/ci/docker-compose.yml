@@ -56,6 +56,6 @@ services:
     ports:
       - '6379:6379'
     healthcheck:
-      test: [ "CMD", "redis-cli", "-p", "6380", "-a", "test", "ping" ]
+      test: [ "CMD", "redis-cli", "-p", "6380", "ping" ]
       retries: 3
       timeout: 5s

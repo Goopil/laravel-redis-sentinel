@@ -76,7 +76,6 @@ jobs:
       - name: Execute tests
         run: vendor/bin/pest
         env:
-          REDIS_PASSWORD: test
           REDIS_SENTINEL_PASSWORD: test
           REDIS_PREFIX: gh_${{ github.run_id }}
           REDIS_HOST: 127.0.0.1

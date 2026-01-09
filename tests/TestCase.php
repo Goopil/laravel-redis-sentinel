@@ -30,7 +30,7 @@ class TestCase extends Orchestra
             $config->set('database.redis.client', 'phpredis');
             $config->set('queue.default', 'redis');
             $config->set('session.driver', 'redis');
-            $config->set('cache.default', 'phpredis-sentinel');
+            $config->set('cache.default', 'redis');
 
             $config->set('database.redis.phpredis-sentinel', [
                 'client' => 'phpredis-sentinel',
