@@ -143,7 +143,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
             } elseif ($i % 3 === 1) {
                 event(new UserRegistered($i, "user_{$i}", "user{$i}@example.com", ['type' => 'regular']));
             } else {
-                event(new OrderShipped("order_{$i}", $i, "TRACK_{$i}", ["item_a", "item_b"]));
+                event(new OrderShipped("order_{$i}", $i, "TRACK_{$i}", ['item_a', 'item_b']));
             }
         }
 
@@ -174,6 +174,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
 
         Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, function ($job) use ($complexMetadata) {
             $event = $job->event;
+
             return $event instanceof UserRegistered
                 && $event->userId === 999
                 && $event->metadata === $complexMetadata;
@@ -264,6 +265,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
             if ($job->event instanceof UserRegistered) {
                 $pushedEvents[] = $job->event->userId;
             }
+
             return true;
         });
 
@@ -299,7 +301,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         // Simulate concurrent event dispatching
         for ($i = 1; $i <= $batchSize; $i++) {
             if ($i % 4 === 0) {
-                event(new OrderShipped("order_{$i}", $i, "TRACK_{$i}", ["item_a", "item_b", "item_c"]));
+                event(new OrderShipped("order_{$i}", $i, "TRACK_{$i}", ['item_a', 'item_b', 'item_c']));
             } else {
                 event(new UserRegistered($i, "concurrent_{$i}", "concurrent{$i}@example.com"));
             }

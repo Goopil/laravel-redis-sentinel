@@ -145,7 +145,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
 
         for ($i = 1; $i <= 40; $i++) {
             if ($i % 4 === 0) {
-                event(new OrderShipped("order_{$i}", $i, "TRACK_{$i}", ["item_a", "item_b"]));
+                event(new OrderShipped("order_{$i}", $i, "TRACK_{$i}", ['item_a', 'item_b']));
             } else {
                 event(new UserRegistered($i, "user_{$i}", "user{$i}@example.com"));
             }
@@ -257,6 +257,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             if ($job->event instanceof UserRegistered) {
                 $pushedEvents[] = $job->event->userId;
             }
+
             return true;
         });
 
@@ -286,7 +287,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
 
         for ($i = 1; $i <= $batchSize; $i++) {
             if ($i % 5 === 0) {
-                event(new OrderShipped("order_{$i}", $i, "TRACK_{$i}", ["a", "b", "c"]));
+                event(new OrderShipped("order_{$i}", $i, "TRACK_{$i}", ['a', 'b', 'c']));
             } else {
                 event(new UserRegistered($i, "concurrent_{$i}", "concurrent{$i}@example.com"));
             }

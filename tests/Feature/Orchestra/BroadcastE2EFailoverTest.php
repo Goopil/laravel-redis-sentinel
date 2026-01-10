@@ -242,6 +242,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         $pushedCount = 0;
         Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, function ($job) use (&$pushedCount) {
             $pushedCount++;
+
             return true;
         });
 
@@ -361,6 +362,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             if ($job->event instanceof UserRegistered) {
                 return $job->event->metadata === $metadata || $job->event->metadata === $metadata2;
             }
+
             return false;
         });
     });
@@ -454,6 +456,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             if ($job->event instanceof UserRegistered) {
                 $pushedIds[] = $job->event->userId;
             }
+
             return true;
         });
 
