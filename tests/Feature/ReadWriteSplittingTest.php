@@ -411,3 +411,87 @@ test('it discovers replicas using secondary sentinel if primary is down', functi
 
     expect($connection->getReadClient()->getHost())->toBe('127.0.0.2');
 });
+
+test('write commands always use master client even after failures', function () {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $attempts = 0;
+
+    // First attempt fails, second succeeds
+    $masterClient->expects('set')
+        ->with('key', 'value', Mockery::any())
+        ->twice()
+        ->andReturnUsing(function () use (&$attempts) {
+            $attempts++;
+            if ($attempts === 1) {
+                throw new RedisException('Connection lost');
+            }
+
+            return true;
+        });
+
+    // Replica should NEVER be called for write commands
+    $replicaClient->shouldNotReceive('set');
+
+    $connector = function ($refresh = false) use ($masterClient) {
+        return $masterClient;
+    };
+    $readConnector = function () use ($replicaClient) {
+        return $replicaClient;
+    };
+
+    $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
+    $connection->setRetryLimit(3)
+        ->setRetryMessages(['connection lost']);
+
+    // Execute write command - should retry and succeed, always on master
+    expect($connection->set('key', 'value'))->toBeTrue();
+    expect($attempts)->toBe(2);
+});
+
+test('master client reference is never corrupted', function () {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    // Setup read command on replica
+    $replicaClient->expects('get')->with('key')->once()->andReturn('value');
+
+    // Setup write command on master
+    $masterClient->expects('set')->with('key', 'newvalue', Mockery::any())->once()->andReturn(true);
+
+    // Setup another read command - should go to master due to stickiness
+    $masterClient->expects('get')->with('key2')->once()->andReturn('value2');
+
+    $connector = function () use ($masterClient) {
+        return $masterClient;
+    };
+    $readConnector = function () use ($replicaClient) {
+        return $replicaClient;
+    };
+
+    $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
+
+    // Use reflection to verify internal state
+    $reflection = new ReflectionClass($connection);
+    $masterClientProp = $reflection->getProperty('masterClient');
+    $masterClientProp->setAccessible(true);
+
+    // First read goes to replica
+    expect($connection->get('key'))->toBe('value');
+
+    // Verify master client reference is unchanged
+    expect($masterClientProp->getValue($connection))->toBe($masterClient);
+
+    // Write goes to master
+    expect($connection->set('key', 'newvalue'))->toBeTrue();
+
+    // Verify master client reference is STILL unchanged
+    expect($masterClientProp->getValue($connection))->toBe($masterClient);
+
+    // Subsequent read goes to master due to stickiness
+    expect($connection->get('key2'))->toBe('value2');
+
+    // Verify master client reference is STILL unchanged
+    expect($masterClientProp->getValue($connection))->toBe($masterClient);
+});
