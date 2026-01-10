@@ -1,7 +1,7 @@
 {
     "name": "goopil/laravel-redis-sentinel",
     "type": "library",
-    "description": "Redis sentinel connector for laravel",
+    "description": "Redis Sentinel support for Laravel using the PhpRedis extension",
     "license": "LGPL-3.0-or-later",
     "keywords": [
         "library",
@@ -10,23 +10,22 @@
         "sentinel",
         "horizon"
     ],
-    "version": "0.0.1",
     "authors": [
         {
             "name": "Goopil"
         }
     ],
     "require": {
-        "php": "^8.2|^8.3|^8.4",
-        "laravel/framework": "^10|^11|^12",
+        "php": "^8.2 || ^8.3 || ^8.4",
+        "laravel/framework": "^10.0 || ^11.0 || ^12.0",
         "ext-redis": "*"
     },
     "require-dev": {
         "laravel/horizon": "^5.29",
         "laravel/pint": "^1.19",
-        "orchestra/testbench": "^8|^9|^v10",
-        "pestphp/pest": "^2.26|^v3.7",
-        "pestphp/pest-plugin-laravel": "^2.2|^v3"
+        "orchestra/testbench": "^8.0 || ^9.0 || ^v10.0",
+        "pestphp/pest": "^2.26 || ^v3.7",
+        "pestphp/pest-plugin-laravel": "^2.2 || ^v3"
     },
     "autoload": {
         "psr-4": {

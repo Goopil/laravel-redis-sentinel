@@ -6,24 +6,75 @@
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3%20%7C%208.4-blue)](https://www.php.net/)
 [![Laravel](https://img.shields.io/badge/Laravel-10%20%7C%2011%20%7C%2012-red)](https://laravel.com/)
 
-A production-ready Laravel package providing seamless integration with Redis Sentinel using the PhpRedis extension.
-Built for high-availability Redis deployments with automatic failover, intelligent read/write splitting, and
-enterprise-grade reliability.
+A Laravel package that adds Redis Sentinel support through the PhpRedis extension.
+It is intended for high-availability Redis setups and handles failover and read/write concerns transparently,
+allowing applications to interact with Redis without having to manage Sentinel-specific logic.
 
 ## Why This Package?
 
-- **🔄 Automatic Failover**: Seamlessly handles master node failures with zero downtime
-- **📊 Read/Write Splitting**: Intelligently routes reads to replicas and writes to master
+- **🧠 Approach**: Built around patterns and behaviors observed in long-running Redis Sentinel deployments
+- **🔄 Automatic Failover**: Detects master changes and reconnects automatically
+- **📊 Read/Write Splitting**: Routes reads to replicas and writes to the master
 - **🔁 Smart Retry Logic**: Configurable retry strategies with exponential backoff
-- **🚀 Production Tested**: Battle-tested in production with comprehensive test coverage (342 tests)
-- **⚡ High Performance**: Optimized for Laravel Octane and long-lived processes
-- **🎯 Zero Config for Most Cases**: Sensible defaults that just work
-- **🔍 Full Observability**: Built-in logging and event dispatching for monitoring
+- **🧪 Test Coverage**: Covered by an extensive automated test suite
+- **⚡ Performance-Oriented**: Designed with performance in mind and suitable for long-lived processes
+- **🎯 Sensible Defaults**: Works out of the box for most common setups
+- **🔍 Observability**: Built-in logging and event dispatching for monitoring
+
+## Stability & Maturity
+
+This package focuses on providing a reliable Redis Sentinel integration for Laravel applications.
+
+- **Failover handling** is considered stable and forms the core of the package.  
+  Master discovery, reconnection logic, and retry strategies are designed to behave predictably during Sentinel-driven
+  topology changes.
+
+- **Read/Write splitting** is functional and covered by tests, but is still evolving.  
+  It covers common use cases, but may require further refinement in more complex or highly concurrent scenarios.
+
+Feedback from real-world usage is welcome to help further improve and harden these behaviors.
+
+## Roadmap
+
+The following items outline areas of ongoing and future improvement:
+
+- **Read/Write Splitting Refinement**: Further refinement of read/write routing behavior in high-concurrency and
+  edge-case scenarios.
+- **Observability Improvements**: Better visibility into Sentinel discovery, failover events, and routing decisions.
+- **Configuration & Extensibility**: Additional hooks and configuration options for advanced Redis Sentinel setups.
+
+---
+
+## Governance & Project Direction
+
+This project is maintained with a focus on correctness, predictability, and long-term stability.
+
+Feature requests and contributions are welcome, but inclusion depends on their relevance to Redis Sentinel
+integration and their impact on overall complexity.
+
+---
+
+## Versioning & Backward Compatibility
+
+This package follows semantic versioning.
+
+- **Patch releases** focus on bug fixes, internal improvements, and test coverage.
+- **Minor releases** may introduce new features or configuration options, while preserving backward compatibility
+  whenever possible.
+- **Major releases** may include breaking changes, which will be clearly documented in the release notes.
+
+Backward compatibility is a priority, but correctness and long-term maintainability take precedence when trade-offs are
+required.
 
 ---
 
 ## Table of Contents
 
+- [Why This Package?](#why-this-package)
+- [Stability & Maturity](#stability--maturity)
+- [Roadmap](#roadmap)
+- [Governance & Project Direction](#governance--project-direction)
+- [Versioning & Backward Compatibility](#versioning--backward-compatibility)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -35,8 +86,14 @@ enterprise-grade reliability.
 - [Kubernetes Deployment](#kubernetes-deployment)
 - [Events](#events)
 - [Testing](#testing)
+- [Limitations & Non-Goals](#limitations--non-goals)
+- [When NOT to Use This Package](#when-not-to-use-this-package)
+- [Performance Tips](#performance-tips)
 - [Contributing](#contributing)
+- [Inspiration & alternatives](#inspiration--alternatives)
+- [Credits](#credits)
 - [License](#license)
+- [Support](#support)
 
 ---
 
@@ -49,14 +106,14 @@ enterprise-grade reliability.
 - ✅ Configurable retry logic for both Sentinel and Redis connections
 - ✅ Full support for Laravel Cache, Queue, Session, Broadcasting
 - ✅ Native Laravel Horizon integration
-- ✅ Laravel Octane compatible (Swoole, RoadRunner)
+- ✅ Laravel Octane compatible (Swoole and RoadRunner runtimes)
 
 ### Advanced Features
 
-- ✅ **Read/Write Splitting**: Route reads to replicas, writes to master
+- ✅ **Read/Write Splitting**: Routes reads to replicas while directing writes to the master
 - ✅ **Sticky Sessions**: Automatic consistency guarantees after writes
 - ✅ **Health Checks**: Built-in commands for Kubernetes readiness/liveness probes
-- ✅ **Connection Pooling**: Efficient node address caching
+- ✅ **Node Discovery**: Avoids repeated Sentinel queries by caching resolved node addresses during execution
 - ✅ **Multi-Sentinel Support**: Automatic failover between Sentinel nodes
 - ✅ **Event System**: Monitor all connection events for observability
 
@@ -370,15 +427,14 @@ $redis->pipeline(function ($pipe) {
 
 ## Laravel Octane Support
 
-The package is **fully optimized** for Laravel Octane's long-lived processes:
+The package is compatible with Laravel Octane and supports long-lived processes:
 
 ### Automatic State Management
 
 ```php
 // The package automatically handles:
-// ✅ Connection pooling and reuse
+// ✅ Connection reuse across requests
 // ✅ Sticky session reset between requests
-// ✅ Memory leak prevention
 // ✅ Graceful reconnection on failures
 ```
 
@@ -398,7 +454,7 @@ The package listens to Octane's `RequestReceived` event and resets state automat
 
 ## Horizon Integration
 
-The package provides **production-ready Horizon commands** for Kubernetes deployments:
+The package provides Horizon commands that are useful for Kubernetes deployments:
 
 ### Available Commands
 
@@ -615,7 +671,7 @@ composer test:coverage
 composer lint
 
 # Fix code style
-composer lint:fix
+composer format
 ```
 
 ### Test Structure
@@ -715,11 +771,44 @@ redis-cli -h <sentinel-host> -p 26379 -a <password> sentinel replicas master
 
 ---
 
+## Limitations & Non-Goals
+
+This package intentionally focuses on Redis Sentinel integration and does not aim to cover every Redis deployment model.
+
+- It does **not** replace Redis Cluster or provide cluster-level sharding.
+- It does **not** attempt to abstract Redis behavior beyond what Sentinel exposes.
+- It assumes Sentinel is correctly configured and healthy; misconfigured Sentinel setups may lead to connection
+  failures.
+- Read/Write splitting prioritizes correctness and consistency over aggressive load balancing.
+- Extremely low-latency or ultra-high-throughput use cases may require custom tuning or alternative approaches.
+
+The goal of the package is to offer predictable behavior and seamless integration within Laravel’s ecosystem, rather
+than introducing complex Redis abstractions.
+
+---
+
+## When NOT to Use This Package
+
+This package is a good fit for applications relying on Redis Sentinel for high availability, but it may not be
+the right choice in all situations.
+
+Consider alternatives if:
+
+- You are using **Redis Cluster** and require native sharding support.
+- Your workload requires **client-side sharding or partitioning**.
+- You need **ultra-low-latency** Redis access with minimal routing logic.
+- You rely on Redis features or deployment models that are not compatible with Sentinel.
+- You prefer to manage Redis failover and topology changes entirely outside of the application layer.
+
+In these cases, a simpler Redis client or a different Redis deployment model may be more appropriate.
+
+---
+
 ## Performance Tips
 
 1. **Enable read_only_replicas**: Distribute read load across replicas
 2. **Use pipelining**: Batch multiple commands for better throughput
-3. **Configure connection pooling**: Reuse connections in Octane
+3. **Reuse connections** in long-lived runtimes: Avoid unnecessary reconnects in Octane or Horizon
 4. **Monitor replica lag**: Ensure replicas are in sync
 5. **Tune retry delays**: Adjust based on your infrastructure
 
@@ -731,15 +820,9 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 ---
 
-## Security
-
-If you discover a security vulnerability, please email security@example.com instead of using the issue tracker.
-
----
-
 ## Inspiration & alternatives
 
-Thanks to both creators of these wonderfull libs.
+Thanks to both creators of these wonderful libs.
 
 - [Namoshek/laravel-redis-sentinel](https://github.com/Namoshek/laravel-redis-sentinel)
 - [monospice/laravel-redis-sentinel-drivers](https://github.com/monospice/laravel-redis-sentinel-drivers)
