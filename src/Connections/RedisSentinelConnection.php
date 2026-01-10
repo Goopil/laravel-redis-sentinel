@@ -162,6 +162,42 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * Remove all keys from the current database and reset stickiness.
+     *
+     * @throws Throwable
+     */
+    public function flushdb($async = null): mixed
+    {
+        try {
+            return $this->retry(
+                fn () => parent::flushdb($async),
+                __FUNCTION__
+            );
+        } finally {
+            // Reset stickiness after flushing since all data is gone
+            $this->wroteToMaster = false;
+        }
+    }
+
+    /**
+     * Remove all keys from all databases and reset stickiness.
+     *
+     * @throws Throwable
+     */
+    public function flushall($async = null): mixed
+    {
+        try {
+            return $this->retry(
+                fn () => parent::flushall($async),
+                __FUNCTION__
+            );
+        } finally {
+            // Reset stickiness after flushing since all data is gone
+            $this->wroteToMaster = false;
+        }
+    }
+
+    /**
      * @throws Throwable
      */
     public function pipeline(?callable $callback = null): array|\Redis

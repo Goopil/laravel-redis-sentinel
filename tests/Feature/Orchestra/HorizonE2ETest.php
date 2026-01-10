@@ -331,9 +331,6 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
         $wroteToMasterProp->setAccessible(true);
 
-        // Reset stickiness from any previous operations (like Cache::flush in beforeEach)
-        $connection->resetStickiness();
-
         // Start with no stickiness
         expect($wroteToMasterProp->getValue($connection))->toBeFalse();
 
