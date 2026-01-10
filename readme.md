@@ -304,13 +304,13 @@ The sticky mode **automatically resets** between requests in Octane/Horizon.
 
 The following commands are routed to replicas:
 
-**Strings**: `get`, `mget`, `strlen`, `getrange`
-**Hashes**: `hget`, `hgetall`, `hmget`, `hkeys`, `hvals`, `hexists`
-**Lists**: `lindex`, `llen`, `lrange`
-**Sets**: `scard`, `sismember`, `smembers`, `srandmember`
-**Sorted Sets**: `zcard`, `zcount`, `zrange`, `zrank`, `zscore`
-**Keys**: `exists`, `keys`, `scan`, `type`, `ttl`, `pttl`
-**Info**: `info`, `memory`, `pubsub`
+- **Strings**: `get`, `mget`, `strlen`, `getrange`
+- **Hashes**: `hget`, `hgetall`, `hmget`, `hkeys`, `hvals`, `hexists`
+- **Lists**: `lindex`, `llen`, `lrange`
+- **Sets**: `scard`, `sismember`, `smembers`, `srandmember`
+- **Sorted Sets**: `zcard`, `zcount`, `zrange`, `zrank`, `zscore`
+- **Keys**: `exists`, `keys`, `scan`, `type`, `ttl`, `pttl`
+- **Info**: `info`, `memory`, `pubsub`
 
 All other commands are routed to the master.
 
@@ -822,7 +822,10 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 ## Inspiration & alternatives
 
-Thanks to both creators of these wonderful libs.
+This project is inspired by earlier Redis Sentinel integrations in the Laravel ecosystem.
+
+A sincere thank you to the authors of the following projects for their work, ideas, and contributions to the
+community:
 
 - [Namoshek/laravel-redis-sentinel](https://github.com/Namoshek/laravel-redis-sentinel)
 - [monospice/laravel-redis-sentinel-drivers](https://github.com/monospice/laravel-redis-sentinel-drivers)
