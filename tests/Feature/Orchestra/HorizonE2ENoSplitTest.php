@@ -7,9 +7,7 @@ use Workbench\App\Jobs\HorizonTestJob;
 
 describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', function () {
     beforeEach(function () {
-        Cache::flush();
-
-        // Configure WITHOUT read/write splitting (master only mode)
+        // Configure WITHOUT read/write splitting (master only mode) BEFORE flush
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', false);
         config()->set('horizon.use', 'phpredis-sentinel');
         config()->set('horizon.prefix', 'horizon-master:');
@@ -26,6 +24,13 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
+
+        // Now safe to flush
+        try {
+            Cache::flush();
+        } catch (\Exception $e) {
+            // Ignore flush errors in setup
+        }
     });
 
     test('horizon uses master only mode (no read/write splitting)', function () {

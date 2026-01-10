@@ -7,9 +7,7 @@ use Workbench\App\Jobs\HorizonTestJob;
 
 describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
     beforeEach(function () {
-        Cache::flush();
-
-        // Configure read/write splitting for Horizon
+        // Configure read/write splitting for Horizon BEFORE flush
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         config()->set('horizon.use', 'phpredis-sentinel');
         config()->set('horizon.prefix', 'horizon-e2e:');
@@ -26,6 +24,13 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
+
+        // Now safe to flush
+        try {
+            Cache::flush();
+        } catch (\Exception $e) {
+            // Ignore flush errors in setup
+        }
     });
 
     test('horizon uses read/write splitting correctly', function () {

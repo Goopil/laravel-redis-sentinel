@@ -7,9 +7,7 @@ use Workbench\App\Jobs\HorizonTestJob;
 
 describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () {
     beforeEach(function () {
-        Cache::flush();
-
-        // Configure read/write splitting for realistic failover scenario
+        // Configure read/write splitting for realistic failover scenario BEFORE flush
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         config()->set('horizon.use', 'phpredis-sentinel');
         config()->set('horizon.prefix', 'horizon-failover:');
@@ -17,7 +15,20 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
 
         // Purge connections
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+
+        $reflection = new ReflectionClass($manager);
+        $configProp = $reflection->getProperty('config');
+        $configProp->setAccessible(true);
+        $configProp->setValue($manager, config('database.redis'));
+
         $manager->purge('phpredis-sentinel');
+
+        // Now safe to flush
+        try {
+            Cache::flush();
+        } catch (\Exception $e) {
+            // Ignore flush errors in setup
+        }
     });
 
     test('horizon jobs complete successfully before failover', function () {

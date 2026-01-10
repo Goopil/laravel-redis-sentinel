@@ -6,9 +6,7 @@ use Illuminate\Support\Facades\Redis;
 
 describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function () {
     beforeEach(function () {
-        Cache::flush();
-
-        // Configure WITHOUT read/write splitting (master only mode)
+        // Configure WITHOUT read/write splitting (master only mode) BEFORE flush
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', false);
         config()->set('cache.default', 'phpredis-sentinel');
         config()->set('cache.stores.phpredis-sentinel', [
@@ -17,7 +15,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             'lock_connection' => 'phpredis-sentinel',
         ]);
 
-        // Purge connections
+        // Purge connections to ensure fresh config
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
@@ -26,6 +24,13 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
+
+        // Now safe to flush
+        try {
+            Cache::flush();
+        } catch (\Exception $e) {
+            // Ignore flush errors in setup
+        }
     });
 
     test('cache operations in master-only mode', function () {

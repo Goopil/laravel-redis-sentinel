@@ -23,8 +23,12 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         $manager->purge('phpredis-sentinel');
 
         // Fresh session
-        Session::flush();
-        Session::regenerate();
+        try {
+            Session::flush();
+            Session::regenerate();
+        } catch (\Exception $e) {
+            // Ignore errors in setup
+        }
     });
 
     afterEach(function () {

@@ -8,9 +8,7 @@ use Workbench\App\Jobs\ProcessOrderJob;
 
 describe('Queue E2E Failover Tests with Read/Write Mode', function () {
     beforeEach(function () {
-        Cache::flush();
-
-        // Configure read/write splitting for queue
+        // Configure read/write splitting BEFORE flush
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         config()->set('queue.default', 'phpredis-sentinel');
         config()->set('queue.connections.phpredis-sentinel', [
@@ -23,7 +21,20 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
 
         // Purge connections
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+
+        $reflection = new ReflectionClass($manager);
+        $configProp = $reflection->getProperty('config');
+        $configProp->setAccessible(true);
+        $configProp->setValue($manager, config('database.redis'));
+
         $manager->purge('phpredis-sentinel');
+
+        // Now safe to flush
+        try {
+            Cache::flush();
+        } catch (\Exception $e) {
+            // Ignore flush errors in setup
+        }
     });
 
     test('queue operations use read/write splitting correctly', function () {

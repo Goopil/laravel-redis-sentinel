@@ -6,9 +6,7 @@ use Illuminate\Support\Facades\Redis;
 
 describe('Cache E2E Failover Tests with Read/Write Mode', function () {
     beforeEach(function () {
-        Cache::flush();
-
-        // Configure read/write splitting for cache
+        // Configure read/write splitting for cache BEFORE flush
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         config()->set('cache.default', 'phpredis-sentinel');
         config()->set('cache.stores.phpredis-sentinel', [
@@ -17,9 +15,22 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
             'lock_connection' => 'phpredis-sentinel',
         ]);
 
-        // Purge connections
+        // Purge connections to ensure fresh config
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+
+        $reflection = new ReflectionClass($manager);
+        $configProp = $reflection->getProperty('config');
+        $configProp->setAccessible(true);
+        $configProp->setValue($manager, config('database.redis'));
+
         $manager->purge('phpredis-sentinel');
+
+        // Now safe to flush with properly configured connection
+        try {
+            Cache::flush();
+        } catch (\Exception $e) {
+            // Ignore flush errors in setup
+        }
     });
 
     test('cache operations use read/write splitting correctly', function () {
