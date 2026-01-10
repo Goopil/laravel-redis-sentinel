@@ -97,7 +97,10 @@ jobs:
           echo "redis_replica2=$((PORT_BASE + 2))" >> $GITHUB_OUTPUT
           echo "redis_standalone=$((PORT_BASE + 3))" >> $GITHUB_OUTPUT
           echo "sentinel=$((PORT_BASE + 4))" >> $GITHUB_OUTPUT
-          echo "project_name=redis_php${{ matrix.php }}_l${{ matrix.laravel }}_r${{ matrix.redis }}" >> $GITHUB_OUTPUT
+
+          # Docker Compose project name must be lowercase alphanumeric, hyphens, underscores only
+          PROJECT_NAME="redis_php$(echo '${{ matrix.php }}' | tr '.' '_')_l${{ matrix.laravel }}_r${{ matrix.redis }}"
+          echo "project_name=${PROJECT_NAME}" >> $GITHUB_OUTPUT
 
       - name: Start Redis Sentinel Cluster
         env:
