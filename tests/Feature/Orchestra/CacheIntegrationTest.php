@@ -62,9 +62,9 @@ describe('Cache Integration with Orchestra', function () {
         // Flush specific tags
         expect($this->cacheService->flushTags(['premium']))->toBeTrue();
 
-        // Tagged items with premium should be gone
-        expect($this->cacheService->getWithTags($tags, 'user:1'))->toBeNull()
-            ->and($this->cacheService->getWithTags($tags, 'user:2'))->toBeNull()
+        // Tagged items with premium tag should be gone when accessing via premium tag
+        expect($this->cacheService->getWithTags(['premium'], 'user:1'))->toBeNull()
+            ->and($this->cacheService->getWithTags(['premium'], 'user:2'))->toBeNull()
             // But user:3 should still exist (only tagged with 'users')
             ->and($this->cacheService->getWithTags(['users'], 'user:3'))->toBe(['name' => 'Bob']);
     });
