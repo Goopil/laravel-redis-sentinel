@@ -140,6 +140,7 @@ jobs:
           REDIS_PREFIX: gh_${{ github.run_id }}_php${{ matrix.php }}_l${{ matrix.laravel }}_r${{ matrix.redis }}_
           REDIS_HOST: 127.0.0.1
           REDIS_PORT: ${{ steps.ports.outputs.redis_main }}
+          REDIS_STANDALONE_PORT: ${{ steps.ports.outputs.redis_standalone }}
           REDIS_SENTINEL_PORT: ${{ steps.ports.outputs.sentinel }}
           REDIS_SENTINEL_HOST: 127.0.0.1
 
