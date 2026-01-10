@@ -96,6 +96,11 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
                     event(new OrderShipped("order_{$i}", $i, "TRACK_{$i}", ["product_{$i}"]));
                 }
             }
+
+            $duration = microtime(true) - $startTime;
+
+            Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $eventCount);
+            expect($duration)->toBeLessThan(10, 'High volume broadcasting should complete in reasonable time');
         } catch (\RedisException $e) {
             // If connection lost during transaction, reconnect and continue
             if (str_contains($e->getMessage(), 'MULTI') || str_contains($e->getMessage(), 'watching')) {
@@ -110,11 +115,6 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             }
             throw $e;
         }
-
-        $duration = microtime(true) - $startTime;
-
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $eventCount);
-        expect($duration)->toBeLessThan(10, 'High volume broadcasting should complete in reasonable time');
     });
 
     test('broadcast connection stability in master-only mode', function () {

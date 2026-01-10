@@ -6,11 +6,14 @@ use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 test('it calls sentinel only once when cache is enabled', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
 
+    // Use actual Redis port from environment (CI uses dynamic ports)
+    $redisPort = (int) env('REDIS_PORT', 6379);
+
     // We expect only ONE call to master() even if we create multiple clients
     $sentinelMock->expects('master')
         ->with('mymaster')
         ->once()
-        ->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
+        ->andReturn(['ip' => '127.0.0.1', 'port' => $redisPort]);
 
     $connector = new class($sentinelMock) extends RedisSentinelConnector
     {
@@ -53,13 +56,16 @@ test('it calls sentinel only once when cache is enabled', function () {
 test('it invalidates cache when refresh is requested', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
 
+    // Use actual Redis port from environment (CI uses dynamic ports)
+    $redisPort = (int) env('REDIS_PORT', 6379);
+
     // Expect TWO calls to master() because we will force a refresh
     $sentinelMock->expects('master')
         ->with('mymaster')
         ->twice()
         ->andReturn(
-            ['ip' => '127.0.0.1', 'port' => 6379],
-            ['ip' => '127.0.0.2', 'port' => 6379]
+            ['ip' => '127.0.0.1', 'port' => $redisPort],
+            ['ip' => '127.0.0.2', 'port' => $redisPort]
         );
 
     $connector = new class($sentinelMock) extends RedisSentinelConnector

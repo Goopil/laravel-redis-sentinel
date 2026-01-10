@@ -10,11 +10,14 @@ use Illuminate\Support\Facades\Event;
 test('it retries when master not found', function () {
     Event::fake();
 
+    // Use actual Redis port from environment (CI uses dynamic ports)
+    $redisPort = (int) env('REDIS_PORT', 6379);
+
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->expects('master')
         ->with('mymaster')
         ->times(3)
-        ->andReturns(false, false, ['ip' => '127.0.0.1', 'port' => 6379]);
+        ->andReturns(false, false, ['ip' => '127.0.0.1', 'port' => $redisPort]);
 
     $connector = new class($sentinelMock) extends RedisSentinelConnector
     {

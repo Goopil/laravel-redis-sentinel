@@ -5,12 +5,15 @@ use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 
 test('it can connect using multiple sentinels when first is down', function () {
+    // Use actual Redis port from environment (CI uses dynamic ports)
+    $redisPort = (int) env('REDIS_PORT', 6379);
+
     $sentinel1 = Mockery::mock(RedisSentinel::class);
     $sentinel1->expects('ping')->andThrow(new RedisException('Connection refused'));
 
     $sentinel2 = Mockery::mock(RedisSentinel::class);
     $sentinel2->expects('ping')->andReturn(true);
-    $sentinel2->expects('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
+    $sentinel2->expects('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => $redisPort]);
 
     $connector = new class([$sentinel1, $sentinel2]) extends RedisSentinelConnector
     {
