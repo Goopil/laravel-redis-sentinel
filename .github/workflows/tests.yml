@@ -74,11 +74,43 @@ jobs:
             ${{ runner.os }}-php-${{ matrix.php }}-laravel-${{ matrix.laravel }}-
             ${{ runner.os }}-php-${{ matrix.php }}-
 
+      - name: Calculate unique ports for this matrix job
+        id: ports
+        run: |
+          # Calculate unique port base for this specific matrix combination
+          # Base: 7000 + (index * 10) where index is calculated from matrix values
+          # This ensures each job gets 5 consecutive ports (main, replica1, replica2, standalone, sentinel)
+
+          PHP_INDEX=$(echo "${{ matrix.php }}" | sed 's/8\.//' | sed 's/\.//g')  # 8.2->2, 8.3->3, 8.4->4
+          LARAVEL_INDEX=${{ matrix.laravel }}  # 10, 11, 12
+          REDIS_INDEX=${{ matrix.redis }}  # 6, 7
+
+          # Calculate unique index: ((PHP-2)*6 + (LARAVEL-10)*2 + (REDIS-6))
+          MATRIX_INDEX=$(( (PHP_INDEX - 2) * 6 + (LARAVEL_INDEX - 10) * 2 + (REDIS_INDEX - 6) ))
+          PORT_BASE=$((7000 + MATRIX_INDEX * 10))
+
+          echo "Matrix combination: PHP ${{ matrix.php }}, Laravel ${{ matrix.laravel }}, Redis ${{ matrix.redis }}"
+          echo "Matrix index: ${MATRIX_INDEX}, Port base: ${PORT_BASE}"
+
+          echo "redis_main=$((PORT_BASE + 0))" >> $GITHUB_OUTPUT
+          echo "redis_replica1=$((PORT_BASE + 1))" >> $GITHUB_OUTPUT
+          echo "redis_replica2=$((PORT_BASE + 2))" >> $GITHUB_OUTPUT
+          echo "redis_standalone=$((PORT_BASE + 3))" >> $GITHUB_OUTPUT
+          echo "sentinel=$((PORT_BASE + 4))" >> $GITHUB_OUTPUT
+          echo "project_name=redis_php${{ matrix.php }}_l${{ matrix.laravel }}_r${{ matrix.redis }}" >> $GITHUB_OUTPUT
+
       - name: Start Redis Sentinel Cluster
         env:
           REDIS_VERSION: ${{ matrix.redis }}
+          REDIS_MAIN_PORT: ${{ steps.ports.outputs.redis_main }}
+          REDIS_REPLICA1_PORT: ${{ steps.ports.outputs.redis_replica1 }}
+          REDIS_REPLICA2_PORT: ${{ steps.ports.outputs.redis_replica2 }}
+          REDIS_STANDALONE_PORT: ${{ steps.ports.outputs.redis_standalone }}
+          REDIS_SENTINEL_PORT: ${{ steps.ports.outputs.sentinel }}
+          COMPOSE_PROJECT_NAME: ${{ steps.ports.outputs.project_name }}
           SENTINEL_EXTRA_CONFIG: "echo 'sentinel resolve-hostnames yes' >> /tmp/sentinel.conf && echo 'sentinel announce-hostnames yes' >> /tmp/sentinel.conf &&"
         run: |
+          echo "Starting Redis cluster on ports: Main=$REDIS_MAIN_PORT, Replica1=$REDIS_REPLICA1_PORT, Replica2=$REDIS_REPLICA2_PORT, Standalone=$REDIS_STANDALONE_PORT, Sentinel=$REDIS_SENTINEL_PORT"
           SENTINEL_EXTRA_CONFIG="$SENTINEL_EXTRA_CONFIG" docker compose -f tests/ci/docker-compose.yml up -d
 
       - name: Install dependencies
@@ -88,10 +120,10 @@ jobs:
 
       - name: Wait for Redis Cluster to be ready
         run: |
-          echo "Waiting for Redis cluster..."
+          echo "Waiting for Redis cluster on sentinel port ${{ steps.ports.outputs.sentinel }}..."
           # Wait for sentinel to respond with PONG
           # Use docker run to avoid container naming issues with docker compose exec
-          until docker run --network host --rm redis:${{ matrix.redis }}-alpine redis-cli -p 26379 -a test ping | grep -q PONG; do
+          until docker run --network host --rm redis:${{ matrix.redis }}-alpine redis-cli -p ${{ steps.ports.outputs.sentinel }} -a test ping | grep -q PONG; do
             echo "Sentinel not ready yet..."
             sleep 2
           done
@@ -102,8 +134,15 @@ jobs:
         env:
           REDIS_PASSWORD: test
           REDIS_SENTINEL_PASSWORD: test
-          REDIS_PREFIX: gh_${{ github.run_id }}
+          REDIS_PREFIX: gh_${{ github.run_id }}_php${{ matrix.php }}_l${{ matrix.laravel }}_r${{ matrix.redis }}_
           REDIS_HOST: 127.0.0.1
-          REDIS_PORT: 6380
-          REDIS_SENTINEL_PORT: 26379
+          REDIS_PORT: ${{ steps.ports.outputs.redis_main }}
+          REDIS_SENTINEL_PORT: ${{ steps.ports.outputs.sentinel }}
           REDIS_SENTINEL_HOST: 127.0.0.1
+
+      - name: Cleanup Redis Cluster
+        if: always()
+        env:
+          COMPOSE_PROJECT_NAME: ${{ steps.ports.outputs.project_name }}
+        run: |
+          docker compose -f tests/ci/docker-compose.yml down -v --remove-orphans || true
