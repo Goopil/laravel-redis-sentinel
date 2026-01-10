@@ -62,7 +62,7 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, readline, ldap, msgpack, igbinary, redis, sodium
           tools: composer:v2
-          coverage: none
+          coverage: pcov
 
       - name: Get composer cache directory
         id: composer-cache
@@ -136,7 +136,7 @@ jobs:
           echo "Redis Sentinel is ready!"
 
       - name: Execute tests
-        run: vendor/bin/pest
+        run: vendor/bin/pest --coverage-clover coverage.xml
         env:
           REDIS_PASSWORD: test
           REDIS_SENTINEL_PASSWORD: test
@@ -146,6 +146,13 @@ jobs:
           REDIS_STANDALONE_PORT: ${{ steps.ports.outputs.redis_standalone }}
           REDIS_SENTINEL_PORT: ${{ steps.ports.outputs.sentinel }}
           REDIS_SENTINEL_HOST: 127.0.0.1
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
+          fail_ci_if_error: false
 
       - name: Cleanup Redis Cluster
         if: always()

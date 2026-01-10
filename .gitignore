@@ -2,3 +2,7 @@
 vendor
 .phpunit.cache
 .DS_Store
+.phpunit.result.cache
+coverage/
+coverage.xml
+.pest_coverage_cache
