@@ -10,6 +10,14 @@ use Workbench\App\Jobs\SendEmailJob;
 
 describe('Queue Integration with Orchestra', function () {
     beforeEach(function () {
+        // Configure cache to use phpredis-sentinel driver (jobs use Cache)
+        config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
+
         // Try to flush cache if available
         try {
             Cache::flush();

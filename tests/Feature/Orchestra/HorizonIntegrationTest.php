@@ -6,6 +6,14 @@ use Workbench\App\Jobs\HorizonTestJob;
 
 describe('Horizon Integration with Orchestra', function () {
     beforeEach(function () {
+        // Configure cache to use phpredis-sentinel driver (Horizon jobs use Cache)
+        config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
+
         // Configure Horizon to use phpredis-sentinel
         config()->set('horizon.use', 'phpredis-sentinel');
         config()->set('horizon.prefix', 'horizon-test:');

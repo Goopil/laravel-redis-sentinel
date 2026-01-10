@@ -5,6 +5,14 @@ use Workbench\App\Services\CacheService;
 
 describe('Cache Integration with Orchestra', function () {
     beforeEach(function () {
+        // Configure cache to use phpredis-sentinel driver
+        config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
+
         $this->cacheService = new CacheService;
 
         // Ensure proper cache configuration before flush
