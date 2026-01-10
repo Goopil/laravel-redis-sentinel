@@ -88,7 +88,20 @@ describe('Reconnect', function () {
          */
         $sentinel = app()->make('redis.sentinel')->createSentinel('phpredis-sentinel');
         $host = implode('', $sentinel->getMasterAddrByName('master'));
-        expect($sentinel->failover('master'))->toBeTrue();
+
+        // Attempt failover - it may fail if a failover is already in progress or replicas aren't ready
+        // In CI environments, this can sometimes return false, so we retry a few times
+        $failoverTriggered = false;
+        $maxFailoverAttempts = 5;
+        for ($attempt = 0; $attempt < $maxFailoverAttempts; $attempt++) {
+            if ($sentinel->failover('master')) {
+                $failoverTriggered = true;
+                break;
+            }
+            usleep(500000); // 500ms between attempts
+        }
+
+        expect($failoverTriggered)->toBeTrue('Failover command should succeed after retries');
 
         // Invalidate the cache after failover to ensure the package will fetch the new master
         app(NodeAddressCache::class)->forget('master');

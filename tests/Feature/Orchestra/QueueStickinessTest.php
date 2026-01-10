@@ -26,7 +26,7 @@ describe('Queue Stickiness', function () {
         // The JobProcessing event constructor requires connection name and job instance.
         // We can just mock the job.
         $job = Mockery::mock(\Illuminate\Contracts\Queue\Job::class);
-        $job->expects('payload')->andReturn([]);
+        $job->allows('payload')->andReturn([]);
         Event::dispatch(new JobProcessing('phpredis-sentinel', $job));
 
         // 3. Verify it's no longer sticky

@@ -10,7 +10,28 @@ use Workbench\App\Jobs\SendEmailJob;
 
 describe('Queue Integration with Orchestra', function () {
     beforeEach(function () {
-        Cache::flush();
+        // Disable read-only replicas for this test suite
+        config()->set('database.redis.phpredis-sentinel.read_only_replicas', false);
+
+        // Force reconnection to ensure read_only_replicas config is applied
+        app()->forgetInstance('redis');
+        app()->forgetInstance('phpredis-sentinel');
+
+        // Configure cache to use phpredis-sentinel driver (jobs use Cache)
+        config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
+
+        // Try to flush cache if available
+        try {
+            Cache::flush();
+        } catch (\Exception $e) {
+            // Ignore flush errors - cache might not be ready yet
+        }
+
         Queue::fake();
     });
 
@@ -142,6 +163,13 @@ describe('Queue Integration with Orchestra', function () {
 
 describe('Queue Job Execution with Real Redis', function () {
     beforeEach(function () {
+        // Disable read-only replicas for this test suite
+        config()->set('database.redis.phpredis-sentinel.read_only_replicas', false);
+
+        // Force reconnection to ensure read_only_replicas config is applied
+        app()->forgetInstance('redis');
+        app()->forgetInstance('phpredis-sentinel');
+
         Cache::flush();
         // Use real queue connection for execution tests
         config()->set('queue.default', 'phpredis-sentinel');

@@ -32,6 +32,10 @@ class TestCase extends Orchestra
             $config->set('session.driver', 'redis');
             $config->set('cache.default', 'redis');
 
+            $config->set('cache.stores.redis.connection', 'redis');
+            $config->set('cache.stores.redis.lock_connection', 'redis');
+            $config->set('queue.connections.redis.connection', 'redis');
+
             $config->set('database.redis.phpredis-sentinel', [
                 'client' => 'phpredis-sentinel',
                 'sentinel' => [
@@ -53,7 +57,8 @@ class TestCase extends Orchestra
             $config->set('database.redis.redis', [
                 'host' => env('REDIS_HOST', '127.0.0.1'),
                 'password' => env('REDIS_PASSWORD', 'test'),
-                'port' => env('REDIS_PORT', 6379),
+                // Use standalone Redis port (different from Sentinel master port in CI)
+                'port' => env('REDIS_STANDALONE_PORT', env('REDIS_PORT', 6379)),
                 'database' => env('REDIS_DATABASE', '0'),
                 'options' => [
                     'prefix' => ('redis'.env('REDIS_PREFIX', '')),

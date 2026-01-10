@@ -75,12 +75,26 @@ class RedisSentinelConnection extends PhpRedisConnection
         'zcard', 'zcount', 'zlexcount', 'zrange', 'zrank', 'zrevrange', 'zrevrank', 'zscore', 'zscan',
         'zrangebyscore', 'zrevrangebyscore', 'zrangebylex', 'zrevrangebylex',
         'exists', 'keys', 'scan', 'type', 'pttl', 'ttl', 'info', 'memory',
+        'pubsub',
     ];
 
     /**
-     * The read-only client instance.
+     * The master client instance (always writes to master).
+     * This reference is kept separate to guarantee writes always go to master.
+     */
+    protected \Redis $masterClient;
+
+    /**
+     * The read-only replica client instance.
      */
     protected ?\Redis $readClient = null;
+
+    /**
+     * The master connection creation callback.
+     *
+     * @var callable|null
+     */
+    protected $masterConnector;
 
     /**
      * The read-only connection creation callback.
@@ -102,11 +116,18 @@ class RedisSentinelConnection extends PhpRedisConnection
     /**
      * Create a new Redis Sentinel connection.
      *
-     * @param  \Redis  $client
+     * @param  \Redis  $client  The master client instance
+     * @param  callable|null  $connector  Callback to create a new master connection
+     * @param  array  $config  Connection configuration
+     * @param  callable|null  $readConnector  Callback to create a new read-only connection
      */
     public function __construct($client, ?callable $connector = null, array $config = [], ?callable $readConnector = null)
     {
         parent::__construct($client, $connector, $config);
+
+        // Store master client separately to guarantee writes always go to master
+        $this->masterClient = $client;
+        $this->masterConnector = $connector;
         $this->readConnector = $readConnector;
     }
 
@@ -159,6 +180,42 @@ class RedisSentinelConnection extends PhpRedisConnection
             fn () => parent::sscan($key, $cursor, $options),
             __FUNCTION__
         );
+    }
+
+    /**
+     * Remove all keys from the current database and reset stickiness.
+     *
+     * @throws Throwable
+     */
+    public function flushdb($async = null): mixed
+    {
+        try {
+            return $this->retry(
+                fn () => parent::flushdb($async),
+                __FUNCTION__
+            );
+        } finally {
+            // Reset stickiness after flushing since all data is gone
+            $this->wroteToMaster = false;
+        }
+    }
+
+    /**
+     * Remove all keys from all databases and reset stickiness.
+     *
+     * @throws Throwable
+     */
+    public function flushall($async = null): mixed
+    {
+        try {
+            return $this->retry(
+                fn () => parent::flushall($async),
+                __FUNCTION__
+            );
+        } finally {
+            // Reset stickiness after flushing since all data is gone
+            $this->wroteToMaster = false;
+        }
     }
 
     /**
@@ -232,6 +289,11 @@ class RedisSentinelConnection extends PhpRedisConnection
     /**
      * Execute the given callback with retry logic.
      *
+     * This method ensures that:
+     * - Write commands ALWAYS use the master client
+     * - Read commands use replica (if available) unless wroteToMaster is true
+     * - Client references are never mixed or corrupted
+     *
      * @throws Throwable
      */
     private function retry(callable $callback, string $name): mixed
@@ -240,22 +302,37 @@ class RedisSentinelConnection extends PhpRedisConnection
 
         $result = $this->retryOnFailure(
             function () use ($callback, $name) {
-                $clientBefore = $this->client;
-                $this->client = $this->resolveClientForCommand($name);
+                // Determine which client to use for this command
+                $targetClient = $this->resolveClientForCommand($name);
+
+                // CRITICAL: Temporarily swap $this->client to the target client
+                // This is necessary because parent class methods use $this->client
+                // We always restore to masterClient to ensure consistency
+                $this->client = $targetClient;
 
                 try {
                     return $callback();
                 } finally {
-                    $this->client = $clientBefore;
+                    // Always restore to master client to ensure $this->client is never corrupted
+                    $this->client = $this->masterClient;
                 }
             },
             onFail: function ($exception, $attempts) use ($name, $isReadOnly) {
                 RedisSentinelConnectionFailed::dispatch($this, $exception, $name, $attempts);
 
+                // Reconnect the appropriate client based on command type
                 if ($isReadOnly && $this->readConnector) {
+                    // Refresh read replica connection
                     $this->readClient = call_user_func($this->readConnector, true);
                 } else {
-                    $this->client = $this->connector ? call_user_func($this->connector, true) : $this->client;
+                    // Refresh master connection - this is critical for write commands
+                    $newMasterClient = $this->masterConnector
+                        ? call_user_func($this->masterConnector, true)
+                        : $this->masterClient;
+
+                    // Update both references to guarantee consistency
+                    $this->masterClient = $newMasterClient;
+                    $this->client = $newMasterClient;
                 }
 
                 $this->log($name.' - retry', [
@@ -287,6 +364,7 @@ class RedisSentinelConnection extends PhpRedisConnection
             }
         );
 
+        // Mark stickiness for write operations
         if (! $isReadOnly) {
             $this->wroteToMaster = true;
         }
@@ -296,17 +374,36 @@ class RedisSentinelConnection extends PhpRedisConnection
 
     /**
      * Resolve the client instance for the given command.
+     *
+     * This method implements the read/write splitting logic:
+     * - Write commands ALWAYS return master client (guaranteed)
+     * - Read commands return replica IF:
+     *   - Read connector is configured
+     *   - Not in a transaction/pipeline
+     *   - No write has been performed (sticky session)
+     *   - Command is actually read-only
+     * - Otherwise, return master client
+     *
+     * @return \Redis The Redis client instance to use for this command
      */
     protected function resolveClientForCommand(string $method): \Redis
     {
-        if ($this->readConnector !== null &&
-            $this->transactionLevel === 0 &&
-            ! $this->wroteToMaster &&
-            $this->isReadOnlyCommand($method)) {
+        // CRITICAL: Write commands ALWAYS use master
+        if (! $this->isReadOnlyCommand($method)) {
+            return $this->masterClient;
+        }
+
+        // Read command: check if we can use replica
+        $canUseReplica = $this->readConnector !== null  // Replica configured
+            && $this->transactionLevel === 0            // Not in transaction
+            && ! $this->wroteToMaster;                  // No write performed (sticky session)
+
+        if ($canUseReplica) {
             return $this->getReadClient();
         }
 
-        return $this->client;
+        // Fallback to master for read commands if replica not available or sticky
+        return $this->masterClient;
     }
 
     /**

@@ -12,16 +12,24 @@ test('it calls sentinel only once when cache is enabled', function () {
         ->once()
         ->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
 
-    $connector = new class($sentinelMock) extends RedisSentinelConnector
+    $mockRedisClient = Mockery::mock(Redis::class);
+
+    $connector = new class($sentinelMock, $mockRedisClient) extends RedisSentinelConnector
     {
-        public function __construct(private $sentinelMock)
+        private $mockSentinel;
+
+        private $mockRedis;
+
+        public function __construct($sentinelMock, $mockRedis)
         {
             parent::__construct(app(NodeAddressCache::class));
+            $this->mockSentinel = $sentinelMock;
+            $this->mockRedis = $mockRedis;
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
         {
-            return $this->sentinelMock;
+            return $this->mockSentinel;
         }
 
         public function exposeCreateClient(array $config)
@@ -29,13 +37,23 @@ test('it calls sentinel only once when cache is enabled', function () {
             return $this->createClient($config);
         }
 
-        protected function establishConnection($client, array $config): void
+        // Override to call getMasterAddress but return mock Redis client
+        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            // bypass actual connection
+            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+                return $this->mockRedis;
+            }
+
+            // This triggers the sentinel call and cache logic
+            $readOnly ? $this->getReplicaAddress($config, $refresh) : $this->getMasterAddress($config, $refresh);
+
+            // Return mock instead of real Redis client
+            return $this->mockRedis;
         }
     };
 
     $config = [
+        'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
             'host' => '127.0.0.1',
@@ -61,16 +79,24 @@ test('it invalidates cache when refresh is requested', function () {
             ['ip' => '127.0.0.2', 'port' => 6379]
         );
 
-    $connector = new class($sentinelMock) extends RedisSentinelConnector
+    $mockRedisClient = Mockery::mock(Redis::class);
+
+    $connector = new class($sentinelMock, $mockRedisClient) extends RedisSentinelConnector
     {
-        public function __construct(private $sentinelMock)
+        private $mockSentinel;
+
+        private $mockRedis;
+
+        public function __construct($sentinelMock, $mockRedis)
         {
             parent::__construct(app(NodeAddressCache::class));
+            $this->mockSentinel = $sentinelMock;
+            $this->mockRedis = $mockRedis;
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
         {
-            return $this->sentinelMock;
+            return $this->mockSentinel;
         }
 
         public function exposeCreateClient(array $config, $refresh = false)
@@ -78,13 +104,22 @@ test('it invalidates cache when refresh is requested', function () {
             return $this->createClient($config, $refresh);
         }
 
-        protected function establishConnection($client, array $config): void
+        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            // bypass
+            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+                return $this->mockRedis;
+            }
+
+            // This triggers the sentinel call and cache logic
+            $readOnly ? $this->getReplicaAddress($config, $refresh) : $this->getMasterAddress($config, $refresh);
+
+            // Return mock instead of real Redis client
+            return $this->mockRedis;
         }
     };
 
     $config = [
+        'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
             'host' => '127.0.0.1',
