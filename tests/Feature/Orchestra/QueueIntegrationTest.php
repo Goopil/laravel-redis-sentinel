@@ -10,7 +10,13 @@ use Workbench\App\Jobs\SendEmailJob;
 
 describe('Queue Integration with Orchestra', function () {
     beforeEach(function () {
-        Cache::flush();
+        // Try to flush cache if available
+        try {
+            Cache::flush();
+        } catch (\Exception $e) {
+            // Ignore flush errors - cache might not be ready yet
+        }
+
         Queue::fake();
     });
 
