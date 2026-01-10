@@ -2,6 +2,7 @@
     "name": "goopil/laravel-redis-sentinel",
     "type": "library",
     "description": "Redis sentinel connector for laravel",
+    "license": "LGPL-3.0-or-later",
     "keywords": [
         "library",
         "laravel",
