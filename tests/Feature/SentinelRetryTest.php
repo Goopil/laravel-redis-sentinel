@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Event;
 test('it retries when master not found', function () {
     Event::fake();
 
-    // Use actual Redis port from environment (CI uses dynamic ports)
-    $redisPort = (int) env('REDIS_PORT', 6379);
+    // Use actual Redis standalone port from environment (CI uses dynamic ports)
+    $redisPort = (int) env('REDIS_STANDALONE_PORT', 6379);
 
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->expects('master')
@@ -21,16 +21,19 @@ test('it retries when master not found', function () {
 
     $connector = new class($sentinelMock) extends RedisSentinelConnector
     {
-        public function __construct(private $sentinelMock)
+        private $mockSentinel;
+
+        public function __construct($sentinelMock)
         {
             parent::__construct(app(NodeAddressCache::class));
+            $this->mockSentinel = $sentinelMock;
             $this->setRetryDelay(1);
             $this->setRetryMessages(['No master found for service']);
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
         {
-            return $this->sentinelMock;
+            return $this->mockSentinel;
         }
 
         public function exposeCreateClient(array $config)
@@ -68,9 +71,12 @@ test('it throws after max retries', function () {
 
     $connector = new class($sentinelMock) extends RedisSentinelConnector
     {
-        public function __construct(private $sentinelMock)
+        private $mockSentinel;
+
+        public function __construct($sentinelMock)
         {
             parent::__construct(app(NodeAddressCache::class));
+            $this->mockSentinel = $sentinelMock;
             $this->setRetryLimit(2);
             $this->setRetryDelay(1);
             $this->setRetryMessages(['No master found for service']);
@@ -78,7 +84,7 @@ test('it throws after max retries', function () {
 
         protected function connectToSentinel(array $config): RedisSentinel
         {
-            return $this->sentinelMock;
+            return $this->mockSentinel;
         }
 
         public function exposeCreateClient(array $config)
@@ -123,7 +129,7 @@ test('it does not retry unrecognized exceptions', function () {
 
         protected function connectToSentinel(array $config): RedisSentinel
         {
-            return $this->sentinelMock;
+            return $this->mockSentinel;
         }
 
         public function exposeCreateClient(array $config)
