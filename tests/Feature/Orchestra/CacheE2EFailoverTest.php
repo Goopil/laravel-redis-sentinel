@@ -44,6 +44,9 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
         $wroteToMasterProp->setAccessible(true);
 
+        // Reset stickiness from any previous operations (like Cache::flush in beforeEach)
+        $connection->resetStickiness();
+
         // Cache read should not trigger stickiness
         Cache::get('test_key');
         expect($wroteToMasterProp->getValue($connection))->toBeFalse('Cache read should not trigger stickiness');

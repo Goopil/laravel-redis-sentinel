@@ -281,6 +281,9 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
         $wroteToMasterProp->setAccessible(true);
 
+        // Reset stickiness from any previous operations (like Cache::flush in beforeEach)
+        $connection->resetStickiness();
+
         // Check channel subscription list (read operation)
         $connection->pubsub('channels', 'user-*');
         expect($wroteToMasterProp->getValue($connection))->toBeFalse('Read operations should not trigger stickiness');
