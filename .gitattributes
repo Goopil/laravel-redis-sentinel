@@ -1,12 +1,16 @@
 .idea export-ignore
 vendor export-ignore
 readme.md export-ignore
+LICENSE export-ignore
+CONTRIBUTING.md export-ignore
 
 tests export-ignore
 testbench.yaml export-ignore
 workbench export-ignore
 phpunit.xml export-ignore
 .phpunit.cache export-ignore
+pint.json export-ignore
+composer.lock export-ignore
 
 .git export-ignore
 .gitignore export-ignore
