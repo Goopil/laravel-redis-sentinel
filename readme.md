@@ -767,13 +767,12 @@ Under the conditions that:
 - 🔗 You state changes made to the code
 - 📖 You make your modifications available under LGPL-3.0 if distributed
 
-See [LICENSE.md](LICENSE.md) for full details.
+See [LICENSE](LICENSE) for full details.
 
 ---
 
 ## Support
 
-- 📖 [Documentation](https://github.com/goopil/laravel-redis-sentinel)
 - 🐛 [Issue Tracker](https://github.com/goopil/laravel-redis-sentinel/issues)
 - 💬 [Discussions](https://github.com/goopil/laravel-redis-sentinel/discussions)
 
