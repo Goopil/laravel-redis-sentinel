@@ -9,6 +9,7 @@ use Illuminate\Redis\Connectors\PhpRedisConnector;
 use Illuminate\Redis\Connectors\PredisConnector;
 use Illuminate\Redis\RedisManager;
 use Illuminate\Support\Arr;
+use InvalidArgumentException;
 use Laravel\Horizon\Connectors\RedisConnector;
 
 class RedisSentinelManager extends RedisManager
@@ -20,51 +21,61 @@ class RedisSentinelManager extends RedisManager
 
     public function resolve($name = null)
     {
-        $config = $this->patchHorizonPrefix(
-            $name,
-            Arr::get(
-                $this->config,
-                $this->patchHorizonConnectionName($name)
-            )
-        );
+        $name = $name ?: 'default';
 
-        return $this
-            ->resolveConnector($name)
-            ->connect(
-                $config,
-                Arr::get($this->config, 'options', [])
+        $normalizedName = $this->patchHorizonConnectionName($name);
+        $previousDriver = $this->driver;
+        $this->driver = $this->config[$normalizedName]['client'] ?? $this->driver;
+
+        try {
+            if ($this->driver !== 'phpredis-sentinel') {
+                return parent::resolve($name);
+            }
+
+            $config = $this->parseConnectionConfiguration($this->config[$normalizedName]);
+
+            $config = $this->patchHorizonPrefix(
+                $name,
+                $config
             );
+
+            $options = $this->config['options'] ?? [];
+
+            $options = array_merge(
+                Arr::except($options, 'parameters'),
+                ['parameters' => Arr::get($options, 'parameters.'.$name, Arr::get($options, 'parameters', []))]
+            );
+
+            return $this->connector()->connect($config, $options);
+        } finally {
+            $this->driver = $previousDriver;
+        }
     }
 
     public function resolveConnector($name = null): Connector|PhpRedisConnector|PredisConnector|RedisSentinelConnector
     {
-        if (Arr::has($this->config, 'clusters.name')) {
+        $normalizedName = $this->patchHorizonConnectionName($name);
+
+        if (($this->config[$normalizedName]['client'] ?? null) === 'phpredis-sentinel' && isset($this->config['clusters']['name'])) {
             throw new ConfigurationException(
                 'Redis Sentinel connections do not support Redis Cluster.'
             );
         }
 
-        $normalizedName = $this->patchHorizonConnectionName($name);
-
-        if (! Arr::has($this->config, $normalizedName)) {
+        if (! isset($this->config[$normalizedName])) {
             throw new ConfigurationException(
                 sprintf('No connection defined with base name %s or overwritten name %s in `database.redis` config', $name, $normalizedName)
             );
         }
 
-        $this->setConnectionDriver($normalizedName);
+        $previousDriver = $this->driver;
+        $this->driver = $this->config[$normalizedName]['client'] ?? $this->driver;
 
-        if ($connector = $this->connector()) {
-            return $connector;
+        try {
+            return $this->connector();
+        } finally {
+            $this->driver = $previousDriver;
         }
-
-        throw new ConfigurationException("Redis connection [{$name}] not configured.");
-    }
-
-    protected function setConnectionDriver(string $name): void
-    {
-        $this->driver = Arr::get($this->config, "$name.client") ??
-            $this->app['config']->get('database.redis.client');
     }
 
     protected function isHorizonContext(): bool

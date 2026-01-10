@@ -233,9 +233,26 @@ class RedisSentinelConnector extends PhpRedisConnector
         $lastException = null;
 
         foreach ($sentinels as $sentinel) {
+            $host = $this->normalizeHost($sentinel['host'] ?? '');
+            $port = $this->normalizePort($sentinel['port'] ?? null);
+
+            // Skip invalid hosts
+            if ($host === null) {
+                $this->log('Invalid sentinel host', ['host' => $sentinel['host'] ?? ''], 'warning');
+
+                continue;
+            }
+
+            // Skip invalid ports
+            if ($port === null) {
+                $this->log('Invalid sentinel port', ['port' => $sentinel['port'] ?? '', 'host' => $host], 'warning');
+
+                continue;
+            }
+
             $options = [
-                'host' => $sentinel['host'],
-                'port' => $sentinel['port'] ?? 26379,
+                'host' => $host,
+                'port' => $port,
                 'connectTimeout' => $config['sentinel']['timeout'] ?? $config['timeout'] ?? 0.2,
                 'persistent' => $config['sentinel']['persistent'] ?? $config['persistent'] ?? null,
                 'retryInterval' => $config['sentinel']['retry_interval'] ?? $config['retry_interval'] ?? 0,
@@ -355,5 +372,54 @@ class RedisSentinelConnector extends PhpRedisConnector
                 'service' => $service,
             ], 'error');
         };
+    }
+
+    /**
+     * Normalize and validate a host value.
+     *
+     * @return string|null Returns null if the host is invalid
+     */
+    protected function normalizeHost(mixed $host): ?string
+    {
+        $host = trim((string) $host);
+
+        if ($host === '') {
+            return null;
+        }
+
+        // Validate IP address
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            return $host;
+        }
+
+        // Validate domain name
+        if (filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false) {
+            return $host;
+        }
+
+        return null;
+    }
+
+    /**
+     * Normalize and validate a port value.
+     *
+     * @return int|null Returns null if the port is invalid
+     */
+    protected function normalizePort(mixed $port, int $default = 26379): ?int
+    {
+        // Use default if null
+        if ($port === null) {
+            return $default;
+        }
+
+        // Cast to int
+        $port = is_int($port) ? $port : (int) $port;
+
+        // Validate range
+        if ($port < 1 || $port > 65535) {
+            return null;
+        }
+
+        return $port;
     }
 }
