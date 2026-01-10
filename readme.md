@@ -43,16 +43,12 @@ The following items outline areas of ongoing and future improvement:
 - **Observability Improvements**: Better visibility into Sentinel discovery, failover events, and routing decisions.
 - **Configuration & Extensibility**: Additional hooks and configuration options for advanced Redis Sentinel setups.
 
----
-
 ## Governance & Project Direction
 
 This project is maintained with a focus on correctness, predictability, and long-term stability.
 
 Feature requests and contributions are welcome, but inclusion depends on their relevance to Redis Sentinel
 integration and their impact on overall complexity.
-
----
 
 ## Versioning & Backward Compatibility
 
@@ -65,8 +61,6 @@ This package follows semantic versioning.
 
 Backward compatibility is a priority, but correctness and long-term maintainability take precedence when trade-offs are
 required.
-
----
 
 ## Table of Contents
 
@@ -95,8 +89,6 @@ required.
 - [License](#license)
 - [Support](#support)
 
----
-
 ## Features
 
 ### Core Features
@@ -117,8 +109,6 @@ required.
 - ✅ **Multi-Sentinel Support**: Automatic failover between Sentinel nodes
 - ✅ **Event System**: Monitor all connection events for observability
 
----
-
 ## Requirements
 
 - **PHP**: ^8.2, ^8.3, ^8.4
@@ -130,8 +120,6 @@ required.
 
 - Redis Sentinel cluster (minimum 3 nodes recommended)
 - Redis version 6.0 or higher recommended
-
----
 
 ## Installation
 
@@ -200,8 +188,6 @@ REDIS_PASSWORD=your-redis-password
 REDIS_READ_REPLICAS=true
 ```
 
----
-
 ## Configuration
 
 The `config/phpredis-sentinel.php` file allows fine-tuning:
@@ -251,8 +237,6 @@ The package uses **exponential backoff with jitter** to avoid thundering herd:
 - Third retry: ~4s
 - And so on...
 
----
-
 ## Read/Write Splitting
 
 When `read_only_replicas` is enabled, the package provides intelligent command routing:
@@ -261,16 +245,16 @@ When `read_only_replicas` is enabled, the package provides intelligent command r
 
 ```php
 // Read commands → Replica
-$value = Cache::get('user:123');        // → Replica
+$value = Cache::get('user:123');          // → Replica
 $users = Redis::smembers('active:users'); // → Replica
 
 // Write commands → Master
-Cache::put('user:123', $data);          // → Master
-Redis::sadd('active:users', 'john');    // → Master
+Cache::put('user:123', $data);            // → Master
+Redis::sadd('active:users', 'john');      // → Master
 
 // After write, reads are sticky → Master
-Cache::put('counter', 1);               // → Master
-$count = Cache::get('counter');         // → Master (sticky)
+Cache::put('counter', 1);                 // → Master
+$count = Cache::get('counter');           // → Master (sticky)
 ```
 
 ### Command Routing Rules
@@ -313,8 +297,6 @@ The following commands are routed to replicas:
 - **Info**: `info`, `memory`, `pubsub`
 
 All other commands are routed to the master.
-
----
 
 ## Usage Examples
 
@@ -423,8 +405,6 @@ $redis->pipeline(function ($pipe) {
 });
 ```
 
----
-
 ## Laravel Octane Support
 
 The package is compatible with Laravel Octane and supports long-lived processes:
@@ -449,8 +429,6 @@ php artisan octane:start --server=roadrunner
 ```
 
 The package listens to Octane's `RequestReceived` event and resets state automatically.
-
----
 
 ## Horizon Integration
 
@@ -491,8 +469,6 @@ See [Kubernetes Deployment](#kubernetes-deployment) section below.
     ],
 ],
 ```
-
----
 
 ## Kubernetes Deployment
 
@@ -604,8 +580,6 @@ spec:
     app: redis-sentinel
 ```
 
----
-
 ## Events
 
 The package dispatches events for monitoring and observability:
@@ -654,8 +628,6 @@ class NotifyRedisFailure
 }
 ```
 
----
-
 ## Testing
 
 ### Running Tests
@@ -695,8 +667,6 @@ The package includes a comprehensive GitHub Actions workflow that tests:
 - ✅ **18 parallel test jobs** with isolated Redis Sentinel clusters
 - ✅ 342 tests with 2269 assertions
 
----
-
 ## Local Development
 
 ### Docker Environment
@@ -726,8 +696,6 @@ redis-cli -h 127.0.0.1 -p 26379 -a test
 # Check sentinel status
 redis-cli -h 127.0.0.1 -p 26379 -a test sentinel masters
 ```
-
----
 
 ## Troubleshooting
 
@@ -769,8 +737,6 @@ redis-cli -h <sentinel-host> -p 26379 -a <password> sentinel replicas master
 **"Connection lost"**: Network issues or Redis restart (auto-retry will handle)
 **"Auth failed"**: Check `REDIS_PASSWORD` and `REDIS_SENTINEL_PASSWORD`
 
----
-
 ## Limitations & Non-Goals
 
 This package intentionally focuses on Redis Sentinel integration and does not aim to cover every Redis deployment model.
@@ -784,8 +750,6 @@ This package intentionally focuses on Redis Sentinel integration and does not ai
 
 The goal of the package is to offer predictable behavior and seamless integration within Laravel’s ecosystem, rather
 than introducing complex Redis abstractions.
-
----
 
 ## When NOT to Use This Package
 
@@ -802,8 +766,6 @@ Consider alternatives if:
 
 In these cases, a simpler Redis client or a different Redis deployment model may be more appropriate.
 
----
-
 ## Performance Tips
 
 1. **Enable read_only_replicas**: Distribute read load across replicas
@@ -812,13 +774,9 @@ In these cases, a simpler Redis client or a different Redis deployment model may
 4. **Monitor replica lag**: Ensure replicas are in sync
 5. **Tune retry delays**: Adjust based on your infrastructure
 
----
-
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
----
 
 ## Inspiration & alternatives
 
@@ -834,8 +792,6 @@ community:
 
 - **Author**: [Goopil](https://github.com/goopil)
 - **Contributors**: [All Contributors](https://github.com/goopil/laravel-redis-sentinel/graphs/contributors)
-
----
 
 ## License
 
@@ -854,8 +810,6 @@ Under the conditions that:
 - 📖 You make your modifications available under LGPL-3.0 if distributed
 
 See [LICENSE](LICENSE) for full details.
-
----
 
 ## Support
 
