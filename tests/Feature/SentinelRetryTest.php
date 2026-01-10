@@ -10,23 +10,25 @@ use Illuminate\Support\Facades\Event;
 test('it retries when master not found', function () {
     Event::fake();
 
-    // Use actual Redis standalone port from environment (CI uses dynamic ports)
-    $redisPort = (int) env('REDIS_STANDALONE_PORT', 6379);
-
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->expects('master')
         ->with('mymaster')
         ->times(3)
-        ->andReturns(false, false, ['ip' => '127.0.0.1', 'port' => $redisPort]);
+        ->andReturns(false, false, ['ip' => '127.0.0.1', 'port' => 6379]);
 
-    $connector = new class($sentinelMock) extends RedisSentinelConnector
+    $mockRedisClient = Mockery::mock(Redis::class);
+
+    $connector = new class($sentinelMock, $mockRedisClient) extends RedisSentinelConnector
     {
         private $mockSentinel;
 
-        public function __construct($sentinelMock)
+        private $mockRedis;
+
+        public function __construct($sentinelMock, $mockRedis)
         {
             parent::__construct(app(NodeAddressCache::class));
             $this->mockSentinel = $sentinelMock;
+            $this->mockRedis = $mockRedis;
             $this->setRetryDelay(1);
             $this->setRetryMessages(['No master found for service']);
         }
@@ -41,9 +43,17 @@ test('it retries when master not found', function () {
             return $this->createClient($config);
         }
 
-        protected function establishConnection($client, array $config): void
+        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            // mock connection
+            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+                return $this->mockRedis;
+            }
+
+            // This triggers the sentinel call and cache logic
+            $readOnly ? $this->getReplicaAddress($config, $refresh) : $this->getMasterAddress($config, $refresh);
+
+            // Return mock instead of real Redis client
+            return $this->mockRedis;
         }
     };
 
@@ -69,14 +79,19 @@ test('it throws after max retries', function () {
         ->with('mymaster')
         ->andReturns(false);
 
-    $connector = new class($sentinelMock) extends RedisSentinelConnector
+    $mockRedisClient = Mockery::mock(Redis::class);
+
+    $connector = new class($sentinelMock, $mockRedisClient) extends RedisSentinelConnector
     {
         private $mockSentinel;
 
-        public function __construct($sentinelMock)
+        private $mockRedis;
+
+        public function __construct($sentinelMock, $mockRedis)
         {
             parent::__construct(app(NodeAddressCache::class));
             $this->mockSentinel = $sentinelMock;
+            $this->mockRedis = $mockRedis;
             $this->setRetryLimit(2);
             $this->setRetryDelay(1);
             $this->setRetryMessages(['No master found for service']);
@@ -92,7 +107,18 @@ test('it throws after max retries', function () {
             return $this->createClient($config);
         }
 
-        protected function establishConnection($client, array $config): void {}
+        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
+        {
+            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+                return $this->mockRedis;
+            }
+
+            // This triggers the sentinel call and cache logic
+            $readOnly ? $this->getReplicaAddress($config, $refresh) : $this->getMasterAddress($config, $refresh);
+
+            // Return mock instead of real Redis client
+            return $this->mockRedis;
+        }
     };
 
     $config = [
@@ -119,11 +145,19 @@ test('it does not retry unrecognized exceptions', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->allows('master')->andThrow(new Exception('something bad happened'));
 
-    $connector = new class($sentinelMock) extends RedisSentinelConnector
+    $mockRedisClient = Mockery::mock(Redis::class);
+
+    $connector = new class($sentinelMock, $mockRedisClient) extends RedisSentinelConnector
     {
-        public function __construct(private $sentinelMock)
+        private $mockSentinel;
+
+        private $mockRedis;
+
+        public function __construct($sentinelMock, $mockRedis)
         {
             parent::__construct(app(NodeAddressCache::class));
+            $this->mockSentinel = $sentinelMock;
+            $this->mockRedis = $mockRedis;
             $this->setRetryMessages(['No master found for service']);
         }
 
@@ -135,6 +169,19 @@ test('it does not retry unrecognized exceptions', function () {
         public function exposeCreateClient(array $config)
         {
             return $this->createClient($config);
+        }
+
+        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
+        {
+            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+                return $this->mockRedis;
+            }
+
+            // This triggers the sentinel call and cache logic
+            $readOnly ? $this->getReplicaAddress($config, $refresh) : $this->getMasterAddress($config, $refresh);
+
+            // Return mock instead of real Redis client
+            return $this->mockRedis;
         }
     };
 

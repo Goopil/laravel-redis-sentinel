@@ -5,26 +5,28 @@ use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 
 test('it can connect using multiple sentinels when first is down', function () {
-    // Use actual Redis standalone port from environment (CI uses dynamic ports)
-    $redisPort = (int) env('REDIS_STANDALONE_PORT', 6379);
-
     $sentinel1 = Mockery::mock(RedisSentinel::class);
     $sentinel1->expects('ping')->andThrow(new RedisException('Connection refused'));
 
     $sentinel2 = Mockery::mock(RedisSentinel::class);
     $sentinel2->expects('ping')->andReturn(true);
-    $sentinel2->expects('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => $redisPort]);
+    $sentinel2->expects('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
 
-    $connector = new class([$sentinel1, $sentinel2]) extends RedisSentinelConnector
+    $mockRedisClient = Mockery::mock(Redis::class);
+
+    $connector = new class([$sentinel1, $sentinel2], $mockRedisClient) extends RedisSentinelConnector
     {
         private $mocks;
 
         private $index = 0;
 
-        public function __construct(array $mocks)
+        private $mockRedis;
+
+        public function __construct(array $mocks, $mockRedis)
         {
             parent::__construct(app(NodeAddressCache::class));
             $this->mocks = $mocks;
+            $this->mockRedis = $mockRedis;
             $this->setRetryDelay(1);
         }
 
@@ -41,9 +43,17 @@ test('it can connect using multiple sentinels when first is down', function () {
             return $this->createClient($config);
         }
 
-        protected function establishConnection($client, array $config): void
+        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            // bypass
+            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+                return $this->mockRedis;
+            }
+
+            // This triggers the sentinel call and cache logic
+            $readOnly ? $this->getReplicaAddress($config, $refresh) : $this->getMasterAddress($config, $refresh);
+
+            // Return mock instead of real Redis client
+            return $this->mockRedis;
         }
     };
 
