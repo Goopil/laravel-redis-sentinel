@@ -10,6 +10,9 @@ use Workbench\App\Jobs\SendEmailJob;
 
 describe('Queue Integration with Orchestra', function () {
     beforeEach(function () {
+        // Disable read-only replicas for this test suite
+        config()->set('database.redis.phpredis-sentinel.read_only_replicas', false);
+
         // Configure cache to use phpredis-sentinel driver (jobs use Cache)
         config()->set('cache.default', 'phpredis-sentinel');
         config()->set('cache.stores.phpredis-sentinel', [
@@ -156,6 +159,9 @@ describe('Queue Integration with Orchestra', function () {
 
 describe('Queue Job Execution with Real Redis', function () {
     beforeEach(function () {
+        // Disable read-only replicas for this test suite
+        config()->set('database.redis.phpredis-sentinel.read_only_replicas', false);
+
         Cache::flush();
         // Use real queue connection for execution tests
         config()->set('queue.default', 'phpredis-sentinel');
