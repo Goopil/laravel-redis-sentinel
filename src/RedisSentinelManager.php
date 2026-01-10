@@ -24,24 +24,32 @@ class RedisSentinelManager extends RedisManager
         $name = $name ?: 'default';
 
         $normalizedName = $this->patchHorizonConnectionName($name);
+        $previousDriver = $this->driver;
+        $this->driver = $this->config[$normalizedName]['client'] ?? $this->driver;
 
-        $client = $this->config[$normalizedName]['client'] ?? $this->driver;
+        try {
+            if ($this->driver !== 'phpredis-sentinel') {
+                return parent::resolve($name);
+            }
 
-        if ($client !== 'phpredis-sentinel') {
-            return parent::resolve($name);
-        }
+            $config = $this->parseConnectionConfiguration($this->config[$normalizedName]);
 
-        $config = $this->patchHorizonPrefix(
-            $name,
-            $this->config[$normalizedName]
-        );
-
-        return $this
-            ->resolveConnector($name)
-            ->connect(
-                $config,
-                $this->config['options'] ?? []
+            $config = $this->patchHorizonPrefix(
+                $name,
+                $config
             );
+
+            $options = $this->config['options'] ?? [];
+
+            $options = array_merge(
+                Arr::except($options, 'parameters'),
+                ['parameters' => Arr::get($options, 'parameters.'.$name, Arr::get($options, 'parameters', []))]
+            );
+
+            return $this->connector()->connect($config, $options);
+        } finally {
+            $this->driver = $previousDriver;
+        }
     }
 
     public function resolveConnector($name = null): Connector|PhpRedisConnector|PredisConnector|RedisSentinelConnector
@@ -60,18 +68,14 @@ class RedisSentinelManager extends RedisManager
             );
         }
 
-        $this->setConnectionDriver($normalizedName);
+        $previousDriver = $this->driver;
+        $this->driver = $this->config[$normalizedName]['client'] ?? $this->driver;
 
-        if ($connector = $this->connector()) {
-            return $connector;
+        try {
+            return $this->connector();
+        } finally {
+            $this->driver = $previousDriver;
         }
-
-        throw new InvalidArgumentException("Redis connection [$name] not configured.");
-    }
-
-    public function setConnectionDriver(string $name): void
-    {
-        $this->driver = $this->config[$name]['client'] ?? $this->driver;
     }
 
     protected function isHorizonContext(): bool

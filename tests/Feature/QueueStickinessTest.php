@@ -12,7 +12,7 @@ test('stickiness is reset on job processing', function () {
     $property->setValue($connection, true);
 
     $job = Mockery::mock(Job::class);
-    $job->expects('payload')->andReturn([]);
+    $job->allows('payload')->andReturn([]);
 
     event(new JobProcessing('redis', $job));
 
