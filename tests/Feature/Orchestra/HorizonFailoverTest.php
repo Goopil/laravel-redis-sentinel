@@ -13,6 +13,14 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
         config()->set('horizon.prefix', 'horizon-failover:');
         config()->set('queue.default', 'phpredis-sentinel');
 
+        // Configure cache to use phpredis-sentinel driver (Horizon jobs use Cache)
+        config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
+
         // Purge connections
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
 

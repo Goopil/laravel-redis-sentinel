@@ -10,7 +10,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         config()->set('cache.default', 'phpredis-sentinel');
         config()->set('cache.stores.phpredis-sentinel', [
-            'driver' => 'redis',
+            'driver' => 'phpredis-sentinel',
             'connection' => 'phpredis-sentinel',
             'lock_connection' => 'phpredis-sentinel',
         ]);

@@ -13,6 +13,14 @@ describe('Read/Write', function () {
         // Configure a connection with replicas enabled
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
 
+        // Configure cache to use phpredis-sentinel driver
+        config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
+
         // Get the current manager
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
 

@@ -12,6 +12,11 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
         // Start with a potentially misconfigured state
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
 
         // DO NOT purge/reconfigure - simulate a real scenario where
         // the connection might initially hit a replica
@@ -59,6 +64,11 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
         // Configure connection properly
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
 
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
 
@@ -77,6 +87,11 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
     test('write operation succeeds even if read client is initialized first', function () {
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
 
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
 
@@ -110,6 +125,11 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
     test('cache operations work correctly with read/write splitting configured', function () {
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
 
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
 
@@ -144,6 +164,11 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
     test('connection can recover from transient READONLY errors', function () {
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
 
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
 

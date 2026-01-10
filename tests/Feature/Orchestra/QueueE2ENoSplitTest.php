@@ -18,6 +18,14 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             'block_for' => null,
         ]);
 
+        // Configure cache to use phpredis-sentinel driver (jobs use Cache)
+        config()->set('cache.default', 'phpredis-sentinel');
+        config()->set('cache.stores.phpredis-sentinel', [
+            'driver' => 'phpredis-sentinel',
+            'connection' => 'phpredis-sentinel',
+            'lock_connection' => 'phpredis-sentinel',
+        ]);
+
         // Purge connections
         $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
 

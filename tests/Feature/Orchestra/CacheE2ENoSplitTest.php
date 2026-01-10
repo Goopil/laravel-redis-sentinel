@@ -10,7 +10,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', false);
         config()->set('cache.default', 'phpredis-sentinel');
         config()->set('cache.stores.phpredis-sentinel', [
-            'driver' => 'redis',
+            'driver' => 'phpredis-sentinel',
             'connection' => 'phpredis-sentinel',
             'lock_connection' => 'phpredis-sentinel',
         ]);
