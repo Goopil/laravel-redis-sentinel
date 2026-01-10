@@ -30,7 +30,11 @@ class TestCase extends Orchestra
             $config->set('database.redis.client', 'phpredis');
             $config->set('queue.default', 'redis');
             $config->set('session.driver', 'redis');
-            $config->set('cache.default', 'phpredis-sentinel');
+            $config->set('cache.default', 'redis');
+
+            $config->set('cache.stores.redis.connection', 'redis');
+            $config->set('cache.stores.redis.lock_connection', 'redis');
+            $config->set('queue.connections.redis.connection', 'redis');
 
             $config->set('database.redis.phpredis-sentinel', [
                 'client' => 'phpredis-sentinel',
@@ -60,28 +64,8 @@ class TestCase extends Orchestra
                 ],
             ]);
 
-            $config->set('database.redis.default', [
-                'host' => env('REDIS_HOST', '127.0.0.1'),
-                'password' => env('REDIS_PASSWORD', 'test'),
-                'port' => env('REDIS_PORT', 6379),
-                'database' => env('REDIS_DATABASE', '0'),
-                'options' => [
-                    'prefix' => ('default'.env('REDIS_PREFIX', '')),
-                ],
-            ]);
-
-            $config->set('database.redis.cache', [
-                'host' => env('REDIS_HOST', '127.0.0.1'),
-                'password' => env('REDIS_PASSWORD', 'test'),
-                'port' => env('REDIS_PORT', 6379),
-                'database' => env('REDIS_DATABASE', '1'),
-                'options' => [
-                    'prefix' => ('cache'.env('REDIS_PREFIX', '')),
-                ],
-            ]);
-
             $config->set('cache.stores.phpredis-sentinel', [
-                'driver' => 'phpredis-sentinel',
+                'driver' => 'redis',
                 'connection' => 'phpredis-sentinel',
                 'lock_connection' => 'phpredis-sentinel',
             ]);
