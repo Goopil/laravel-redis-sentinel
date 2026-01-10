@@ -9,7 +9,6 @@ use Illuminate\Redis\Connectors\PhpRedisConnector;
 use Illuminate\Redis\Connectors\PredisConnector;
 use Illuminate\Redis\RedisManager;
 use Illuminate\Support\Arr;
-use InvalidArgumentException;
 use Laravel\Horizon\Connectors\RedisConnector;
 
 class RedisSentinelManager extends RedisManager
