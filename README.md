@@ -3,7 +3,7 @@
 [![Tests](https://github.com/goopil/laravel-redis-sentinel/actions/workflows/tests.yml/badge.svg)](https://github.com/goopil/laravel-redis-sentinel/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/goopil/laravel-redis-sentinel/graph/badge.svg)](https://codecov.io/gh/goopil/laravel-redis-sentinel)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
-[![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3%20%7C%208.4-blue)](https://www.php.net/)
+[![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3%20%7C%208.4%20%7C%208.5-blue)](https://www.php.net/)
 [![Laravel](https://img.shields.io/badge/Laravel-10%20%7C%2011%20%7C%2012-red)](https://laravel.com/)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/goopil/laravel-redis-sentinel.svg)](https://packagist.org/packages/goopil/laravel-redis-sentinel)
 
@@ -113,7 +113,7 @@ required.
 
 ## Requirements
 
-- **PHP**: ^8.2, ^8.3, ^8.4
+- **PHP**: ^8.2, ^8.3, ^8.4, ^8.5
 - **Laravel**: ^10, ^11, ^12
 - **PHP Extension**: `redis` (PhpRedis)
 - **Optional**: [Laravel Horizon](https://laravel.com/docs/horizon) for queue management
@@ -664,10 +664,10 @@ tests/
 
 The package includes a comprehensive GitHub Actions workflow that tests:
 
-- ✅ PHP 8.2, 8.3, 8.4
+- ✅ PHP 8.2, 8.3, 8.4, 8.5
 - ✅ Laravel 10, 11, 12
 - ✅ Redis 6, 7
-- ✅ **18 parallel test jobs** with isolated Redis Sentinel clusters
+- ✅ **22 parallel test jobs** with isolated Redis Sentinel clusters
 - ✅ 342 tests with 2269 assertions
 
 ## Local Development
