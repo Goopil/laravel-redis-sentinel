@@ -350,6 +350,7 @@ QUEUE_CONNECTION="redis-sentinel"
 // Configure in config/session.php
 'driver' => 'phpredis-sentinel',
 'connection' => 'default',
+'store' => 'redis-sentinel',
 
 // Sessions work automatically
 session(['user_id' => 123]);
