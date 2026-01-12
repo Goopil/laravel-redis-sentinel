@@ -667,7 +667,7 @@ The package includes a comprehensive GitHub Actions workflow that tests:
 - ✅ PHP 8.2, 8.3, 8.4, 8.5
 - ✅ Laravel 10, 11, 12
 - ✅ Redis 6, 7
-- ✅ **24 parallel test jobs** with isolated Redis Sentinel clusters
+- ✅ **22 parallel test jobs** with isolated Redis Sentinel clusters
 - ✅ 342 tests with 2269 assertions
 
 ## Local Development
