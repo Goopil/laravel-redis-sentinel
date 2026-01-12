@@ -2,7 +2,7 @@
 
 return [
     'log' => [
-        'channel' => null,
+        'channel' => env('REDIS_SENTINEL_LOG_CHANNEL', env('LOG_CHANNEL')),
     ],
     'retry' => [
         'sentinel' => [
@@ -29,6 +29,7 @@ return [
                 'loading',
                 'readonly',
                 "can't write against a read only replica",
+                'Temporary failure in name resolution',
             ],
         ],
     ],
