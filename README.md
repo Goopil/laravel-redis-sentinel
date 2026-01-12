@@ -57,9 +57,9 @@ This package follows [Semantic Versioning](https://semver.org/) and uses [Semant
 
 To ensure the automated release process works correctly, please follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for your commit messages.
 
-- **Patch releases** (v0.0.x) are triggered by `fix:` commits.
-- **Minor releases** (v0.x.0) are triggered by `feat:` commits.
-- **Major releases** (vX.0.0) are triggered by commits with `BREAKING CHANGE` in the footer.
+- **Patch releases** (0.0.x) are triggered by `fix:` commits.
+- **Minor releases** (0.x.0) are triggered by `feat:` commits.
+- **Major releases** (X.0.0) are triggered by commits with `BREAKING CHANGE` in the footer.
 
 Backward compatibility is a priority, but correctness and long-term maintainability take precedence when trade-offs are
 required.
