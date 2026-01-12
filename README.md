@@ -53,12 +53,13 @@ integration and their impact on overall complexity.
 
 ## Versioning & Backward Compatibility
 
-This package follows semantic versioning.
+This package follows [Semantic Versioning](https://semver.org/) and uses [Semantic Release](https://github.com/semantic-release/semantic-release) for automated versioning and package publishing.
 
-- **Patch releases** focus on bug fixes, internal improvements, and test coverage.
-- **Minor releases** may introduce new features or configuration options, while preserving backward compatibility
-  whenever possible.
-- **Major releases** may include breaking changes, which will be clearly documented in the release notes.
+To ensure the automated release process works correctly, please follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for your commit messages.
+
+- **Patch releases** (v0.0.x) are triggered by `fix:` commits.
+- **Minor releases** (v0.x.0) are triggered by `feat:` commits.
+- **Major releases** (vX.0.0) are triggered by commits with `BREAKING CHANGE` in the footer.
 
 Backward compatibility is a priority, but correctness and long-term maintainability take precedence when trade-offs are
 required.
