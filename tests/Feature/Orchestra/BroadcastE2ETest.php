@@ -283,9 +283,11 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
         $wroteToMasterProp->setAccessible(true);
 
-        // Check channel subscription list (read operation)
+        // Check channel subscription list via PUBSUB command
+        // Note: PUBSUB is always routed to master because subscription state
+        // is not consistently replicated to replicas
         $connection->pubsub('channels', 'user-*');
-        expect($wroteToMasterProp->getValue($connection))->toBeFalse('Read operations should not trigger stickiness');
+        expect($wroteToMasterProp->getValue($connection))->toBeTrue('PUBSUB should go to master for consistency');
 
         // Publish to channel (write operation)
         $connection->publish('user-registrations', json_encode(['user_id' => 1]));
