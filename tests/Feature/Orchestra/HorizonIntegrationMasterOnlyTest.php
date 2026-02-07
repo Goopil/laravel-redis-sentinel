@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Workbench\App\Jobs\HorizonTestJob;
 
-describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', function () {
+describe('Horizon Integration Tests WITHOUT Read/Write Splitting - Master Only', function () {
     beforeEach(function () {
         // Configure WITHOUT read/write splitting (master only mode) BEFORE flush
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', false);
