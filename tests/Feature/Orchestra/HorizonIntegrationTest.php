@@ -20,6 +20,15 @@ describe('Horizon Integration with Orchestra', function () {
         config()->set('horizon.prefix', 'horizon-test:');
         config()->set('queue.default', 'phpredis-sentinel');
 
+        // Configure queue connection for phpredis-sentinel
+        config()->set('queue.connections.phpredis-sentinel', [
+            'driver' => 'redis',
+            'connection' => 'phpredis-sentinel',
+            'queue' => 'default',
+            'retry_after' => 90,
+            'block_for' => null,
+        ]);
+
         // Try to flush cache if available
         try {
             Cache::flush();
