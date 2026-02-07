@@ -58,15 +58,29 @@ describe('Queue Worker E2E Tests', function () {
     });
 
     test('queue worker handles job failures and retries', function () {
-        // Create a job that will fail
         $testId = 'e2e_retry_'.uniqid();
 
-        // For this test, we'd need a job that fails intentionally
-        // We'll create a separate test job class that throws exceptions
-        // and verify retry behavior
+        // Dispatch a job that will fail twice, then succeed
+        // failUntilAttempt=3 means it will succeed on the 3rd attempt
+        FailingTestJob::dispatch("{$testId}_retry", 3)
+            ->onConnection('phpredis-sentinel');
 
-        // TODO: Implement retry test with custom failing job
-        $this->markTestSkipped('Retry test with failing job not yet implemented');
+        // Verify job is in queue
+        expect(\Illuminate\Support\Facades\Queue::size())->toBe(1);
+
+        // Start worker with retry support
+        $process = $this->processManager->startQueueWorker('phpredis-sentinel', 60);
+
+        // Wait for completion (job should succeed on 3rd attempt)
+        $completed = $this->processManager->waitForJobs(60);
+
+        expect($completed)->toBeTrue('Job should be processed within timeout');
+
+        // Verify all attempts were made
+        expect(Cache::get("failing_job:{$testId}_retry:attempt_1"))->toBeTrue('First attempt should be recorded');
+        expect(Cache::get("failing_job:{$testId}_retry:attempt_2"))->toBeTrue('Second attempt should be recorded');
+        expect(Cache::get("failing_job:{$testId}_retry:attempt_3"))->toBeTrue('Third attempt should be recorded');
+        expect(Cache::get("failing_job:{$testId}_retry:success"))->toBeTrue('Job should finally succeed');
     });
 
     test('queue worker processes jobs in correct order', function () {
