@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Workbench\App\Jobs\HorizonTestJob;
 
-describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () {
+describe('Horizon Connection Resilience Tests - Redis Sentinel Master Failover', function () {
     beforeEach(function () {
         // Configure read/write splitting for realistic failover scenario BEFORE flush
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);

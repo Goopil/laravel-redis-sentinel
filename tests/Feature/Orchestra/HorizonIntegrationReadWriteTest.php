@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Workbench\App\Jobs\HorizonTestJob;
 
-describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
+describe('Horizon Integration Tests with Read/Write Mode and Failover', function () {
     beforeEach(function () {
         // Configure read/write splitting for Horizon BEFORE flush
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);

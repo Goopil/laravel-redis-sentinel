@@ -75,7 +75,8 @@ class RedisSentinelConnection extends PhpRedisConnection
         'zcard', 'zcount', 'zlexcount', 'zrange', 'zrank', 'zrevrange', 'zrevrank', 'zscore', 'zscan',
         'zrangebyscore', 'zrevrangebyscore', 'zrangebylex', 'zrevrangebylex',
         'exists', 'keys', 'scan', 'type', 'pttl', 'ttl', 'info', 'memory',
-        'pubsub',
+        // Note: 'pubsub' is NOT included because subscription state is not replicated
+        // consistently to replicas. Always use master for PUBSUB.
     ];
 
     /**

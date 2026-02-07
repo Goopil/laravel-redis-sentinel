@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Redis;
 use Workbench\App\Jobs\HorizonTestJob;
 
 describe('Horizon Integration with Orchestra', function () {
@@ -18,6 +19,15 @@ describe('Horizon Integration with Orchestra', function () {
         config()->set('horizon.use', 'phpredis-sentinel');
         config()->set('horizon.prefix', 'horizon-test:');
         config()->set('queue.default', 'phpredis-sentinel');
+
+        // Configure queue connection for phpredis-sentinel
+        config()->set('queue.connections.phpredis-sentinel', [
+            'driver' => 'redis',
+            'connection' => 'phpredis-sentinel',
+            'queue' => 'default',
+            'retry_after' => 90,
+            'block_for' => null,
+        ]);
 
         // Try to flush cache if available
         try {
@@ -98,6 +108,53 @@ describe('Horizon Integration with Orchestra', function () {
         Queue::assertPushed(HorizonTestJob::class, function ($job) use ($jobId) {
             return $job->jobId === $jobId;
         });
+    });
+
+    test('horizon job dispatch stores job in redis queue', function () {
+        $jobId = 'dispatch_redis_test_'.time();
+
+        // Dispatch without faking to test actual Redis storage
+        HorizonTestJob::dispatch($jobId, ['type' => 'dispatch_test'])
+            ->onConnection('phpredis-sentinel');
+
+        // Verify job is in the queue (using Redis directly)
+        $connection = Redis::connection('phpredis-sentinel');
+        $queueKeys = $connection->keys('*queue*');
+
+        expect($queueKeys)->not->toBeEmpty('Job should be stored in Redis queue');
+    });
+
+    test('horizon job dispatch with custom connection and queue', function () {
+        $jobId = 'dispatch_advanced_'.time();
+
+        // Dispatch with custom settings
+        $job = HorizonTestJob::dispatch($jobId, ['priority' => 'high'])
+            ->onConnection('phpredis-sentinel')
+            ->onQueue('high-priority')
+            ->delay(now()->addMinutes(5));
+
+        // Verify the dispatch was successful
+        expect($job)->toBeInstanceOf(\Illuminate\Foundation\Bus\PendingDispatch::class);
+    });
+
+    test('horizon job dispatches with correct tags and metadata', function () {
+        $jobId = 'dispatch_tags_'.time();
+        $metadata = [
+            'user_id' => 123,
+            'priority' => 'high',
+            'custom_data' => ['key' => 'value'],
+        ];
+
+        // Dispatch job
+        $job = new HorizonTestJob($jobId, $metadata);
+        dispatch($job);
+
+        // Verify job has correct tags
+        $tags = $job->tags();
+        expect($tags)->toContain('horizon-test')
+            ->and($tags)->toContain('job:'.$jobId)
+            ->and($tags)->toContain('user:123')
+            ->and($tags)->toContain('priority:high');
     });
 
     test('horizon job retry configuration is correct', function () {
