@@ -28,7 +28,6 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
         // Update manager config via reflection
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -50,13 +49,11 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
 
         $reflection = new ReflectionClass($connection);
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
 
         // Test read operation (should not trigger stickiness if read/write splitting is enabled)
         $connection->get('horizon:test:read');
 
         $readConnectorProp = $reflection->getProperty('readConnector');
-        $readConnectorProp->setAccessible(true);
 
         // Check if read connector exists (indicates read/write splitting is available)
         $hasReadConnector = $readConnectorProp->getValue($connection) !== null;
@@ -329,7 +326,6 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
 
         $reflection = new ReflectionClass($connection);
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
 
         // Start with no stickiness
         expect($wroteToMasterProp->getValue($connection))->toBeFalse();

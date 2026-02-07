@@ -31,7 +31,6 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -52,7 +51,6 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
 
         $reflection = new ReflectionClass($connection);
         $readConnectorProp = $reflection->getProperty('readConnector');
-        $readConnectorProp->setAccessible(true);
 
         // No read connector in master-only mode
         expect($readConnectorProp->getValue($connection))->toBeNull('No read connector in master-only mode');
@@ -273,7 +271,6 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
 
         $reflection = new ReflectionClass($connection);
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
 
         // In master-only mode, all operations go to master
         $connection->publish('test-channel', 'test-message');

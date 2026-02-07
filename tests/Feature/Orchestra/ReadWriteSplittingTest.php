@@ -27,7 +27,6 @@ describe('Read/Write', function () {
         // Inject the new config via reflection because the manager keeps an internal copy
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         // Purge the connection so it can be re-resolved with the new config
@@ -39,13 +38,10 @@ describe('Read/Write', function () {
         $reflection = new ReflectionClass($connection);
 
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
 
         $readClientProp = $reflection->getProperty('readClient');
-        $readClientProp->setAccessible(true);
 
         $readConnectorProp = $reflection->getProperty('readConnector');
-        $readConnectorProp->setAccessible(true);
 
         return [
             'wroteToMaster' => $wroteToMasterProp->getValue($connection),
@@ -64,7 +60,6 @@ describe('Read/Write', function () {
         // Debug: see the config used by the connection
         $reflection = new ReflectionClass($connection);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $connConfig = $configProp->getValue($connection);
 
         // expect($connConfig)->toHaveKey('read_only_replicas', true);

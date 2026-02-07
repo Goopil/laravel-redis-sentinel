@@ -185,7 +185,6 @@ test('it is always sticky when read only replicas is active', function () {
 
     $reflection = new ReflectionClass($connection);
     $property = $reflection->getProperty('wroteToMaster');
-    $property->setAccessible(true);
     expect($property->getValue($connection))->toBeTrue();
 
     expect($connection->get('foo'))->toBe('bar');
@@ -475,7 +474,6 @@ test('master client reference is never corrupted', function () {
     // Use reflection to verify internal state
     $reflection = new ReflectionClass($connection);
     $masterClientProp = $reflection->getProperty('masterClient');
-    $masterClientProp->setAccessible(true);
 
     // First read goes to replica
     expect($connection->get('key'))->toBe('value');

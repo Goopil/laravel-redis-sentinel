@@ -22,7 +22,6 @@ describe('Octane Integration', function () {
         // Use reflection to check wroteToMaster
         $reflection = new ReflectionClass($connection);
         $property = $reflection->getProperty('wroteToMaster');
-        $property->setAccessible(true);
 
         expect($property->getValue($connection))->toBeTrue();
 

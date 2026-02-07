@@ -26,7 +26,6 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -335,7 +334,6 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
 
         $reflection = new ReflectionClass($connection);
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
 
         // Perform writes
         $connection->set('failover:rw:test1', 'value1');

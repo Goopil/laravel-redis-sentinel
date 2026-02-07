@@ -20,7 +20,6 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -42,7 +41,6 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
 
         $reflection = new ReflectionClass($connection);
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
 
         // Cache read should not trigger stickiness
         Cache::get('test_key');

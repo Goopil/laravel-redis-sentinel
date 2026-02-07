@@ -28,7 +28,6 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Update manager config via reflection
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -50,7 +49,6 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
 
         $reflection = new ReflectionClass($connection);
         $readConnectorProp = $reflection->getProperty('readConnector');
-        $readConnectorProp->setAccessible(true);
 
         // In master-only mode, read connector should not be initialized
         expect($readConnectorProp->getValue($connection))->toBeNull('Read connector should be null in master-only mode');
@@ -61,7 +59,6 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
 
         // No stickiness tracking needed in master-only mode
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
         expect($wroteToMasterProp->getValue($connection))->toBeTrue('All operations go to master');
     });
 
