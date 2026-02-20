@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/Goopil/laravel-redis-sentinel/compare/v1.0.0...1.0.1) (2026-02-20)
+
+
+### Bug Fixes
+
+* partial npm audit fix ([c471389](https://github.com/Goopil/laravel-redis-sentinel/commit/c471389bb3dead25629dd1d2a110c9ca3a125c99))
+
 # 1.0.0 (2026-01-12)
 
 
