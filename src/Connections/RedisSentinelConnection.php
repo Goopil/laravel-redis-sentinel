@@ -69,12 +69,12 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     protected const READ_ONLY_COMMAND = [
         'get', 'bitcount', 'bitpos', 'getbit', 'getrange', 'strlen', 'mget',
-        'hget', 'hgetall', 'hkeys', 'hlen', 'hmget', 'hexists', 'hvals', 'hstrlen', 'hscan',
+        'hget', 'hgetall', 'hkeys', 'hlen', 'hmget', 'hexists', 'hvals', 'hstrlen',
         'lindex', 'llen', 'lrange',
-        'scard', 'sismember', 'smismember', 'smembers', 'srandmember', 'sscan',
-        'zcard', 'zcount', 'zlexcount', 'zrange', 'zrank', 'zrevrange', 'zrevrank', 'zscore', 'zscan',
+        'scard', 'sismember', 'smismember', 'smembers', 'srandmember',
+        'zcard', 'zcount', 'zlexcount', 'zrange', 'zrank', 'zrevrange', 'zrevrank', 'zscore',
         'zrangebyscore', 'zrevrangebyscore', 'zrangebylex', 'zrevrangebylex',
-        'exists', 'keys', 'scan', 'type', 'pttl', 'ttl', 'info', 'memory',
+        'exists', 'keys', 'type', 'pttl', 'ttl', 'info', 'memory',
         'pubsub',
     ];
 
