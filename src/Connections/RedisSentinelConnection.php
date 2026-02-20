@@ -137,7 +137,9 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function scan($cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::scan($cursor, $options),
+            function () use (&$cursor, $options) {
+                return parent::scan($cursor, $options);
+            },
             __FUNCTION__
         );
     }
@@ -155,7 +157,9 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function zscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::zscan($key, $cursor, $options),
+            function () use ($key, &$cursor, $options) {
+                return parent::zscan($key, $cursor, $options);
+            },
             __FUNCTION__
         );
     }
@@ -166,7 +170,9 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function hscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::hscan($key, $cursor, $options),
+            function () use ($key, &$cursor, $options) {
+                return parent::hscan($key, $cursor, $options);
+            },
             __FUNCTION__
         );
     }
@@ -177,7 +183,9 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function sscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::sscan($key, $cursor, $options),
+            function () use ($key, &$cursor, $options) {
+                return parent::sscan($key, $cursor, $options);
+            },
             __FUNCTION__
         );
     }
@@ -205,11 +213,11 @@ class RedisSentinelConnection extends PhpRedisConnection
      *
      * @throws Throwable
      */
-    public function flushall($async = null): mixed
+    public function flushall(?bool $sync = null): bool|\Redis
     {
         try {
             return $this->retry(
-                fn () => parent::flushall($async),
+                fn () => parent::flushall($sync),
                 __FUNCTION__
             );
         } finally {
