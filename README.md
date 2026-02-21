@@ -118,6 +118,9 @@ required.
 - **PHP Extension**: `redis` (PhpRedis)
 - **Optional**: [Laravel Horizon](https://laravel.com/docs/horizon) for queue management
 
+> ⚠️ **Important**: PHP 8.5 requires Laravel 12. Laravel 11 does not officially support PHP 8.5.
+> See [Laravel Support Matrix](https://laravel.com/docs/12.x/releases#support-policy) for details.
+
 ### Redis Setup
 
 - Redis Sentinel cluster (minimum 3 nodes recommended)
