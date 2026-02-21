@@ -69,12 +69,12 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     protected const READ_ONLY_COMMAND = [
         'get', 'bitcount', 'bitpos', 'getbit', 'getrange', 'strlen', 'mget',
-        'hget', 'hgetall', 'hkeys', 'hlen', 'hmget', 'hexists', 'hvals', 'hstrlen',
+        'hget', 'hgetall', 'hkeys', 'hlen', 'hmget', 'hexists', 'hvals', 'hstrlen', 'hscan',
         'lindex', 'llen', 'lrange',
-        'scard', 'sismember', 'smismember', 'smembers', 'srandmember',
-        'zcard', 'zcount', 'zlexcount', 'zrange', 'zrank', 'zrevrange', 'zrevrank', 'zscore',
+        'scard', 'sismember', 'smismember', 'smembers', 'srandmember', 'sscan',
+        'zcard', 'zcount', 'zlexcount', 'zrange', 'zrank', 'zrevrange', 'zrevrank', 'zscore', 'zscan',
         'zrangebyscore', 'zrevrangebyscore', 'zrangebylex', 'zrevrangebylex',
-        'exists', 'keys', 'type', 'pttl', 'ttl', 'info', 'memory',
+        'exists', 'keys', 'scan', 'type', 'pttl', 'ttl', 'info', 'memory',
         'pubsub',
     ];
 
@@ -137,9 +137,7 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function scan($cursor, $options = []): mixed
     {
         return $this->retry(
-            function () use (&$cursor, $options) {
-                return parent::scan($cursor, $options);
-            },
+            fn () => parent::scan($cursor, $options),
             __FUNCTION__
         );
     }
@@ -157,9 +155,7 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function zscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            function () use ($key, &$cursor, $options) {
-                return parent::zscan($key, $cursor, $options);
-            },
+            fn () => parent::zscan($key, $cursor, $options),
             __FUNCTION__
         );
     }
@@ -170,9 +166,7 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function hscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            function () use ($key, &$cursor, $options) {
-                return parent::hscan($key, $cursor, $options);
-            },
+            fn () => parent::hscan($key, $cursor, $options),
             __FUNCTION__
         );
     }
@@ -183,9 +177,7 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function sscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            function () use ($key, &$cursor, $options) {
-                return parent::sscan($key, $cursor, $options);
-            },
+            fn () => parent::sscan($key, $cursor, $options),
             __FUNCTION__
         );
     }
