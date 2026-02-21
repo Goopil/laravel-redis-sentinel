@@ -20,7 +20,6 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -42,7 +41,6 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
 
         $reflection = new ReflectionClass($connection);
         $readConnectorProp = $reflection->getProperty('readConnector');
-        $readConnectorProp->setAccessible(true);
 
         // No read connector in master-only mode
         expect($readConnectorProp->getValue($connection))->toBeNull('No read connector in master-only mode');
@@ -52,7 +50,6 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         Cache::put('test_key', 'test_value', 60);
 
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
         expect($wroteToMasterProp->getValue($connection))->toBeTrue('All operations use master');
     });
 

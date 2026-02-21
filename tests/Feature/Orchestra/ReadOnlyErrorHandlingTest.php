@@ -74,7 +74,6 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -97,7 +96,6 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -135,7 +133,6 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -174,7 +171,6 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -224,7 +220,6 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
 
         $reflection = new ReflectionClass($connection);
         $retryLimitProp = $reflection->getProperty('retryLimit');
-        $retryLimitProp->setAccessible(true);
 
         $actualRetryLimit = $retryLimitProp->getValue($connection);
         expect($actualRetryLimit)->toBeGreaterThan(0, 'Connection should have retry limit configured');

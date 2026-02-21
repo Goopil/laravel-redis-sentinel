@@ -14,7 +14,6 @@ test('onSentinelFail dispatches RedisSentinelMasterFailed', function () {
     // Access protected method via reflection or just make a public wrapper in a test class
     $reflection = new ReflectionClass($connector);
     $method = $reflection->getMethod('onSentinelFail');
-    $method->setAccessible(true);
 
     $closure = $method->invoke($connector, 'my-service', 'my-method');
     $closure(new Exception('test'), 1);

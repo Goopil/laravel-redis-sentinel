@@ -52,7 +52,6 @@ test('broadcaster driver is correctly extended', function () {
 
     $reflection = new ReflectionClass($broadcaster);
     $property = $reflection->getProperty('redis');
-    $property->setAccessible(true);
 
     expect($property->getValue($broadcaster))->toBeInstanceOf(RedisSentinelManager::class);
 });

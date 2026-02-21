@@ -31,7 +31,6 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -53,7 +52,6 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
 
         $reflection = new ReflectionClass($connection);
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
 
         // Broadcasting is a write operation (publishes to Redis channels)
         Queue::fake();
@@ -281,7 +279,6 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
 
         $reflection = new ReflectionClass($connection);
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
 
         // Check channel subscription list (read operation)
         $connection->pubsub('channels', 'user-*');

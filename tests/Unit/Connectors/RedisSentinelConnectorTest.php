@@ -79,7 +79,6 @@ test('connect preserves merged options across reconnects', function () {
     $connection = $connector->connect($config, $options);
 
     $property = new \ReflectionProperty(PhpRedisConnection::class, 'connector');
-    $property->setAccessible(true);
     $reconnector = $property->getValue($connection);
     $reconnector(true);
 
@@ -124,9 +123,7 @@ test('connect applies redis retry config with overrides', function () {
     ], []);
 
     $limitProperty = new \ReflectionProperty(RedisSentinelConnection::class, 'retryLimit');
-    $limitProperty->setAccessible(true);
     $delayProperty = new \ReflectionProperty(RedisSentinelConnection::class, 'retryDelay');
-    $delayProperty->setAccessible(true);
 
     expect($limitProperty->getValue($connection))->toBe(4);
     expect($delayProperty->getValue($connection))->toBe(500);

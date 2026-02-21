@@ -163,7 +163,7 @@ The cluster includes:
 ### CI/CD
 
 All pull requests run through GitHub Actions with:
-- PHP versions: 8.2, 8.3, 8.4
+- PHP versions: 8.2, 8.3, 8.4, 8.5
 - Laravel versions: 10, 11, 12
 - Redis versions: 6, 7
 

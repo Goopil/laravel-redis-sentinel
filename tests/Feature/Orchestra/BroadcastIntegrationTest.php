@@ -24,7 +24,6 @@ describe('Broadcast', function () {
         // Use reflection to access the private redis property
         $reflection = new ReflectionClass($broadcaster);
         $property = $reflection->getProperty('redis');
-        $property->setAccessible(true);
 
         expect($property->getValue($broadcaster))->toBeInstanceOf(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
     });

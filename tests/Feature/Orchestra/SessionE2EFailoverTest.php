@@ -17,7 +17,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
-        $configProp->setAccessible(true);
         $configProp->setValue($manager, config('database.redis'));
 
         $manager->purge('phpredis-sentinel');
@@ -44,7 +43,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
 
         $reflection = new ReflectionClass($connection);
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        $wroteToMasterProp->setAccessible(true);
 
         // Session read should not trigger stickiness initially
         Session::get('test_key');

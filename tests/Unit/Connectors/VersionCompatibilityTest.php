@@ -7,10 +7,8 @@ test('need params as array logic', function () {
     $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
     $reflection = new ReflectionClass($connector);
     $property = $reflection->getProperty('phpredisVersion');
-    $property->setAccessible(true);
 
     $method = $reflection->getMethod('needParamsAsArray');
-    $method->setAccessible(true);
 
     // Test >= 6.0
     $property->setValue($connector, '6.0.0');
@@ -56,10 +54,8 @@ test('it caches phpredis version', function () {
     $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
     $reflection = new ReflectionClass($connector);
     $property = $reflection->getProperty('phpredisVersion');
-    $property->setAccessible(true);
 
     $method = $reflection->getMethod('needParamsAsArray');
-    $method->setAccessible(true);
 
     expect($property->getValue($connector))->toBeNull();
 

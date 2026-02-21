@@ -18,7 +18,6 @@ describe('Queue Stickiness', function () {
 
         $reflection = new ReflectionClass($connection);
         $property = $reflection->getProperty('wroteToMaster');
-        $property->setAccessible(true);
 
         expect($property->getValue($connection))->toBeTrue();
 

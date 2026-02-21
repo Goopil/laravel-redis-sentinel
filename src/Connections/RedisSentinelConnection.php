@@ -205,11 +205,11 @@ class RedisSentinelConnection extends PhpRedisConnection
      *
      * @throws Throwable
      */
-    public function flushall($async = null): mixed
+    public function flushall(?bool $sync = null): bool|\Redis
     {
         try {
             return $this->retry(
-                fn () => parent::flushall($async),
+                fn () => parent::flushall($sync),
                 __FUNCTION__
             );
         } finally {

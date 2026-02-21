@@ -8,7 +8,6 @@ test('stickiness is reset on job processing', function () {
 
     $reflection = new ReflectionClass($connection);
     $property = $reflection->getProperty('wroteToMaster');
-    $property->setAccessible(true);
     $property->setValue($connection, true);
 
     $job = Mockery::mock(Job::class);

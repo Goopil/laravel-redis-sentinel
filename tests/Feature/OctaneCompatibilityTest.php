@@ -17,7 +17,6 @@ test('wrote to master is reset with reset stickiness', function () {
 
     $reflection = new ReflectionClass($connection);
     $property = $reflection->getProperty('wroteToMaster');
-    $property->setAccessible(true);
 
     expect($property->getValue($connection))->toBeTrue();
 
