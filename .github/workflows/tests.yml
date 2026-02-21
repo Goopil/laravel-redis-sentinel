@@ -51,7 +51,9 @@ jobs:
         redis: [6, 7]
         exclude:
           - php: 8.5
-            laravel: [10, 11]
+            laravel: 10
+          - php: 8.5
+            laravel: 11
 
     name: PHP ${{ matrix.php }} - L${{ matrix.laravel }} - R${{ matrix.redis }}
 
