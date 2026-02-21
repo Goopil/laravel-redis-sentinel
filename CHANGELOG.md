@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.0.1...1.1.0) (2026-02-21)
+
+
+### Features
+
+* php 8.5 support ([#9](https://github.com/Goopil/laravel-redis-sentinel/issues/9)) ([ad7f1c4](https://github.com/Goopil/laravel-redis-sentinel/commit/ad7f1c4f56d903082ba19912fe313bd36a7c2cd9))
+
 ## [1.0.1](https://github.com/Goopil/laravel-redis-sentinel/compare/v1.0.0...1.0.1) (2026-02-20)
 
 
