@@ -139,10 +139,12 @@ class RedisSentinelServiceProvider extends ServiceProvider
 
     protected function bootBroadcaster(): void
     {
+        $name = $this->name;
+
         $this->app->make(BroadcastFactory::class)->extend(
-            $this->name,
+            $name,
             fn ($app, $conf) => new RedisBroadcaster(
-                $this->app->make($this->name),
+                $app->make($name),
                 Arr::get($conf, 'connection', 'default')
             )
         );
@@ -163,11 +165,14 @@ class RedisSentinelServiceProvider extends ServiceProvider
 
     protected function bootSessionHandler(): void
     {
+        $app = $this->app;
+        $name = $this->name;
+
         $this->app->make('session')->extend(
-            $this->name,
-            function () {
-                $config = $this->app->make('config');
-                $cacheDriver = clone $this->app->make('cache')->driver($this->name);
+            $name,
+            function () use ($app, $name) {
+                $config = $app->make('config');
+                $cacheDriver = clone $app->make('cache')->driver($name);
                 $cacheDriver->getStore()->setConnection($config->get('session.connection'));
 
                 return new CacheBasedSessionHandler(
@@ -197,9 +202,12 @@ class RedisSentinelServiceProvider extends ServiceProvider
             ? HorizonRedisConnector::class
             : RedisConnector::class;
 
-        $this->app->make('queue')->extend(
-            $this->name,
-            fn () => new $connector($this->app->make($this->name))
+        $name = $this->name;
+        $app = $this->app;
+
+        $app->make('queue')->extend(
+            $name,
+            fn () => new $connector($app->make($name))
         );
     }
 
