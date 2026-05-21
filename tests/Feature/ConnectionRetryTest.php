@@ -72,7 +72,7 @@ describe('Reconnect', function () {
         expect($connection->get('foo'))->toBe('bar')
             ->and($callCount)->toBeGreaterThanOrEqual(1);
 
-        Event::assertDispatched(\Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionFailed::class);
+        Event::assertDispatched(RedisSentinelConnectionFailed::class);
         Event::assertDispatched(RedisSentinelConnectionReconnected::class);
     });
 

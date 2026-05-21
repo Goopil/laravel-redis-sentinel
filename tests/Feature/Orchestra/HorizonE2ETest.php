@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Workbench\App\Jobs\HorizonTestJob;
@@ -23,7 +24,7 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
         ]);
 
         // Purge Redis connections to apply new config
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         // Update manager config via reflection
         $reflection = new ReflectionClass($manager);
@@ -35,7 +36,7 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
         // Now safe to flush
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors in setup
         }
     });
@@ -211,7 +212,7 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
         // Force a connection reset (simulate network issue)
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore disconnect errors
         }
 

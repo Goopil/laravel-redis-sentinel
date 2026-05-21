@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
@@ -28,7 +29,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
         ]);
 
         // Purge connections
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -39,7 +40,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
         // Now safe to flush
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors in setup
         }
     });
@@ -147,7 +148,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
         // Force disconnection
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -196,7 +197,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
                 if ($i === 25) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(2); // Failover window
@@ -211,7 +212,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
                     $job = new ProcessOrderJob($jobData['orderId'], ['phase' => $jobData['phase']]);
                     $job->handle();
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $failedAttempts++;
             }
         }
@@ -245,7 +246,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -282,7 +283,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -319,7 +320,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
                 if (in_array($i, $disconnectPoints)) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     usleep(500000); // 500ms recovery
@@ -329,7 +330,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
                 if ($payload) {
                     $processed[] = $payload;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Retry on failure
                 usleep(100000); // 100ms
                 $i--; // Retry same job
@@ -359,7 +360,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
                 // Simulate failover
                 try {
                     $connection->disconnect();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Expected
                 }
                 sleep(1);
@@ -401,7 +402,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -456,7 +457,7 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
             if ($connection->llen($queueKey) === 3) {
                 try {
                     $connection->disconnect();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Expected
                 }
                 sleep(1);

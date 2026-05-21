@@ -1,5 +1,6 @@
 <?php
 
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Cache;
 use Workbench\App\Services\CacheService;
 
@@ -18,7 +19,7 @@ describe('Cache Integration with Orchestra', function () {
         // Ensure proper cache configuration before flush
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors - cache might not be ready yet
         }
     });
@@ -194,7 +195,7 @@ describe('Cache Integration with Orchestra', function () {
         $driver = Cache::driver('phpredis-sentinel');
         $store = $driver->getStore();
 
-        expect($store->getRedis())->toBeInstanceOf(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        expect($store->getRedis())->toBeInstanceOf(RedisSentinelManager::class);
 
         // Test actual cache operation through Sentinel
         $key = 'sentinel_test';

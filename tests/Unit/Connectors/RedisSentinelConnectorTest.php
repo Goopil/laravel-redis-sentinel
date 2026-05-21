@@ -52,11 +52,11 @@ test('connect preserves merged options across reconnects', function () {
             return ['ip' => '127.0.0.1', 'port' => 6379];
         }
 
-        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): \Redis
+        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
             $this->configs[] = $config;
 
-            return Mockery::mock(\Redis::class);
+            return Mockery::mock(Redis::class);
         }
     };
 
@@ -67,7 +67,7 @@ test('connect preserves merged options across reconnects', function () {
         ],
         'options' => [
             'prefix' => 'conn:',
-            'serializer' => \Redis::SERIALIZER_PHP,
+            'serializer' => Redis::SERIALIZER_PHP,
         ],
     ];
 
@@ -78,7 +78,7 @@ test('connect preserves merged options across reconnects', function () {
 
     $connection = $connector->connect($config, $options);
 
-    $property = new \ReflectionProperty(PhpRedisConnection::class, 'connector');
+    $property = new ReflectionProperty(PhpRedisConnection::class, 'connector');
     $reconnector = $property->getValue($connection);
     $reconnector(true);
 
@@ -86,7 +86,7 @@ test('connect preserves merged options across reconnects', function () {
     foreach ($connector->configs as $captured) {
         expect($captured['options']['prefix'])->toBe('conn:');
         expect($captured['options']['read_timeout'])->toBe(5);
-        expect($captured['options']['serializer'])->toBe(\Redis::SERIALIZER_PHP);
+        expect($captured['options']['serializer'])->toBe(Redis::SERIALIZER_PHP);
     }
 });
 
@@ -103,9 +103,9 @@ test('connect applies redis retry config with overrides', function () {
             return ['ip' => '127.0.0.1', 'port' => 6379];
         }
 
-        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): \Redis
+        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            return Mockery::mock(\Redis::class);
+            return Mockery::mock(Redis::class);
         }
     };
 
@@ -122,8 +122,8 @@ test('connect applies redis retry config with overrides', function () {
         ],
     ], []);
 
-    $limitProperty = new \ReflectionProperty(RedisSentinelConnection::class, 'retryLimit');
-    $delayProperty = new \ReflectionProperty(RedisSentinelConnection::class, 'retryDelay');
+    $limitProperty = new ReflectionProperty(RedisSentinelConnection::class, 'retryLimit');
+    $delayProperty = new ReflectionProperty(RedisSentinelConnection::class, 'retryDelay');
 
     expect($limitProperty->getValue($connection))->toBe(4);
     expect($delayProperty->getValue($connection))->toBe(500);

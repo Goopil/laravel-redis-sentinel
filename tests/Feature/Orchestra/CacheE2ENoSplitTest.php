@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
@@ -16,7 +17,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         ]);
 
         // Purge connections to ensure fresh config
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -27,7 +28,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         // Now safe to flush
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors in setup
         }
     });
@@ -124,7 +125,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         // Disconnect
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -159,7 +160,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 if ($i === 60) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(2);
@@ -167,7 +168,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
 
                 Cache::put("{$testId}:{$i}", ['value' => "data_{$i}"], 3600);
                 $successWrites++;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -213,7 +214,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -247,7 +248,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -277,7 +278,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 if ($i === 30) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(1);
@@ -285,12 +286,12 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
 
                 Cache::increment($counterKey);
                 $expected++;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 usleep(100000);
                 try {
                     Cache::increment($counterKey);
                     $expected++;
-                } catch (\Exception $e2) {
+                } catch (Exception $e2) {
                     // Failed retry
                 }
             }
@@ -315,7 +316,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -349,7 +350,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -373,7 +374,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -394,7 +395,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 if ($i % 30 === 0) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     usleep(500000);
@@ -408,7 +409,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 } else {
                     Cache::get("{$testId}:item:".($i - 1));
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -429,7 +430,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         for ($i = 1; $i <= 3; $i++) {
             try {
                 $connection->disconnect();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected
             }
             sleep(1);
@@ -448,7 +449,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 

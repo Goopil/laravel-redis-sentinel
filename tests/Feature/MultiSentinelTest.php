@@ -3,6 +3,7 @@
 use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
+use Illuminate\Support\Arr;
 
 test('it can connect using multiple sentinels when first is down', function () {
     $sentinel1 = Mockery::mock(RedisSentinel::class);
@@ -45,7 +46,7 @@ test('it can connect using multiple sentinels when first is down', function () {
 
         protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+            if (! Arr::has($config, 'sentinel') && ! Arr::has($config, 'sentinels')) {
                 return $this->mockRedis;
             }
 

@@ -103,7 +103,7 @@ test('it stops after retry limit', function () {
         $retryable->test_retry();
         // Since we're in a Pest test, fail() is available if we use the underlying PHPUnit,
         // but it's better to use expect()->toThrow() or just catch and assert.
-        throw new \Exception('Expected exception was not thrown.');
+        throw new Exception('Expected exception was not thrown.');
     } catch (Exception $exception) {
         if ($exception->getMessage() === 'Expected exception was not thrown.') {
             throw $exception;

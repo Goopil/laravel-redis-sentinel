@@ -1,6 +1,10 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
+use Illuminate\Broadcasting\BroadcastEvent;
+use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
@@ -27,7 +31,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         ]);
 
         // Purge connections
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -38,7 +42,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         // Flush cache and queue
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors in setup
         }
     });
@@ -59,7 +63,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         event($event);
 
         // Verify event was queued for broadcasting
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class);
+        Queue::assertPushed(BroadcastEvent::class);
     });
 
     test('multiple broadcast events with read/write mode', function () {
@@ -77,7 +81,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         }
 
         // Verify all events were queued for broadcasting
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $eventCount);
+        Queue::assertPushed(BroadcastEvent::class, $eventCount);
     });
 
     test('broadcast handles high load with read/write splitting', function () {
@@ -99,7 +103,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         $duration = microtime(true) - $startTime;
 
         // Verify all events were queued
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $eventCount);
+        Queue::assertPushed(BroadcastEvent::class, $eventCount);
         expect($duration)->toBeLessThan(5, 'Broadcasting should handle high load efficiently');
     });
 
@@ -127,7 +131,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
 
         // Verify total event count
         $totalEvents = $rounds * $eventsPerRound;
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $totalEvents);
+        Queue::assertPushed(BroadcastEvent::class, $totalEvents);
     });
 
     test('broadcast mixed event types with read/write splitting', function () {
@@ -145,7 +149,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
             }
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 30);
+        Queue::assertPushed(BroadcastEvent::class, 30);
     });
 
     test('broadcast events with complex metadata', function () {
@@ -170,7 +174,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         $event = new UserRegistered(999, 'complex_user', 'complex@example.com', $complexMetadata);
         event($event);
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, function ($job) use ($complexMetadata) {
+        Queue::assertPushed(BroadcastEvent::class, function ($job) use ($complexMetadata) {
             $event = $job->event;
 
             return $event instanceof UserRegistered
@@ -188,13 +192,13 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
 
         // Verify UserRegistered uses public channels
         expect($userChannels)->toHaveCount(2)
-            ->and($userChannels[0])->toBeInstanceOf(\Illuminate\Broadcasting\Channel::class)
+            ->and($userChannels[0])->toBeInstanceOf(Channel::class)
             ->and($userChannels[0]->name)->toBe('user-registrations')
             ->and($userChannels[1]->name)->toBe('user.123');
 
         // Verify OrderShipped uses private channels
         expect($orderChannels)->toHaveCount(2)
-            ->and($orderChannels[0])->toBeInstanceOf(\Illuminate\Broadcasting\PrivateChannel::class)
+            ->and($orderChannels[0])->toBeInstanceOf(PrivateChannel::class)
             ->and($orderChannels[0]->name)->toBe('private-orders.789')
             ->and($orderChannels[1]->name)->toBe('private-order.order_456');
     });
@@ -209,12 +213,12 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
             event(new UserRegistered($i, "before_reset_{$i}", "before{$i}@example.com"));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 5);
+        Queue::assertPushed(BroadcastEvent::class, 5);
 
         // Force connection reset
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -226,7 +230,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         }
 
         // Total should be 10 events
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 10);
+        Queue::assertPushed(BroadcastEvent::class, 10);
     });
 
     test('broadcast with conditional events', function () {
@@ -239,7 +243,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         event(new OrderShipped('order_2', 2, '', ['item']));
 
         // Only 1 event should be queued
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 1);
+        Queue::assertPushed(BroadcastEvent::class, 1);
     });
 
     test('broadcast maintains order with sequential events', function () {
@@ -256,10 +260,10 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         }
 
         // Verify all events were queued in order
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 15);
+        Queue::assertPushed(BroadcastEvent::class, 15);
 
         $pushedEvents = [];
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, function ($job) use (&$pushedEvents) {
+        Queue::assertPushed(BroadcastEvent::class, function ($job) use (&$pushedEvents) {
             if ($job->event instanceof UserRegistered) {
                 $pushedEvents[] = $job->event->userId;
             }
@@ -306,7 +310,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
 
         $duration = microtime(true) - $startTime;
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $batchSize);
+        Queue::assertPushed(BroadcastEvent::class, $batchSize);
         expect($duration)->toBeLessThan(3, 'Concurrent broadcasting should be efficient');
     });
 
@@ -333,7 +337,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         $event = new OrderShipped('order_retry', 1, 'TRACK_RETRY', ['item']);
         $retryUntil = $event->retryUntil();
 
-        expect($retryUntil)->toBeInstanceOf(\DateTime::class);
+        expect($retryUntil)->toBeInstanceOf(DateTime::class);
 
         $expectedTime = now()->addMinutes(5);
         expect($retryUntil->getTimestamp())->toBeGreaterThanOrEqual($expectedTime->timestamp - 2)

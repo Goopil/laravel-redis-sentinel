@@ -2,6 +2,7 @@
 
 use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
+use Illuminate\Support\Arr;
 
 test('it calls sentinel only once when cache is enabled', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
@@ -40,7 +41,7 @@ test('it calls sentinel only once when cache is enabled', function () {
         // Override to call getMasterAddress but return mock Redis client
         protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+            if (! Arr::has($config, 'sentinel') && ! Arr::has($config, 'sentinels')) {
                 return $this->mockRedis;
             }
 
@@ -106,7 +107,7 @@ test('it invalidates cache when refresh is requested', function () {
 
         protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+            if (! Arr::has($config, 'sentinel') && ! Arr::has($config, 'sentinels')) {
                 return $this->mockRedis;
             }
 

@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
@@ -16,7 +17,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         ]);
 
         // Purge connections to ensure fresh config
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -27,7 +28,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         // Now safe to flush with properly configured connection
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors in setup
         }
     });
@@ -121,7 +122,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         // Force disconnection
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -157,7 +158,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
                 if ($i === 50) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(2); // Failover window
@@ -169,7 +170,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
                 ], 3600);
 
                 $successfulWrites++;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -218,7 +219,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -252,7 +253,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -286,7 +287,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
                     // Simulate failover
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(1);
@@ -294,13 +295,13 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
 
                 Cache::increment($counterKey);
                 $expectedValue++;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Retry on failure
                 usleep(100000); // 100ms
                 try {
                     Cache::increment($counterKey);
                     $expectedValue++;
-                } catch (\Exception $e2) {
+                } catch (Exception $e2) {
                     // Failed retry
                 }
             }
@@ -328,7 +329,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -363,7 +364,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -390,7 +391,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -416,7 +417,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
                 if ($i % 25 === 0) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     usleep(500000); // 500ms
@@ -431,7 +432,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
                     $value = Cache::get("{$testId}:item:".($i - 1));
                     $results[] = $value;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -459,7 +460,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         for ($i = 1; $i <= 3; $i++) {
             try {
                 $connection->disconnect();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected
             }
             sleep(1);
@@ -482,7 +483,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         $connection = Redis::connection('phpredis-sentinel');
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 

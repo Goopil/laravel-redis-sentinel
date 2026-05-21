@@ -1,5 +1,10 @@
 <?php
 
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
+use Illuminate\Broadcasting\Broadcasters\RedisBroadcaster;
+use Illuminate\Broadcasting\BroadcastEvent;
+use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
@@ -19,13 +24,13 @@ describe('Broadcast', function () {
     test('broadcaster uses redis sentinel connection', function () {
         $broadcaster = Broadcast::connection('phpredis-sentinel');
 
-        expect($broadcaster)->toBeInstanceOf(\Illuminate\Broadcasting\Broadcasters\RedisBroadcaster::class);
+        expect($broadcaster)->toBeInstanceOf(RedisBroadcaster::class);
 
         // Use reflection to access the private redis property
         $reflection = new ReflectionClass($broadcaster);
         $property = $reflection->getProperty('redis');
 
-        expect($property->getValue($broadcaster))->toBeInstanceOf(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        expect($property->getValue($broadcaster))->toBeInstanceOf(RedisSentinelManager::class);
     });
 
     test('user registered event has correct structure', function () {
@@ -49,10 +54,10 @@ describe('Broadcast', function () {
         expect($channels)->toBeArray()
             ->and(count($channels))->toBe(2);
 
-        expect($channels[0])->toBeInstanceOf(\Illuminate\Broadcasting\Channel::class)
+        expect($channels[0])->toBeInstanceOf(Channel::class)
             ->and($channels[0]->name)->toBe('user-registrations');
 
-        expect($channels[1])->toBeInstanceOf(\Illuminate\Broadcasting\Channel::class)
+        expect($channels[1])->toBeInstanceOf(Channel::class)
             ->and($channels[1]->name)->toBe('user.456');
     });
 
@@ -87,10 +92,10 @@ describe('Broadcast', function () {
         expect($channels)->toBeArray()
             ->and(count($channels))->toBe(2);
 
-        expect($channels[0])->toBeInstanceOf(\Illuminate\Broadcasting\PrivateChannel::class)
+        expect($channels[0])->toBeInstanceOf(PrivateChannel::class)
             ->and($channels[0]->name)->toBe('private-orders.999');
 
-        expect($channels[1])->toBeInstanceOf(\Illuminate\Broadcasting\PrivateChannel::class)
+        expect($channels[1])->toBeInstanceOf(PrivateChannel::class)
             ->and($channels[1]->name)->toBe('private-order.order_123');
     });
 
@@ -140,7 +145,7 @@ describe('Broadcast', function () {
         $event = new OrderShipped('order_123', 1, 'TRACK123');
         $retryUntil = $event->retryUntil();
 
-        expect($retryUntil)->toBeInstanceOf(\DateTime::class);
+        expect($retryUntil)->toBeInstanceOf(DateTime::class);
 
         $now = now();
         $expectedRetryTime = $now->copy()->addMinutes(5);
@@ -170,7 +175,7 @@ describe('Broadcast', function () {
         event(new OrderShipped('order_2', 2, 'TRACK2', ['item2']));
 
         // Broadcasting jobs are queued
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 4);
+        Queue::assertPushed(BroadcastEvent::class, 4);
     });
 
     test('broadcast event serialization works correctly', function () {
@@ -213,7 +218,7 @@ describe('Broadcast', function () {
             event($event);
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 20);
+        Queue::assertPushed(BroadcastEvent::class, 20);
     });
 
     test('broadcast event with empty items shows correct count', function () {
@@ -256,10 +261,10 @@ describe('Broadcast', function () {
         $orderChannels = $orderEvent->broadcastOn();
 
         // User event uses public channels
-        expect($userChannels[0])->toBeInstanceOf(\Illuminate\Broadcasting\Channel::class);
+        expect($userChannels[0])->toBeInstanceOf(Channel::class);
 
         // Order event uses private channels (requires authorization)
-        expect($orderChannels[0])->toBeInstanceOf(\Illuminate\Broadcasting\PrivateChannel::class)
-            ->and($orderChannels[1])->toBeInstanceOf(\Illuminate\Broadcasting\PrivateChannel::class);
+        expect($orderChannels[0])->toBeInstanceOf(PrivateChannel::class)
+            ->and($orderChannels[1])->toBeInstanceOf(PrivateChannel::class);
     });
 });

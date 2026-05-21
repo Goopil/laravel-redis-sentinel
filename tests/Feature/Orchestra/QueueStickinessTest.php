@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Redis;
@@ -24,7 +25,7 @@ describe('Queue Stickiness', function () {
         // 2. Fire the JobProcessing event
         // The JobProcessing event constructor requires connection name and job instance.
         // We can just mock the job.
-        $job = Mockery::mock(\Illuminate\Contracts\Queue\Job::class);
+        $job = Mockery::mock(Job::class);
         $job->allows('payload')->andReturn([]);
         Event::dispatch(new JobProcessing('phpredis-sentinel', $job));
 

@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Workbench\App\Jobs\HorizonTestJob;
@@ -22,7 +23,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
         ]);
 
         // Purge connections
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -33,7 +34,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
         // Now safe to flush
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors in setup
         }
     });
@@ -72,7 +73,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
             $masterInfo = $connection->info('replication');
             expect($masterInfo)->toBeArray()
                 ->and($masterInfo['role'] ?? null)->toBe('master');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // If we can't get master info, at least verify connection works
             expect($connection->ping())->toBeTrue();
         }
@@ -125,7 +126,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
         // Simulate connection disruption by forcing a disconnect
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected - connection may throw on disconnect
         }
 
@@ -145,7 +146,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
                 if (Cache::get("horizon:job:{$jobId}:executed")) {
                     $successfulJobs++;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $failedJobs++;
             }
         }
@@ -183,7 +184,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
         try {
             // Trigger a reconnection scenario
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -206,7 +207,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
                 if (Cache::get("horizon:job:{$jobId}:executed")) {
                     $duringFailoverSuccess++;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $duringFailoverFailed++;
             }
         }
@@ -261,7 +262,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
         // Force reconnection
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -295,7 +296,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
                 if ($i % 10 === 0) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     usleep(100000); // 100ms recovery time
@@ -312,7 +313,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
                 if (Cache::get("horizon:job:{$jobId}:executed")) {
                     $successfulJobs++;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $failedJobs++;
             }
         }
@@ -342,7 +343,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -376,7 +377,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 

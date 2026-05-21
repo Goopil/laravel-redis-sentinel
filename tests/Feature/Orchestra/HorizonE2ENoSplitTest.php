@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Workbench\App\Jobs\HorizonTestJob;
@@ -23,7 +24,7 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         ]);
 
         // Purge Redis connections to apply new config
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         // Update manager config via reflection
         $reflection = new ReflectionClass($manager);
@@ -35,7 +36,7 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Now safe to flush
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors in setup
         }
     });
@@ -123,7 +124,7 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Force disconnection
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -150,7 +151,7 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                 if ($i === 30) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(2);
@@ -166,7 +167,7 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                 if (Cache::get("horizon:job:{$jobId}:executed")) {
                     $successCount++;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -218,7 +219,7 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -314,7 +315,7 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                 if ($i % 10 === 0) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     usleep(500000); // 500ms recovery
@@ -327,7 +328,7 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                 if (Cache::get("horizon:job:{$jobId}:executed")) {
                     $successCount++;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during disconnects
             }
         }
