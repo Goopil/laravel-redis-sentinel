@@ -199,6 +199,8 @@ The `config/phpredis-sentinel.php` file allows fine-tuning:
 
 ```php
 return [
+    'override_laravel_redis' => true,
+
     'log' => [
         'channel' => null, // Use Laravel's default log channel
     ],
@@ -232,6 +234,41 @@ return [
     ],
 ];
 ```
+
+### Laravel Redis Binding Override
+
+By default, the package replaces Laravel's global `redis` and `redis.connection` container bindings with the Sentinel-aware manager. This is the recommended mode and the one the package is primarily designed for: it preserves plug-and-play compatibility with Laravel services, facades, queues, cache, sessions, broadcasting, Horizon, and third-party packages that resolve Redis through Laravel's default bindings.
+
+```env
+REDIS_SENTINEL_OVERRIDE_LARAVEL_REDIS=true
+```
+
+If your application needs to keep Laravel's native Redis manager as the global binding and use Sentinel only through explicit `phpredis-sentinel` connections, disable the override:
+
+```env
+REDIS_SENTINEL_OVERRIDE_LARAVEL_REDIS=false
+```
+
+This is an advanced opt-out mode. With this setting disabled, the package still registers its dedicated `phpredis-sentinel` manager and `redis.sentinel` connector, but it does not replace the global `redis` or `redis.connection` bindings.
+
+Use this mode only when every Sentinel-backed integration is configured explicitly with the `phpredis-sentinel` driver/connection. Code or packages using Laravel's global Redis binding will keep using Laravel's native Redis manager instead:
+
+```php
+use Illuminate\Support\Facades\Redis;
+
+Redis::connection('default'); // Uses Laravel's native Redis manager when the override is disabled.
+app('redis');                 // Also resolves Laravel's native Redis manager.
+```
+
+Important limitations when `REDIS_SENTINEL_OVERRIDE_LARAVEL_REDIS=false`:
+
+- `Redis::connection()` and `app('redis')` are not Sentinel-aware.
+- Laravel Horizon is not compatible with this opt-out mode, because Horizon resolves Redis through Laravel's global Redis bindings.
+- Third-party packages that call `app('redis')`, `app('redis.connection')`, or the `Redis` facade will not use Sentinel unless they support an explicit custom Redis manager/connection.
+- Do not set Laravel's global `database.redis.client` to `phpredis-sentinel` while also disabling the override; the native Laravel Redis manager does not own this package's Sentinel connector.
+- A custom `phpredis-sentinel` connection falls back to a regular Laravel Redis connection when its configuration does not contain the Sentinel-specific options required to open a Sentinel-managed connection.
+
+For most applications, keep the override enabled. Disable it only for advanced mixed setups where Laravel's native Redis manager must remain global and Sentinel is used through explicitly configured package integrations.
 
 ### Retry Strategy
 

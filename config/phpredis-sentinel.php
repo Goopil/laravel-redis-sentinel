@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'override_laravel_redis' => env('REDIS_SENTINEL_OVERRIDE_LARAVEL_REDIS', true),
+
     'log' => [
         'channel' => env('REDIS_SENTINEL_LOG_CHANNEL', env('LOG_CHANNEL')),
     ],
