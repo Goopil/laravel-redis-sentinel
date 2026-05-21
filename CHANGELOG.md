@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.1.0...1.2.0) (2026-05-21)
+
+
+### Features
+
+* allow disabling redis connection override ([#23](https://github.com/Goopil/laravel-redis-sentinel/issues/23)) ([5a4788c](https://github.com/Goopil/laravel-redis-sentinel/commit/5a4788c442755e36f19fa2f5a078caf11b54ee29))
+
 # [1.1.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.0.1...1.1.0) (2026-02-21)
 
 
