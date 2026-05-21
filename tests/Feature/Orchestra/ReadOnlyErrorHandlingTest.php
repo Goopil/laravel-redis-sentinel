@@ -1,8 +1,10 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Str;
 
 describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
     test('lib automatically retries and recovers from READONLY error', function () {
@@ -43,7 +45,7 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
             // Verify the value was stored
             $retrieved = Cache::get($testKey);
             expect($retrieved)->toBe($testValue, 'Value should be retrievable after auto-retry');
-        } catch (\RedisException $e) {
+        } catch (RedisException $e) {
             // If we get a READONLY error here, it means the lib didn't retry
             if (str_contains(strtolower($e->getMessage()), 'readonly')) {
                 $this->fail('Lib should have automatically retried READONLY error but did not. Error: '.$e->getMessage());
@@ -70,7 +72,7 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
             'lock_connection' => 'phpredis-sentinel',
         ]);
 
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -92,7 +94,7 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
             'lock_connection' => 'phpredis-sentinel',
         ]);
 
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -129,7 +131,7 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
             'lock_connection' => 'phpredis-sentinel',
         ]);
 
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -167,7 +169,7 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
             'lock_connection' => 'phpredis-sentinel',
         ]);
 
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -185,7 +187,7 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
                 if ($result) {
                     $successfulWrites++;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // If we get READONLY error, lib should have retried
                 if (str_contains(strtolower($e->getMessage()), 'readonly')) {
                     $this->fail("READONLY error was not handled by retry mechanism at iteration {$i}: ".$e->getMessage());
@@ -244,10 +246,10 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
         // Verify our implementation would match all variations
         // This is a meta-test to ensure the Str::contains with ignoreCase works
         foreach ($errorVariations as $errorMsg) {
-            $shouldMatch = \Illuminate\Support\Str::contains($errorMsg, 'readonly', ignoreCase: true);
+            $shouldMatch = Str::contains($errorMsg, 'readonly', ignoreCase: true);
             expect($shouldMatch)->toBeTrue("Error message '{$errorMsg}' should match 'readonly' (case-insensitive)");
 
-            $shouldMatchWrite = \Illuminate\Support\Str::contains($errorMsg, "can't write", ignoreCase: true);
+            $shouldMatchWrite = Str::contains($errorMsg, "can't write", ignoreCase: true);
             expect($shouldMatchWrite)->toBeTrue("Error message '{$errorMsg}' should match 'can't write' (case-insensitive)");
         }
     });

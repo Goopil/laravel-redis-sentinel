@@ -1,6 +1,8 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
+use Illuminate\Broadcasting\BroadcastEvent;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
@@ -27,7 +29,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
         ]);
 
         // Purge connections
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -37,7 +39,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
 
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors
         }
     });
@@ -59,7 +61,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
         Queue::fake();
         event(new UserRegistered(1, 'master_only', 'master@example.com'));
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class);
+        Queue::assertPushed(BroadcastEvent::class);
     });
 
     test('multiple broadcast events in master-only mode', function () {
@@ -74,7 +76,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             ]));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $eventCount);
+        Queue::assertPushed(BroadcastEvent::class, $eventCount);
     });
 
     test('broadcast handles high volume in master-only mode', function () {
@@ -97,14 +99,14 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
 
             $duration = microtime(true) - $startTime;
 
-            Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $eventCount);
+            Queue::assertPushed(BroadcastEvent::class, $eventCount);
             expect($duration)->toBeLessThan(10, 'High volume broadcasting should complete in reasonable time');
-        } catch (\RedisException $e) {
+        } catch (RedisException $e) {
             // If connection lost during transaction, reconnect and continue
             if (str_contains($e->getMessage(), 'MULTI') || str_contains($e->getMessage(), 'watching')) {
                 try {
                     $connection->disconnect();
-                } catch (\Exception $ex) {
+                } catch (Exception $ex) {
                     // Ignore
                 }
                 sleep(1);
@@ -135,7 +137,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
         }
 
         $totalEvents = $rounds * $eventsPerRound;
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $totalEvents);
+        Queue::assertPushed(BroadcastEvent::class, $totalEvents);
     });
 
     test('broadcast mixed event types in master-only mode', function () {
@@ -149,7 +151,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             }
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 40);
+        Queue::assertPushed(BroadcastEvent::class, 40);
     });
 
     test('broadcast survives connection reset in master-only mode', function () {
@@ -161,12 +163,12 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             event(new UserRegistered($i, "before_{$i}", "before{$i}@example.com"));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 10);
+        Queue::assertPushed(BroadcastEvent::class, 10);
 
         // Force disconnect
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -177,7 +179,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             event(new UserRegistered($i, "after_{$i}", "after{$i}@example.com"));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 20);
+        Queue::assertPushed(BroadcastEvent::class, 20);
     });
 
     test('broadcast complex metadata in master-only mode', function () {
@@ -203,7 +205,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
 
         event(new UserRegistered(777, 'complex_master', 'complex@example.com', $metadata));
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, function ($job) use ($metadata) {
+        Queue::assertPushed(BroadcastEvent::class, function ($job) use ($metadata) {
             return $job->event instanceof UserRegistered
                 && $job->event->userId === 777
                 && $job->event->metadata === $metadata;
@@ -235,7 +237,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
         // Should NOT broadcast (empty tracking)
         event(new OrderShipped('order_invalid', 2, '', ['item']));
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 1);
+        Queue::assertPushed(BroadcastEvent::class, 1);
     });
 
     test('broadcast maintains event order in master-only mode', function () {
@@ -248,10 +250,10 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             usleep(5000); // 5ms
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 20);
+        Queue::assertPushed(BroadcastEvent::class, 20);
 
         $pushedEvents = [];
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, function ($job) use (&$pushedEvents) {
+        Queue::assertPushed(BroadcastEvent::class, function ($job) use (&$pushedEvents) {
             if ($job->event instanceof UserRegistered) {
                 $pushedEvents[] = $job->event->userId;
             }
@@ -292,7 +294,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
 
         $duration = microtime(true) - $startTime;
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $batchSize);
+        Queue::assertPushed(BroadcastEvent::class, $batchSize);
         expect($duration)->toBeLessThan(5, 'Concurrent broadcasting should be efficient');
     });
 
@@ -316,7 +318,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
         $event = new OrderShipped('order_retry', 1, 'TRACK_RETRY', ['item']);
         $retryUntil = $event->retryUntil();
 
-        expect($retryUntil)->toBeInstanceOf(\DateTime::class);
+        expect($retryUntil)->toBeInstanceOf(DateTime::class);
         expect($retryUntil->getTimestamp())->toBeGreaterThan(now()->timestamp);
     });
 
@@ -339,7 +341,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             if (in_array($i, $disconnectAt)) {
                 try {
                     $connection->disconnect();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Expected
                 }
                 usleep(300000); // 300ms
@@ -348,6 +350,6 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             event(new UserRegistered($i, "resilient_{$i}", "user{$i}@example.com"));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $totalEvents);
+        Queue::assertPushed(BroadcastEvent::class, $totalEvents);
     });
 });

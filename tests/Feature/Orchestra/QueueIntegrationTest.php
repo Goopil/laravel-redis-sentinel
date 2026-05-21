@@ -1,5 +1,7 @@
 <?php
 
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
+use Illuminate\Queue\Connectors\RedisConnector;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
@@ -28,7 +30,7 @@ describe('Queue Integration with Orchestra', function () {
         // Try to flush cache if available
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors - cache might not be ready yet
         }
 
@@ -148,11 +150,11 @@ describe('Queue Integration with Orchestra', function () {
         app()->forgetInstance('queue');
         $queueManager = app('queue');
         $queueManager->extend('phpredis-sentinel', function () {
-            return new \Illuminate\Queue\Connectors\RedisConnector(app('phpredis-sentinel'));
+            return new RedisConnector(app('phpredis-sentinel'));
         });
         $queue = $queueManager->connection('test-sentinel');
 
-        expect($queue->getRedis())->toBeInstanceOf(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        expect($queue->getRedis())->toBeInstanceOf(RedisSentinelManager::class);
 
         // Restore fake if there was one
         if ($originalFake) {
@@ -253,14 +255,14 @@ describe('Queue Job Execution with Real Redis', function () {
 
         try {
             $job->handle();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected exception on first attempt
             expect($e->getMessage())->toBe('Simulated email sending failure');
         }
 
         // Simulate reaching max attempts and calling failed()
         Cache::put("email:{$email}:attempts", 3);
-        $job->failed(new \Exception('Max retries exceeded'));
+        $job->failed(new Exception('Max retries exceeded'));
 
         expect(Cache::get("email:{$email}:failed"))->toBeTrue()
             ->and(Cache::get("email:{$email}:error"))->toBe('Max retries exceeded');

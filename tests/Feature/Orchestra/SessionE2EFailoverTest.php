@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Session;
 
@@ -13,7 +14,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         config()->set('session.store', 'phpredis-sentinel');
 
         // Purge connections
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -25,7 +26,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         try {
             Session::flush();
             Session::regenerate();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore errors in setup
         }
     });
@@ -98,7 +99,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Force disconnection
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -129,7 +130,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -162,7 +163,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -191,7 +192,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
                 if ($i === 25) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(2);
@@ -206,7 +207,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
 
                 Session::increment('update_count', 1);
                 Session::save();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -238,7 +239,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -272,7 +273,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -308,7 +309,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
                     // Simulate failover
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(1);
@@ -319,7 +320,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
                     Session::decrement('cart_items');
                 }
                 Session::save();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -347,7 +348,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -378,7 +379,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -400,7 +401,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
                 if ($i % 20 === 0) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     usleep(500000); // 500ms
@@ -419,7 +420,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
 
                 Session::save();
                 $successfulOps++;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -447,7 +448,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -478,7 +479,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
             // Failover
             try {
                 $connection->disconnect();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected
             }
 
@@ -528,7 +529,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 

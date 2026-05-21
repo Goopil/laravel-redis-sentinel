@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Workbench\App\Jobs\ProcessOrderJob;
@@ -27,7 +28,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         ]);
 
         // Purge connections
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -38,7 +39,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         // Now safe to flush
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors in setup
         }
     });
@@ -141,7 +142,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         // Disconnect
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -180,7 +181,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 if ($i === 40) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(2);
@@ -195,7 +196,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                     $job = new ProcessOrderJob($jobData['orderId'], ['index' => $jobData['index']]);
                     $job->handle();
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -245,7 +246,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -280,7 +281,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 if (in_array($i, $disconnectAt)) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     usleep(500000);
@@ -290,7 +291,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 if ($payload) {
                     $processed[] = $payload;
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 usleep(100000);
                 $i--;
             }
@@ -317,7 +318,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             if ($i === 15) {
                 try {
                     $connection->disconnect();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Expected
                 }
                 sleep(1);
@@ -354,7 +355,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         // Failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -407,7 +408,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             if ($connection->llen($queueKey) === 5) {
                 try {
                     $connection->disconnect();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Expected
                 }
                 sleep(1);

@@ -5,6 +5,7 @@ use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterReconnected;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 
 test('it retries when master not found', function () {
@@ -45,7 +46,7 @@ test('it retries when master not found', function () {
 
         protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+            if (! Arr::has($config, 'sentinel') && ! Arr::has($config, 'sentinels')) {
                 return $this->mockRedis;
             }
 
@@ -109,7 +110,7 @@ test('it throws after max retries', function () {
 
         protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+            if (! Arr::has($config, 'sentinel') && ! Arr::has($config, 'sentinels')) {
                 return $this->mockRedis;
             }
 
@@ -173,7 +174,7 @@ test('it does not retry unrecognized exceptions', function () {
 
         protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
         {
-            if (! \Illuminate\Support\Arr::has($config, 'sentinel') && ! \Illuminate\Support\Arr::has($config, 'sentinels')) {
+            if (! Arr::has($config, 'sentinel') && ! Arr::has($config, 'sentinels')) {
                 return $this->mockRedis;
             }
 

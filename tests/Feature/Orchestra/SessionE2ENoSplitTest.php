@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Session;
 
@@ -13,7 +14,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         config()->set('session.store', 'phpredis-sentinel');
 
         // Purge connections
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -25,7 +26,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         try {
             Session::flush();
             Session::regenerate();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore errors in setup
         }
     });
@@ -93,7 +94,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Disconnect
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -124,7 +125,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -157,7 +158,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -182,7 +183,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                 if ($i === 35) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(2);
@@ -194,7 +195,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                 ]);
                 Session::increment('update_counter', 1);
                 Session::save();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -226,7 +227,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -255,7 +256,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -289,7 +290,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                 if ($i === 15) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(1);
@@ -300,7 +301,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                     Session::decrement('items');
                 }
                 Session::save();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -326,7 +327,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -353,7 +354,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -373,7 +374,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                 if ($i % 30 === 0) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     usleep(500000);
@@ -392,7 +393,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
 
                 Session::save();
                 $successful++;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected during failover
             }
         }
@@ -417,7 +418,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -442,7 +443,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
 
             try {
                 $connection->disconnect();
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Expected
             }
 
@@ -486,7 +487,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         // Failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 

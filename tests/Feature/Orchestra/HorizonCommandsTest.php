@@ -3,13 +3,14 @@
 use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Artisan;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
+use Laravel\Horizon\HorizonServiceProvider;
 use Laravel\Horizon\MasterSupervisor;
 use Mockery\MockInterface;
 
 describe('Horizon Commands', function () {
     beforeEach(function () {
-        if (class_exists(\Laravel\Horizon\HorizonServiceProvider::class)) {
-            app()->register(\Laravel\Horizon\HorizonServiceProvider::class);
+        if (class_exists(HorizonServiceProvider::class)) {
+            app()->register(HorizonServiceProvider::class);
         }
 
         config(['horizon.driver' => 'phpredis-sentinel']);

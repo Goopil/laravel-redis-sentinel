@@ -1,6 +1,8 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
+use Illuminate\Broadcasting\BroadcastEvent;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
@@ -27,7 +29,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         ]);
 
         // Purge connections
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         $reflection = new ReflectionClass($manager);
         $configProp = $reflection->getProperty('config');
@@ -37,7 +39,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
 
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors
         }
     });
@@ -53,7 +55,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             ]));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $eventCount);
+        Queue::assertPushed(BroadcastEvent::class, $eventCount);
 
         // Verify connection health
         $connection = Redis::connection('phpredis-sentinel');
@@ -85,12 +87,12 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             event(new UserRegistered($i, "before_reset_{$i}", "before{$i}@example.com"));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 8);
+        Queue::assertPushed(BroadcastEvent::class, 8);
 
         // Simulate connection disruption
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -101,7 +103,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             event(new UserRegistered($i, "after_reset_{$i}", "after{$i}@example.com"));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 16);
+        Queue::assertPushed(BroadcastEvent::class, 16);
     });
 
     test('broadcast survives failover during high volume', function () {
@@ -116,7 +118,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
                 if ($i === 50) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(2); // Failover window
@@ -124,14 +126,14 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
 
                 event(new UserRegistered($i, "failover_{$i}", "failover{$i}@example.com"));
                 $successCount++;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Some events might fail during failover
             }
         }
 
         // Most events should succeed
         expect($successCount)->toBeGreaterThan(90, 'At least 90% of events should succeed');
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $successCount);
+        Queue::assertPushed(BroadcastEvent::class, $successCount);
     });
 
     test('broadcast maintains event integrity through failover', function () {
@@ -150,12 +152,12 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             ]));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $eventsBeforeFailover);
+        Queue::assertPushed(BroadcastEvent::class, $eventsBeforeFailover);
 
         // Phase 2: Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -169,7 +171,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
                     'phase' => 'during',
                 ]));
                 $duringSuccess++;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Some might fail
             }
         }
@@ -185,7 +187,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
 
         // Verify most events succeeded
         $totalExpected = $eventsBeforeFailover + $duringSuccess + $eventsAfterFailover;
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $totalExpected);
+        Queue::assertPushed(BroadcastEvent::class, $totalExpected);
     });
 
     test('broadcast channel subscriptions persist through failover', function () {
@@ -199,7 +201,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -221,7 +223,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
                 if ($i === $failoverPoint) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     sleep(2);
@@ -232,14 +234,14 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
                 } else {
                     event(new OrderShipped("order_{$i}", $i, "TRACK_{$i}", ["item_{$i}"]));
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Some might fail during failover
             }
         }
 
         // Most events should succeed
         $pushedCount = 0;
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, function ($job) use (&$pushedCount) {
+        Queue::assertPushed(BroadcastEvent::class, function ($job) use (&$pushedCount) {
             $pushedCount++;
 
             return true;
@@ -265,7 +267,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -288,7 +290,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
                 if (in_array($i, $disconnectPoints)) {
                     try {
                         $connection->disconnect();
-                    } catch (\Exception $e) {
+                    } catch (Exception $e) {
                         // Expected
                     }
                     usleep(500000); // 500ms recovery
@@ -296,13 +298,13 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
 
                 event(new UserRegistered($i, "intermittent_{$i}", "intermittent{$i}@example.com"));
                 $successCount++;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 // Some might fail
             }
         }
 
         expect($successCount)->toBeGreaterThan(75, 'At least 95% should succeed with brief disconnects');
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $successCount);
+        Queue::assertPushed(BroadcastEvent::class, $successCount);
     });
 
     test('broadcast conditional events work through failover', function () {
@@ -313,12 +315,12 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         event(new OrderShipped('order_1', 1, 'TRACK_1', ['item']));
         event(new OrderShipped('order_2', 2, '', [])); // Should not broadcast
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 1);
+        Queue::assertPushed(BroadcastEvent::class, 1);
 
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -328,7 +330,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         event(new OrderShipped('order_3', 3, 'TRACK_3', ['item']));
         event(new OrderShipped('order_4', 4, '', [])); // Should not broadcast
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 2);
+        Queue::assertPushed(BroadcastEvent::class, 2);
     });
 
     test('broadcast complex metadata persists through failover', function () {
@@ -346,7 +348,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -356,7 +358,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         $metadata2 = ['profile' => ['name' => 'Jane', 'age' => 25]];
         event(new UserRegistered(2, 'complex2', 'complex2@example.com', $metadata2));
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, function ($job) use ($metadata, $metadata2) {
+        Queue::assertPushed(BroadcastEvent::class, function ($job) use ($metadata, $metadata2) {
             if ($job->event instanceof UserRegistered) {
                 return $job->event->metadata === $metadata || $job->event->metadata === $metadata2;
             }
@@ -374,12 +376,12 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             event(new UserRegistered($i, "before_outage_{$i}", "before{$i}@example.com"));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 10);
+        Queue::assertPushed(BroadcastEvent::class, 10);
 
         // Simulate extended outage
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -390,7 +392,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             event(new UserRegistered($i, "after_outage_{$i}", "after{$i}@example.com"));
         }
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, 20);
+        Queue::assertPushed(BroadcastEvent::class, 20);
     });
 
     test('broadcast maintains performance through failover', function () {
@@ -408,7 +410,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         // Simulate failover
         try {
             $connection->disconnect();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Expected
         }
 
@@ -425,7 +427,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         expect($duration1)->toBeLessThan(3, 'Pre-failover performance should be good');
         expect($duration2)->toBeLessThan(4, 'Post-failover performance should recover');
 
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, $eventsPerPhase * 2);
+        Queue::assertPushed(BroadcastEvent::class, $eventsPerPhase * 2);
     });
 
     test('broadcast event order preserved through failover', function () {
@@ -438,7 +440,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             if ($i === 15) {
                 try {
                     $connection->disconnect();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     // Expected
                 }
                 sleep(1);
@@ -450,7 +452,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
 
         // Verify events were queued
         $pushedIds = [];
-        Queue::assertPushed(\Illuminate\Broadcasting\BroadcastEvent::class, function ($job) use (&$pushedIds) {
+        Queue::assertPushed(BroadcastEvent::class, function ($job) use (&$pushedIds) {
             if ($job->event instanceof UserRegistered) {
                 $pushedIds[] = $job->event->userId;
             }

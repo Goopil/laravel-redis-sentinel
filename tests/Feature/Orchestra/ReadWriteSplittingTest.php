@@ -1,6 +1,10 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
+use Illuminate\Broadcasting\Broadcasters\RedisBroadcaster;
+use Illuminate\Contracts\Broadcasting\Factory;
+use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Cache;
@@ -22,7 +26,7 @@ describe('Read/Write', function () {
         ]);
 
         // Get the current manager
-        $manager = app(\Goopil\LaravelRedisSentinel\RedisSentinelManager::class);
+        $manager = app(RedisSentinelManager::class);
 
         // Inject the new config via reflection because the manager keeps an internal copy
         $reflection = new ReflectionClass($manager);
@@ -122,10 +126,10 @@ describe('Read/Write', function () {
         ]);
 
         // Purge the broadcast manager to force config reload
-        app()->forgetInstance(\Illuminate\Contracts\Broadcasting\Factory::class);
+        app()->forgetInstance(Factory::class);
 
         $broadcaster = Broadcast::driver('phpredis-sentinel');
-        expect($broadcaster)->toBeInstanceOf(\Illuminate\Broadcasting\Broadcasters\RedisBroadcaster::class);
+        expect($broadcaster)->toBeInstanceOf(RedisBroadcaster::class);
 
         // A direct broadcast (PUBLISH) is a write
         $broadcaster->broadcast(['test-channel'], 'test-event', ['data' => 'value']);
@@ -142,7 +146,7 @@ describe('Read/Write', function () {
         expect(getInternalState($connection)['wroteToMaster'])->toBeTrue();
 
         // Simulate the start of a new job
-        $job = Mockery::mock(\Illuminate\Contracts\Queue\Job::class);
+        $job = Mockery::mock(Job::class);
         $job->shouldReceive('payload')->andReturn([]);
         Event::dispatch(new JobProcessing('phpredis-sentinel', $job));
 

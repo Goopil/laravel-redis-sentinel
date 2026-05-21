@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
+use Laravel\Horizon\Horizon;
 use Workbench\App\Jobs\HorizonTestJob;
 
 describe('Horizon Integration with Orchestra', function () {
@@ -22,13 +23,13 @@ describe('Horizon Integration with Orchestra', function () {
         // Try to flush cache if available
         try {
             Cache::flush();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Ignore flush errors - cache might not be ready yet
         }
     });
 
     test('horizon uses redis sentinel connection', function () {
-        if (! class_exists(\Laravel\Horizon\Horizon::class)) {
+        if (! class_exists(Horizon::class)) {
             $this->markTestSkipped('Horizon is not installed');
         }
 
@@ -105,7 +106,7 @@ describe('Horizon Integration with Orchestra', function () {
 
         $retryUntil = $job->retryUntil();
 
-        expect($retryUntil)->toBeInstanceOf(\DateTime::class);
+        expect($retryUntil)->toBeInstanceOf(DateTime::class);
 
         $now = now();
         $expectedRetryTime = $now->copy()->addMinutes(5);
