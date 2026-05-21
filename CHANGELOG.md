@@ -1,3 +1,17 @@
+## [1.2.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.0...1.2.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* harden replicas random selection ([#22](https://github.com/Goopil/laravel-redis-sentinel/issues/22)) ([70abf74](https://github.com/Goopil/laravel-redis-sentinel/commit/70abf7466358566c68d380b91c9ff1d45c613c60))
+
+# [1.2.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.1.0...1.2.0) (2026-05-21)
+
+
+### Features
+
+* allow disabling redis connection override ([#23](https://github.com/Goopil/laravel-redis-sentinel/issues/23)) ([5a4788c](https://github.com/Goopil/laravel-redis-sentinel/commit/5a4788c442755e36f19fa2f5a078caf11b54ee29))
+
 # [1.1.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.0.1...1.1.0) (2026-02-21)
 
 
