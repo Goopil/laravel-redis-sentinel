@@ -315,11 +315,52 @@ test('it filters out unhealthy replicas', function () {
     expect($connection->getReadClient()->getHost())->toBe('127.0.0.3');
 });
 
+test('it keeps cached master address when refreshing replicas', function () {
+    $sentinelMock = Mockery::mock(RedisSentinel::class);
+    $sentinelMock->shouldReceive('ping')->andReturn(true);
+    $sentinelMock->shouldReceive('master')->with('mymaster')->once()->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
+    $sentinelMock->shouldReceive('slaves')->with('mymaster')->twice()->andReturn(
+        [['ip' => '127.0.0.2', 'port' => 6379, 'flags' => 'slave']],
+        [['ip' => '127.0.0.3', 'port' => 6379, 'flags' => 'slave']],
+    );
+
+    $cache = app(NodeAddressCache::class);
+
+    $connector = new class($sentinelMock, $cache) extends RedisSentinelConnector
+    {
+        public function __construct(private $sentinelMock, NodeAddressCache $cache)
+        {
+            parent::__construct($cache);
+        }
+
+        protected function connectToSentinel(array $config): RedisSentinel
+        {
+            return $this->sentinelMock;
+        }
+
+        public function master(array $config): array
+        {
+            return $this->getMasterAddress($config);
+        }
+
+        public function replica(array $config, bool $refresh = false): array
+        {
+            return $this->getReplicaAddress($config, $refresh);
+        }
+    };
+
+    $config = ['sentinel' => ['service' => 'mymaster', 'host' => '127.0.0.1']];
+
+    expect($connector->master($config))->toBe(['ip' => '127.0.0.1', 'port' => 6379]);
+    expect($connector->replica($config))->toBe(['ip' => '127.0.0.2', 'port' => 6379]);
+    expect($connector->replica($config, true))->toBe(['ip' => '127.0.0.3', 'port' => 6379]);
+    expect($cache->get('mymaster'))->toBe(['ip' => '127.0.0.1', 'port' => 6379]);
+});
+
 test('it reindexes healthy replicas after filtering unhealthy replicas', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->shouldReceive('ping')->andReturn(true);
     $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
-
     $sentinelMock->shouldReceive('slaves')->with('mymaster')->andReturn([
         ['ip' => '127.0.0.2', 'port' => 6379, 'flags' => 'slave,s_down'],
         ['ip' => '127.0.0.3', 'port' => 6379, 'flags' => 'slave'],
