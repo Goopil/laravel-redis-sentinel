@@ -3,6 +3,7 @@
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\RedisSentinelManager;
+use Goopil\LaravelRedisSentinel\RedisSentinelServiceProvider;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 use Illuminate\Redis\RedisManager;
 
@@ -13,6 +14,21 @@ describe('Ioc bindings', function () {
     });
     test('RedisSentinelManager override global redis alias', function () {
         expect(app()->make('redis'))->toBeInstanceOf(RedisSentinelManager::class);
+    });
+
+    test('RedisSentinelManager does not override global redis alias when disabled', function () {
+        config()->set('phpredis-sentinel.override_laravel_redis', false);
+
+        app()->singleton('redis', fn () => 'native redis manager');
+        app()->bind('redis.connection', fn () => 'native redis connection');
+
+        $provider = new RedisSentinelServiceProvider(app());
+        $method = new ReflectionMethod($provider, 'bootOverrides');
+        $method->setAccessible(true);
+        $method->invoke($provider);
+
+        expect(app()->make('redis'))->toBe('native redis manager')
+            ->and(app()->make('redis.connection'))->toBe('native redis connection');
     });
 
     test('RedisSentinelManager is bound to queue', function () {
