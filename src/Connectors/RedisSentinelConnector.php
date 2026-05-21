@@ -199,13 +199,13 @@ class RedisSentinelConnector extends PhpRedisConnector
             );
 
             // Filter healthy replicas
-            $replicas = array_filter($slaves, static function ($s) {
+            $replicas = array_values(array_filter($slaves, static function ($s) {
                 $flags = $s['flags'] ?? $s['role-reported'] ?? '';
 
                 return ! str_contains($flags, 's_down') &&
                        ! str_contains($flags, 'o_down') &&
                        ! str_contains($flags, 'disconnected');
-            });
+            }));
 
             if (empty($replicas)) {
                 return $this->getMasterAddress($config, $refresh);
