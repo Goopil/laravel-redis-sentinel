@@ -315,6 +315,53 @@ test('it filters out unhealthy replicas', function () {
     expect($connection->getReadClient()->getHost())->toBe('127.0.0.3');
 });
 
+test('it reindexes healthy replicas after filtering unhealthy replicas', function () {
+    $sentinelMock = Mockery::mock(RedisSentinel::class);
+    $sentinelMock->shouldReceive('ping')->andReturn(true);
+    $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
+
+    $sentinelMock->shouldReceive('slaves')->with('mymaster')->andReturn([
+        ['ip' => '127.0.0.2', 'port' => 6379, 'flags' => 'slave,s_down'],
+        ['ip' => '127.0.0.3', 'port' => 6379, 'flags' => 'slave'],
+        ['ip' => '127.0.0.4', 'port' => 6379, 'flags' => 'slave'],
+    ]);
+
+    $cache = app(NodeAddressCache::class);
+
+    $connector = new class($sentinelMock, $cache) extends RedisSentinelConnector
+    {
+        public function __construct(private $sentinelMock, NodeAddressCache $cache)
+        {
+            parent::__construct($cache);
+        }
+
+        protected function connectToSentinel(array $config): RedisSentinel
+        {
+            return $this->sentinelMock;
+        }
+
+        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
+        {
+            ['ip' => $ip] = $readOnly
+                ? $this->getReplicaAddress($config, $refresh)
+                : $this->getMasterAddress($config, $refresh);
+
+            $mock = Mockery::mock(Redis::class);
+            $mock->shouldReceive('getHost')->andReturn($ip);
+
+            return $mock;
+        }
+    };
+
+    $connection = $connector->connect([
+        'sentinel' => ['service' => 'mymaster', 'host' => '127.0.0.1'],
+        'read_only_replicas' => true,
+    ], []);
+
+    expect($connection->getReadClient()->getHost())->toBeIn(['127.0.0.3', '127.0.0.4']);
+    expect(array_keys($cache->getReplicas('mymaster')))->toBe([0, 1]);
+});
+
 test('it falls back to master if all replicas are unhealthy', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->shouldReceive('ping')->andReturn(true);
