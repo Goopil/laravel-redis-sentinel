@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.1...1.2.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* split NodeAddressCache cleanup methods for master & replicas ([#21](https://github.com/Goopil/laravel-redis-sentinel/issues/21)) ([498570f](https://github.com/Goopil/laravel-redis-sentinel/commit/498570f05d1a187666cfc9d6550f80a5abf83120))
+
 ## [1.2.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.0...1.2.1) (2026-05-21)
 
 
