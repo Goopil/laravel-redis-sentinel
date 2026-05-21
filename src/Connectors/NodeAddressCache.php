@@ -2,8 +2,12 @@
 
 namespace Goopil\LaravelRedisSentinel\Connectors;
 
-class NodeAddressCache
+final class NodeAddressCache
 {
+    private const MASTER_KEY = 'master';
+
+    private const REPLICAS_KEY = 'replicas';
+
     /**
      * @var array<string, array{master: ?array{ip: string, port: int}, replicas: array<array{ip: string, port: int}>}>
      */
@@ -14,7 +18,7 @@ class NodeAddressCache
      */
     public function get(string $service): ?array
     {
-        return $this->nodes[$service]['master'] ?? null;
+        return $this->nodes[$service][self::MASTER_KEY] ?? null;
     }
 
     /**
@@ -22,7 +26,7 @@ class NodeAddressCache
      */
     public function set(string $service, string $ip, int|string $port): void
     {
-        $this->nodes[$service]['master'] = [
+        $this->nodes[$service][self::MASTER_KEY] = [
             'ip' => $ip,
             'port' => (int) $port,
         ];
@@ -33,7 +37,7 @@ class NodeAddressCache
      */
     public function getReplicas(string $service): array
     {
-        return $this->nodes[$service]['replicas'] ?? [];
+        return $this->nodes[$service][self::REPLICAS_KEY] ?? [];
     }
 
     /**
@@ -41,10 +45,34 @@ class NodeAddressCache
      */
     public function setReplicas(string $service, array $replicas): void
     {
-        $this->nodes[$service]['replicas'] = array_map(static fn ($r) => [
+        $this->nodes[$service][self::REPLICAS_KEY] = array_map(static fn ($r) => [
             'ip' => $r['ip'] ?? $r[0],
             'port' => (int) ($r['port'] ?? $r[1]),
         ], $replicas);
+    }
+
+    /**
+     * Remove the cached master address for a service.
+     */
+    public function forgetMaster(string $service): void
+    {
+        unset($this->nodes[$service][self::MASTER_KEY]);
+
+        if (($this->nodes[$service] ?? []) === []) {
+            unset($this->nodes[$service]);
+        }
+    }
+
+    /**
+     * Remove the cached replica addresses for a service.
+     */
+    public function forgetReplicas(string $service): void
+    {
+        unset($this->nodes[$service][self::REPLICAS_KEY]);
+
+        if (($this->nodes[$service] ?? []) === []) {
+            unset($this->nodes[$service]);
+        }
     }
 
     /**
