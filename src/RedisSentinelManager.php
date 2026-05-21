@@ -9,10 +9,11 @@ use Illuminate\Redis\Connectors\PhpRedisConnector;
 use Illuminate\Redis\Connectors\PredisConnector;
 use Illuminate\Redis\RedisManager;
 use Illuminate\Support\Arr;
-use Laravel\Horizon\Connectors\RedisConnector;
 
 class RedisSentinelManager extends RedisManager
 {
+    private const HORIZON_REDIS_CONNECTOR = 'Laravel\\Horizon\\Connectors\\RedisConnector';
+
     /**
      * Cache for horizon context.
      */
@@ -81,7 +82,7 @@ class RedisSentinelManager extends RedisManager
     {
         if ($this->isHorizonContext === null) {
             $this->isHorizonContext = isset($this->app['config']) &&
-                class_exists(RedisConnector::class) &&
+                class_exists(self::HORIZON_REDIS_CONNECTOR) &&
                 $this->app['config']->get('horizon.driver') === 'phpredis-sentinel';
         }
 

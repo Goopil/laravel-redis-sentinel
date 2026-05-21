@@ -20,10 +20,11 @@ use Illuminate\Session\CacheBasedSessionHandler;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Horizon\Connectors\RedisConnector as HorizonRedisConnector;
 
 class RedisSentinelServiceProvider extends ServiceProvider
 {
+    private const HORIZON_REDIS_CONNECTOR = 'Laravel\\Horizon\\Connectors\\RedisConnector';
+
     protected string $name = 'phpredis-sentinel';
 
     public function register(): void
@@ -70,7 +71,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
     public function isHorizonContext(): bool
     {
         return
-            class_exists(HorizonRedisConnector::class) &&
+            class_exists(self::HORIZON_REDIS_CONNECTOR) &&
             $this->app['config']->get('horizon.driver') === $this->name;
     }
 
@@ -194,7 +195,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
     protected function bootQueue(): void
     {
         $connector = $this->isHorizonContext()
-            ? HorizonRedisConnector::class
+            ? self::HORIZON_REDIS_CONNECTOR
             : RedisConnector::class;
 
         $this->app->make('queue')->extend(
@@ -226,6 +227,10 @@ class RedisSentinelServiceProvider extends ServiceProvider
 
     protected function bootCommands(): void
     {
+        if (! class_exists(self::HORIZON_REDIS_CONNECTOR)) {
+            return;
+        }
+
         $this->commands([
             HorizonWorkerLiveness::class,
             HorizonWorkerReadiness::class,
