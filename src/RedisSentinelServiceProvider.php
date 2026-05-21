@@ -108,6 +108,10 @@ class RedisSentinelServiceProvider extends ServiceProvider
 
     protected function bootOverrides(): void
     {
+        if (! $this->app['config']->get("{$this->name}.override_laravel_redis", true)) {
+            return;
+        }
+
         $deferredServices = $this->app->getDeferredServices();
 
         unset(
