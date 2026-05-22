@@ -274,7 +274,7 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         expect($pushedEvents)->toBe($eventIds);
     });
 
-    test('broadcast read operations use replicas and write operations use master', function () {
+    test('broadcast pubsub and publish operations use master', function () {
         $connection = Redis::connection('phpredis-sentinel');
 
         if (! $connection instanceof RedisSentinelConnection) {
@@ -284,9 +284,9 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
         $reflection = new ReflectionClass($connection);
         $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
 
-        // Check channel subscription list (read operation)
+        // Check channel subscription list (operational command)
         $connection->pubsub('channels', 'user-*');
-        expect($wroteToMasterProp->getValue($connection))->toBeFalse('Read operations should not trigger stickiness');
+        expect($wroteToMasterProp->getValue($connection))->toBeTrue('PUBSUB should stay on master and trigger stickiness');
 
         // Publish to channel (write operation)
         $connection->publish('user-registrations', json_encode(['user_id' => 1]));

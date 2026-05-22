@@ -19,6 +19,55 @@ function redisSentinelConnection(Redis $masterClient, ?Redis $replicaClient = nu
     );
 }
 
+function readOnlyCommandDataset(): array
+{
+    return [
+        'bitcount' => ['bitcount', ['foo'], 8],
+        'bitpos' => ['bitpos', ['foo', 1], 3],
+        'get' => ['get', ['foo'], 'bar'],
+        'getbit' => ['getbit', ['foo', 1], 1],
+        'getrange' => ['getrange', ['foo', 0, 2], 'bar'],
+        'strlen' => ['strlen', ['foo'], 3],
+        'mget' => ['mget', [['foo', 'bar']], ['baz', 'qux']],
+        'hscan' => ['hscan', ['foo', null], ['bar' => 'baz']],
+        'hexists' => ['hexists', ['foo', 'bar'], true],
+        'hget' => ['hget', ['foo', 'bar'], 'baz'],
+        'hgetall' => ['hgetall', ['foo'], ['bar' => 'baz']],
+        'hkeys' => ['hkeys', ['foo'], ['bar']],
+        'hlen' => ['hlen', ['foo'], 1],
+        'hmget' => ['hmget', ['foo', ['bar', 'baz']], ['bar' => 'qux']],
+        'hstrlen' => ['hstrlen', ['foo', 'bar'], 3],
+        'hvals' => ['hvals', ['foo'], ['baz']],
+        'lindex' => ['lindex', ['foo', 0], 'bar'],
+        'llen' => ['llen', ['foo'], 1],
+        'lrange' => ['lrange', ['foo', 0, -1], ['bar']],
+        'scard' => ['scard', ['foo'], 1],
+        'sismember' => ['sismember', ['foo', 'bar'], true],
+        'smismember' => ['smismember', ['foo', 'bar', 'baz'], [true, false]],
+        'smembers' => ['smembers', ['foo'], ['bar']],
+        'srandmember' => ['srandmember', ['foo'], 'bar'],
+        'sscan' => ['sscan', ['foo', null], ['bar']],
+        'zcard' => ['zcard', ['foo'], 1],
+        'zcount' => ['zcount', ['foo', 0, 10], 1],
+        'zlexcount' => ['zlexcount', ['foo', '-', '+'], 1],
+        'zrange' => ['zrange', ['foo', 0, -1], ['bar']],
+        'zrank' => ['zrank', ['foo', 'bar'], 0],
+        'zrevrange' => ['zrevrange', ['foo', 0, -1], ['bar']],
+        'zrevrank' => ['zrevrank', ['foo', 'bar'], 0],
+        'zscore' => ['zscore', ['foo', 'bar'], 1.0],
+        'zscan' => ['zscan', ['foo', null], ['bar' => 1.0]],
+        'zrangebyscore' => ['zrangebyscore', ['foo', 0, 10], ['bar']],
+        'zrevrangebyscore' => ['zrevrangebyscore', ['foo', 10, 0], ['bar']],
+        'zrangebylex' => ['zrangebylex', ['foo', '-', '+'], ['bar']],
+        'zrevrangebylex' => ['zrevrangebylex', ['foo', '+', '-'], ['bar']],
+        'exists' => ['exists', ['foo'], 1],
+        'scan' => ['scan', [null], ['foo']],
+        'type' => ['type', ['foo'], Redis::REDIS_STRING],
+        'pttl' => ['pttl', ['foo'], 1000],
+        'ttl' => ['ttl', ['foo'], 60],
+    ];
+}
+
 test('it dispatches read commands to replica', function () {
     $masterClient = Mockery::mock(Redis::class);
     $replicaClient = Mockery::mock(Redis::class);
@@ -35,7 +84,7 @@ test('it dispatches read commands to replica', function () {
     expect($connection->set('foo', 'bar'))->toBeTrue();
 });
 
-test('it classifies common Laravel read commands as replica-safe', function (string $command, array $parameters, mixed $result) {
+test('it classifies exposed read-only commands as replica-safe', function (string $command, array $parameters, mixed $result) {
     $masterClient = Mockery::mock(Redis::class);
     $replicaClient = Mockery::mock(Redis::class);
 
@@ -44,17 +93,19 @@ test('it classifies common Laravel read commands as replica-safe', function (str
 
     $connection = redisSentinelConnection($masterClient, $replicaClient);
 
-    expect($connection->{$command}(...$parameters))->toBe($result);
-})->with([
-    'get' => ['get', ['foo'], 'bar'],
-    'mget' => ['mget', [['foo', 'bar']], ['baz', 'qux']],
-    'exists' => ['exists', ['foo'], 1],
-    'ttl' => ['ttl', ['foo'], 60],
-    'hget' => ['hGet', ['foo', 'bar'], 'baz'],
-    'lrange' => ['lRange', ['foo', 0, -1], ['bar']],
-    'smembers' => ['sMembers', ['foo'], ['bar']],
-    'zrange' => ['zRange', ['foo', 0, -1], ['bar']],
-]);
+    expect($connection->command($command, $parameters))->toBe($result);
+})->with(readOnlyCommandDataset());
+
+test('it has a dataset entry for every exposed read-only command', function () {
+    $reflection = new ReflectionClass(RedisSentinelConnection::class);
+    $datasetCommands = array_keys(readOnlyCommandDataset());
+    $readOnlyCommands = $reflection->getConstant('READ_ONLY_COMMAND');
+
+    sort($datasetCommands);
+    sort($readOnlyCommands);
+
+    expect($datasetCommands)->toBe($readOnlyCommands);
+});
 
 test('it keeps dangerous or operational commands on master', function (string $command, array $parameters, mixed $result) {
     $masterClient = Mockery::mock(Redis::class);
@@ -69,6 +120,7 @@ test('it keeps dangerous or operational commands on master', function (string $c
 })->with([
     'keys' => ['keys', ['*'], ['foo']],
     'info' => ['info', [], ['redis_version' => '7.0.0']],
+    'pubsub' => ['pubsub', ['channels', 'user-*'], ['user-registrations']],
 ]);
 
 test('it stays on master during transaction', function () {
