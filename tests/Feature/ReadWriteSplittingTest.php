@@ -32,6 +32,52 @@ test('it dispatches read commands to replica', function () {
     expect($connection->set('foo', 'bar'))->toBeTrue();
 });
 
+test('it classifies common Laravel read commands as replica-safe', function (string $command, array $parameters, mixed $result) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $masterClient->shouldNotReceive($command);
+    $replicaClient->expects($command)->with(...$parameters)->once()->andReturn($result);
+
+    $connection = new RedisSentinelConnection(
+        $masterClient,
+        fn () => $masterClient,
+        [],
+        fn () => $replicaClient,
+    );
+
+    expect($connection->{$command}(...$parameters))->toBe($result);
+})->with([
+    'get' => ['get', ['foo'], 'bar'],
+    'mget' => ['mget', [['foo', 'bar']], ['baz', 'qux']],
+    'exists' => ['exists', ['foo'], 1],
+    'ttl' => ['ttl', ['foo'], 60],
+    'hget' => ['hGet', ['foo', 'bar'], 'baz'],
+    'lrange' => ['lRange', ['foo', 0, -1], ['bar']],
+    'smembers' => ['sMembers', ['foo'], ['bar']],
+    'zrange' => ['zRange', ['foo', 0, -1], ['bar']],
+]);
+
+test('it keeps dangerous or operational commands on master', function (string $command, array $parameters, mixed $result) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $masterClient->expects($command)->with(...$parameters)->once()->andReturn($result);
+    $replicaClient->shouldNotReceive($command);
+
+    $connection = new RedisSentinelConnection(
+        $masterClient,
+        fn () => $masterClient,
+        [],
+        fn () => $replicaClient,
+    );
+
+    expect($connection->{$command}(...$parameters))->toBe($result);
+})->with([
+    'keys' => ['keys', ['*'], ['foo']],
+    'info' => ['info', [], ['redis_version' => '7.0.0']],
+]);
+
 test('it stays on master during transaction', function () {
     $masterClient = Mockery::mock(Redis::class);
     $replicaClient = Mockery::mock(Redis::class);

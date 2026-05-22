@@ -74,8 +74,7 @@ class RedisSentinelConnection extends PhpRedisConnection
         'scard', 'sismember', 'smismember', 'smembers', 'srandmember', 'sscan',
         'zcard', 'zcount', 'zlexcount', 'zrange', 'zrank', 'zrevrange', 'zrevrank', 'zscore', 'zscan',
         'zrangebyscore', 'zrevrangebyscore', 'zrangebylex', 'zrevrangebylex',
-        'exists', 'keys', 'scan', 'type', 'pttl', 'ttl', 'info', 'memory',
-        'pubsub',
+        'exists', 'scan', 'type', 'pttl', 'ttl',
     ];
 
     /**
