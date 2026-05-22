@@ -207,5 +207,63 @@ jobs:
           composer remove laravel/horizon --dev --no-interaction --no-update
           composer update --prefer-dist --no-interaction
 
+      - name: Start Redis Sentinel Cluster
+        env:
+          REDIS_VERSION: 7
+          REDIS_MAIN_PORT: 7600
+          REDIS_REPLICA1_PORT: 7601
+          REDIS_REPLICA2_PORT: 7602
+          REDIS_STANDALONE_PORT: 7603
+          REDIS_SENTINEL_PORT: 7604
+          COMPOSE_PROJECT_NAME: redis_without_horizon
+          SENTINEL_EXTRA_CONFIG: "echo 'sentinel resolve-hostnames yes' >> /tmp/sentinel.conf && echo 'sentinel announce-hostnames yes' >> /tmp/sentinel.conf &&"
+        run: |
+          echo "Starting Redis cluster without Horizon on ports: Main=$REDIS_MAIN_PORT, Replica1=$REDIS_REPLICA1_PORT, Replica2=$REDIS_REPLICA2_PORT, Standalone=$REDIS_STANDALONE_PORT, Sentinel=$REDIS_SENTINEL_PORT"
+          SENTINEL_EXTRA_CONFIG="$SENTINEL_EXTRA_CONFIG" docker compose -f tests/ci/docker-compose.yml up -d
+
+      - name: Wait for Redis Cluster to be ready
+        run: |
+          echo "Waiting for Redis cluster on sentinel port 7604..."
+          until docker run --network host --rm redis:7-alpine redis-cli -p 7604 -a test ping | grep -q PONG; do
+            echo "Sentinel not ready yet..."
+            sleep 2
+          done
+          echo "Redis Sentinel is ready!"
+
       - name: Execute tests without Horizon
-        run: vendor/bin/pest tests/Unit/HorizonOptionalityTest.php --testdox
+        run: |
+          php -r '
+          $files = [];
+          $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator("tests", FilesystemIterator::SKIP_DOTS));
+
+          foreach ($iterator as $file) {
+              $path = str_replace(DIRECTORY_SEPARATOR, "/", $file->getPathname());
+
+              if (! str_ends_with($path, "Test.php") || str_starts_with($path, "tests/Feature/Horizon/")) {
+                  continue;
+              }
+
+              $files[] = $path;
+          }
+
+          sort($files);
+          file_put_contents("without-horizon-tests.txt", implode(PHP_EOL, $files));
+          '
+
+          vendor/bin/pest $(cat without-horizon-tests.txt) --testdox
+        env:
+          REDIS_PASSWORD: test
+          REDIS_SENTINEL_PASSWORD: test
+          REDIS_PREFIX: gh_${{ github.run_id }}_without_horizon_
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 7600
+          REDIS_STANDALONE_PORT: 7603
+          REDIS_SENTINEL_PORT: 7604
+          REDIS_SENTINEL_HOST: 127.0.0.1
+
+      - name: Cleanup Redis Cluster
+        if: always()
+        env:
+          COMPOSE_PROJECT_NAME: redis_without_horizon
+        run: |
+          docker compose -f tests/ci/docker-compose.yml down -v --remove-orphans || true
