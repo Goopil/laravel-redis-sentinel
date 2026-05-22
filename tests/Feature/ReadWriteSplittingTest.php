@@ -107,6 +107,24 @@ test('it has a dataset entry for every exposed read-only command', function () {
     expect($datasetCommands)->toBe($readOnlyCommands);
 });
 
+test('it routes scan commands to replicas', function (string $command, array $parameters, mixed $result) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $masterClient->shouldNotReceive($command);
+    $expectedParameters = [...array_slice($parameters, 0, -1), '*', 10];
+    $replicaClient->expects($command)->with(...$expectedParameters)->once()->andReturn($result);
+
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
+
+    expect($connection->{$command}(...$parameters))->toBe([null, $result]);
+})->with([
+    'scan' => ['scan', [null, []], ['foo']],
+    'hscan' => ['hscan', ['hash', null, []], ['field' => 'value']],
+    'sscan' => ['sscan', ['set', null, []], ['member']],
+    'zscan' => ['zscan', ['zset', null, []], ['member' => 1.0]],
+]);
+
 test('it keeps dangerous or operational commands on master', function (string $command, array $parameters, mixed $result) {
     $masterClient = Mockery::mock(Redis::class);
     $replicaClient = Mockery::mock(Redis::class);
@@ -121,6 +139,44 @@ test('it keeps dangerous or operational commands on master', function (string $c
     'keys' => ['keys', ['*'], ['foo']],
     'info' => ['info', [], ['redis_version' => '7.0.0']],
     'pubsub' => ['pubsub', ['channels', 'user-*'], ['user-registrations']],
+]);
+
+test('it keeps subscription commands on master', function (string $command, array $parameters) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+    $callback = fn () => null;
+
+    $masterClient->expects($command)->with($parameters[0], Mockery::type(Closure::class))->once();
+    $replicaClient->shouldNotReceive($command);
+
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
+
+    $connection->{$command}($parameters[0], $callback);
+})->with([
+    'subscribe' => ['subscribe', [['events']]],
+    'psubscribe' => ['psubscribe', [['events.*']]],
+]);
+
+test('it resets stickiness after flushing databases', function (string $command, array $parameters, mixed $result) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $masterClient->expects('set')->with('foo', 'bar', Mockery::any())->once()->andReturn(true);
+    $expectedParameters = $command === 'flushdb'
+        ? array_filter($parameters, fn ($parameter) => $parameter !== null)
+        : $parameters;
+
+    $masterClient->expects($command)->with(...$expectedParameters)->once()->andReturn($result);
+    $replicaClient->expects('get')->with('foo')->once()->andReturn('replica-bar');
+
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
+
+    expect($connection->set('foo', 'bar'))->toBeTrue();
+    expect($connection->{$command}(...$parameters))->toBe($result);
+    expect($connection->get('foo'))->toBe('replica-bar');
+})->with([
+    'flushdb' => ['flushdb', [null], true],
+    'flushall' => ['flushall', [null], true],
 ]);
 
 test('it stays on master during transaction', function () {
