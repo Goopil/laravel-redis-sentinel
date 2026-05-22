@@ -31,7 +31,8 @@ This package focuses on providing a reliable Redis Sentinel integration for Lara
   topology changes.
 
 - **Read/Write splitting** is functional and covered by tests, but is still evolving.  
-  It covers common use cases, but may require further refinement in more complex or highly concurrent scenarios.
+  It covers common Laravel read paths with a deliberately strict allowlist, while operational or expensive commands stay
+  on the master by default.
 
 Feedback from real-world usage is welcome to help further improve and harden these behaviors.
 
@@ -327,19 +328,20 @@ $name = Cache::get('user:123');   // Read from master → guaranteed fresh
 
 The sticky mode **automatically resets** between requests in Octane/Horizon.
 
-### Read-Only Commands
+### Replica-Safe Commands
 
-The following commands are routed to replicas:
+When `read_only_replicas` is enabled and the connection is not sticky, the following command families are considered
+replica-safe and can be routed to replicas:
 
 - **Strings**: `get`, `mget`, `strlen`, `getrange`
 - **Hashes**: `hget`, `hgetall`, `hmget`, `hkeys`, `hvals`, `hexists`
 - **Lists**: `lindex`, `llen`, `lrange`
 - **Sets**: `scard`, `sismember`, `smembers`, `srandmember`
 - **Sorted Sets**: `zcard`, `zcount`, `zrange`, `zrank`, `zscore`
-- **Keys**: `exists`, `keys`, `scan`, `type`, `ttl`, `pttl`
-- **Info**: `info`, `memory`, `pubsub`
+- **Keys**: `exists`, `scan`, `type`, `ttl`, `pttl`
 
-All other commands are routed to the master.
+All other commands are routed to the master. Operational or potentially expensive commands such as `KEYS`, `INFO`,
+`MEMORY`, and `PUBSUB` are intentionally not routed to replicas by default.
 
 ## Usage Examples
 
@@ -764,8 +766,10 @@ The package includes a comprehensive GitHub Actions workflow that tests:
 - ✅ PHP 8.2, 8.3, 8.4, 8.5
 - ✅ Laravel 10, 11, 12
 - ✅ Redis 6, 7
-- ✅ **22 parallel test jobs** with isolated Redis Sentinel clusters
-- ✅ 342 tests with 2269 assertions
+- ✅ Linting before the test matrix
+- ✅ **22 matrix test jobs** with isolated Redis Sentinel clusters
+- ✅ A dedicated PHP 8.4 / Laravel 12 job without Horizon installed
+- ✅ Coverage reporting with a minimum coverage threshold
 
 ## Local Development
 

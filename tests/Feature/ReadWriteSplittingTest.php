@@ -9,6 +9,65 @@ beforeEach(function () {
     app(NodeAddressCache::class)->flush();
 });
 
+function redisSentinelConnection(Redis $masterClient, ?Redis $replicaClient = null): RedisSentinelConnection
+{
+    return new RedisSentinelConnection(
+        $masterClient,
+        fn () => $masterClient,
+        [],
+        $replicaClient ? fn () => $replicaClient : null,
+    );
+}
+
+function readOnlyCommandDataset(): array
+{
+    return [
+        'bitcount' => ['bitcount', ['foo'], 8],
+        'bitpos' => ['bitpos', ['foo', 1], 3],
+        'get' => ['get', ['foo'], 'bar'],
+        'getbit' => ['getbit', ['foo', 1], 1],
+        'getrange' => ['getrange', ['foo', 0, 2], 'bar'],
+        'strlen' => ['strlen', ['foo'], 3],
+        'mget' => ['mget', [['foo', 'bar']], ['baz', 'qux']],
+        'hscan' => ['hscan', ['foo', null], ['bar' => 'baz']],
+        'hexists' => ['hexists', ['foo', 'bar'], true],
+        'hget' => ['hget', ['foo', 'bar'], 'baz'],
+        'hgetall' => ['hgetall', ['foo'], ['bar' => 'baz']],
+        'hkeys' => ['hkeys', ['foo'], ['bar']],
+        'hlen' => ['hlen', ['foo'], 1],
+        'hmget' => ['hmget', ['foo', ['bar', 'baz']], ['bar' => 'qux']],
+        'hstrlen' => ['hstrlen', ['foo', 'bar'], 3],
+        'hvals' => ['hvals', ['foo'], ['baz']],
+        'lindex' => ['lindex', ['foo', 0], 'bar'],
+        'llen' => ['llen', ['foo'], 1],
+        'lrange' => ['lrange', ['foo', 0, -1], ['bar']],
+        'scard' => ['scard', ['foo'], 1],
+        'sismember' => ['sismember', ['foo', 'bar'], true],
+        'smismember' => ['smismember', ['foo', 'bar', 'baz'], [true, false]],
+        'smembers' => ['smembers', ['foo'], ['bar']],
+        'srandmember' => ['srandmember', ['foo'], 'bar'],
+        'sscan' => ['sscan', ['foo', null], ['bar']],
+        'zcard' => ['zcard', ['foo'], 1],
+        'zcount' => ['zcount', ['foo', 0, 10], 1],
+        'zlexcount' => ['zlexcount', ['foo', '-', '+'], 1],
+        'zrange' => ['zrange', ['foo', 0, -1], ['bar']],
+        'zrank' => ['zrank', ['foo', 'bar'], 0],
+        'zrevrange' => ['zrevrange', ['foo', 0, -1], ['bar']],
+        'zrevrank' => ['zrevrank', ['foo', 'bar'], 0],
+        'zscore' => ['zscore', ['foo', 'bar'], 1.0],
+        'zscan' => ['zscan', ['foo', null], ['bar' => 1.0]],
+        'zrangebyscore' => ['zrangebyscore', ['foo', 0, 10], ['bar']],
+        'zrevrangebyscore' => ['zrevrangebyscore', ['foo', 10, 0], ['bar']],
+        'zrangebylex' => ['zrangebylex', ['foo', '-', '+'], ['bar']],
+        'zrevrangebylex' => ['zrevrangebylex', ['foo', '+', '-'], ['bar']],
+        'exists' => ['exists', ['foo'], 1],
+        'scan' => ['scan', [null], ['foo']],
+        'type' => ['type', ['foo'], Redis::REDIS_STRING],
+        'pttl' => ['pttl', ['foo'], 1000],
+        'ttl' => ['ttl', ['foo'], 60],
+    ];
+}
+
 test('it dispatches read commands to replica', function () {
     $masterClient = Mockery::mock(Redis::class);
     $replicaClient = Mockery::mock(Redis::class);
@@ -19,18 +78,106 @@ test('it dispatches read commands to replica', function () {
     // Expect SET on master. Laravel passes 3 arguments to set()
     $masterClient->expects('set')->with('foo', 'bar', Mockery::any())->once()->andReturn(true);
 
-    $connector = function () use ($masterClient) {
-        return $masterClient;
-    };
-    $readConnector = function () use ($replicaClient) {
-        return $replicaClient;
-    };
-
-    $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
 
     expect($connection->get('foo'))->toBe('bar');
     expect($connection->set('foo', 'bar'))->toBeTrue();
 });
+
+test('it classifies exposed read-only commands as replica-safe', function (string $command, array $parameters, mixed $result) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $masterClient->shouldNotReceive($command);
+    $replicaClient->expects($command)->with(...$parameters)->once()->andReturn($result);
+
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
+
+    expect($connection->command($command, $parameters))->toBe($result);
+})->with(readOnlyCommandDataset());
+
+test('it has a dataset entry for every exposed read-only command', function () {
+    $reflection = new ReflectionClass(RedisSentinelConnection::class);
+    $datasetCommands = array_keys(readOnlyCommandDataset());
+    $readOnlyCommands = $reflection->getConstant('READ_ONLY_COMMAND');
+
+    sort($datasetCommands);
+    sort($readOnlyCommands);
+
+    expect($datasetCommands)->toBe($readOnlyCommands);
+});
+
+test('it routes scan commands to replicas', function (string $command, array $parameters, mixed $result) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $masterClient->shouldNotReceive($command);
+    $expectedParameters = [...array_slice($parameters, 0, -1), '*', 10];
+    $replicaClient->expects($command)->with(...$expectedParameters)->once()->andReturn($result);
+
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
+
+    expect($connection->{$command}(...$parameters))->toBe([null, $result]);
+})->with([
+    'scan' => ['scan', [null, []], ['foo']],
+    'hscan' => ['hscan', ['hash', null, []], ['field' => 'value']],
+    'sscan' => ['sscan', ['set', null, []], ['member']],
+    'zscan' => ['zscan', ['zset', null, []], ['member' => 1.0]],
+]);
+
+test('it keeps dangerous or operational commands on master', function (string $command, array $parameters, mixed $result) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $masterClient->expects($command)->with(...$parameters)->once()->andReturn($result);
+    $replicaClient->shouldNotReceive($command);
+
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
+
+    expect($connection->{$command}(...$parameters))->toBe($result);
+})->with([
+    'keys' => ['keys', ['*'], ['foo']],
+    'info' => ['info', [], ['redis_version' => '7.0.0']],
+    'pubsub' => ['pubsub', ['channels', 'user-*'], ['user-registrations']],
+]);
+
+test('it keeps subscription commands on master', function (string $command, array $parameters) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+    $callback = fn () => null;
+
+    $masterClient->expects($command)->with($parameters[0], Mockery::type(Closure::class))->once();
+    $replicaClient->shouldNotReceive($command);
+
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
+
+    $connection->{$command}($parameters[0], $callback);
+})->with([
+    'subscribe' => ['subscribe', [['events']]],
+    'psubscribe' => ['psubscribe', [['events.*']]],
+]);
+
+test('it resets stickiness after flushing databases', function (string $command, array $parameters, mixed $result) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $masterClient->expects('set')->with('foo', 'bar', Mockery::any())->once()->andReturn(true);
+    $expectedParameters = $command === 'flushdb'
+        ? array_filter($parameters, fn ($parameter) => $parameter !== null)
+        : $parameters;
+
+    $masterClient->expects($command)->with(...$expectedParameters)->once()->andReturn($result);
+    $replicaClient->expects('get')->with('foo')->once()->andReturn('replica-bar');
+
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
+
+    expect($connection->set('foo', 'bar'))->toBeTrue();
+    expect($connection->{$command}(...$parameters))->toBe($result);
+    expect($connection->get('foo'))->toBe('replica-bar');
+})->with([
+    'flushdb' => ['flushdb', [null], true],
+    'flushall' => ['flushall', [null], true],
+]);
 
 test('it stays on master during transaction', function () {
     $masterClient = Mockery::mock(Redis::class);
@@ -44,14 +191,7 @@ test('it stays on master during transaction', function () {
     // Replica should NOT be called
     $replicaClient->shouldNotReceive('get');
 
-    $connector = function () use ($masterClient) {
-        return $masterClient;
-    };
-    $readConnector = function () use ($replicaClient) {
-        return $replicaClient;
-    };
-
-    $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
 
     $result = $connection->transaction(function ($redis) {
         $redis->get('foo');
@@ -72,14 +212,7 @@ test('it stays on master during pipeline', function () {
     // Replica should NOT be called
     $replicaClient->shouldNotReceive('get');
 
-    $connector = function () use ($masterClient) {
-        return $masterClient;
-    };
-    $readConnector = function () use ($replicaClient) {
-        return $replicaClient;
-    };
-
-    $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
 
     $result = $connection->pipeline(function ($redis) {
         $redis->get('foo');
@@ -119,46 +252,6 @@ test('it refreshes read client on failure', function () {
     expect($callCount)->toBe(2);
 });
 
-test('it routes various read only commands to replica', function () {
-    $masterClient = Mockery::mock(Redis::class);
-    $replicaClient = Mockery::mock(Redis::class);
-
-    $readCommands = [
-        'exists' => ['key'],
-        'hlen' => ['hash'],
-        'smembers' => ['set'],
-        'zrange' => ['zset', 0, -1],
-        'ttl' => ['key'],
-        'type' => ['key'],
-    ];
-
-    foreach ($readCommands as $method => $args) {
-        // Return empty array or integer as expected by phpredis
-        $returnValue = match ($method) {
-            'smembers', 'zrange' => [],
-            'exists', 'hlen', 'ttl' => 1,
-            'type' => 1,
-            default => true,
-        };
-        $replicaClient->expects($method)->with(...$args)->once()->andReturn($returnValue);
-    }
-
-    $connector = function () use ($masterClient) {
-        return $masterClient;
-    };
-    $readConnector = function () use ($replicaClient) {
-        return $replicaClient;
-    };
-
-    $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
-
-    foreach ($readCommands as $method => $args) {
-        $connection->$method(...$args);
-    }
-
-    expect(true)->toBeTrue();
-});
-
 test('it is always sticky when read only replicas is active', function () {
     $masterClient = Mockery::mock(Redis::class);
     $replicaClient = Mockery::mock(Redis::class);
@@ -172,14 +265,7 @@ test('it is always sticky when read only replicas is active', function () {
     // Replica should NOT be called
     $replicaClient->shouldNotReceive('get');
 
-    $connector = function () use ($masterClient) {
-        return $masterClient;
-    };
-    $readConnector = function () use ($replicaClient) {
-        return $replicaClient;
-    };
-
-    $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
 
     $connection->set('foo', 'bar');
 
@@ -197,36 +283,9 @@ test('it stays on master if read only replicas is disabled', function () {
     $masterClient->expects('get')->with('foo')->once()->andReturn('master-bar');
     $replicaClient->shouldNotReceive('get');
 
-    $connector = function () use ($masterClient) {
-        return $masterClient;
-    };
-    $readConnector = null; // No read connector if disabled
-
-    $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
+    $connection = redisSentinelConnection($masterClient);
 
     expect($connection->get('foo'))->toBe('master-bar');
-});
-
-test('it returns data from replica for read commands', function () {
-    $masterClient = Mockery::mock(Redis::class);
-    $replicaClient = Mockery::mock(Redis::class);
-
-    // Master should NOT be called for read commands
-    $masterClient->shouldNotReceive('get');
-
-    // Only replica should be called
-    $replicaClient->expects('get')->with('foo')->once()->andReturn('replica-val');
-
-    $connector = function () use ($masterClient) {
-        return $masterClient;
-    };
-    $readConnector = function () use ($replicaClient) {
-        return $replicaClient;
-    };
-
-    $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
-
-    expect($connection->get('foo'))->toBe('replica-val');
 });
 
 test('it falls back to master if no replicas found', function () {
