@@ -80,6 +80,7 @@ required.
 - [Laravel Octane Support](#laravel-octane-support)
 - [Horizon Integration](#horizon-integration)
 - [Kubernetes Deployment](#kubernetes-deployment)
+- [Production Operations](#production-operations)
 - [Events](#events)
 - [Testing](#testing)
 - [Limitations & Non-Goals](#limitations--non-goals)
@@ -622,6 +623,62 @@ spec:
   selector:
     app: redis-sentinel
 ```
+
+## Production Operations
+
+Redis Sentinel is an infrastructure component. Before using this package in production, validate the following points with
+your own Redis topology, workload, and deployment model.
+
+### Runtime Behaviour
+
+- **Failover is not instant**: Redis Sentinel needs time to detect a master failure, elect a new master, and expose the new
+  topology. During this window, commands may be retried and application latency can temporarily increase.
+- **Resolved node addresses are cached during execution**: the package avoids querying Sentinel for every command. When a
+  connection error, read-only error, or failover-related error is detected, the connection is refreshed and Sentinel is
+  queried again.
+- **Read/write splitting is eventually consistent**: reads can be sent to replicas. If your workload requires read-after-write
+  consistency, keep sticky reads enabled and validate the configured sticky duration with your replication lag.
+- **Commands classified as read-only still run on Redis**: avoid expensive production commands such as `KEYS`; prefer
+  cursor-based alternatives like `SCAN` when possible.
+
+### Long-Running Workers
+
+Laravel workers, Horizon workers, Octane workers, daemons, and batch processes keep PHP state alive longer than a regular
+HTTP request. For these runtimes:
+
+- reset sticky read/write state at job or request boundaries when using custom workers;
+- restart workers during deploys or after Redis/Sentinel topology changes if they keep stale state;
+- configure graceful shutdown hooks for Horizon and Kubernetes so workers stop accepting work before the pod is terminated;
+- monitor retry events to detect workers repeatedly reconnecting to stale Redis nodes.
+
+### Timeouts and Retries
+
+The default retry configuration is intentionally conservative. Tune it according to your SLOs:
+
+- keep Redis and Sentinel timeouts lower than your HTTP/job timeout budget;
+- account for the worst-case retry duration during failover;
+- avoid very high retry counts on latency-sensitive paths;
+- prefer observability-driven tuning using the package events rather than blindly increasing retry attempts.
+
+### Security Checklist
+
+- run Redis and Sentinel on a private network whenever possible;
+- use Redis ACLs or strong passwords for both Redis and Sentinel;
+- avoid logging DSNs, passwords, complete connection URLs, or raw configuration payloads;
+- inject secrets through environment variables or your secret manager, not committed configuration files;
+- consider TLS, stunnel, sidecars, or a private service mesh if traffic can cross untrusted networks;
+- grant Sentinel only the permissions required by your Redis deployment model.
+
+### Failure Modes to Monitor
+
+Monitor and alert on these operational symptoms:
+
+- repeated `RedisSentinelConnectionFailed` or `RedisSentinelConnectionMaxRetryFailed` events;
+- repeated Sentinel discovery failures;
+- `READONLY` errors after failover, which usually indicate a stale master connection;
+- sudden increases in command latency during Sentinel elections;
+- replica lag when read/write splitting is enabled;
+- Horizon workers failing readiness/liveness checks.
 
 ## Events
 
