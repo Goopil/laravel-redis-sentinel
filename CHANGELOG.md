@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.2...1.2.3) (2026-05-22)
+
+
+### Bug Fixes
+
+* harden testing when Horizon is not installed ([#24](https://github.com/Goopil/laravel-redis-sentinel/issues/24)) ([eabbaed](https://github.com/Goopil/laravel-redis-sentinel/commit/eabbaed4be8c1d7682a50b327a9e487bb5ff082e))
+
 ## [1.2.2](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.1...1.2.2) (2026-05-21)
 
 
