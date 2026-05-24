@@ -5,7 +5,6 @@ namespace Goopil\LaravelRedisSentinel;
 use Goopil\LaravelRedisSentinel\Commands\HorizonWorkerLiveness;
 use Goopil\LaravelRedisSentinel\Commands\HorizonWorkerPreStop;
 use Goopil\LaravelRedisSentinel\Commands\HorizonWorkerReadiness;
-use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\Horizon\HorizonServiceBindings;
