@@ -2,6 +2,7 @@
 
 namespace Goopil\LaravelRedisSentinel;
 
+use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 use Illuminate\Contracts\Redis\Connector;
@@ -108,5 +109,14 @@ class RedisSentinelManager extends RedisManager
         }
 
         return $clientConfig;
+    }
+
+    public function resetConnectionStickiness(): void
+    {
+        foreach ($this->connections as $connection) {
+            if ($connection instanceof RedisSentinelConnection) {
+                $connection->resetStickiness();
+            }
+        }
     }
 }

@@ -13,6 +13,7 @@ use Illuminate\Broadcasting\Broadcasters\RedisBroadcaster;
 use Illuminate\Cache\RedisStore;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Broadcasting\Factory as BroadcastFactory;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
 use Illuminate\Queue\Connectors\RedisConnector;
 use Illuminate\Queue\Events\JobProcessing;
@@ -54,18 +55,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->app['events']->listen('Laravel\Octane\Events\RequestReceived', function () {
-            $app = Facade::getFacadeApplication() ?: Container::getInstance();
-            if ($app->bound(RedisSentinelManager::class)) {
-                $manager = $app->make(RedisSentinelManager::class);
-
-                foreach ($manager->connections() as $connection) {
-                    if ($connection instanceof RedisSentinelConnection) {
-                        $connection->resetStickiness();
-                    }
-                }
-            }
-        });
+        $this->app['events']->listen('Laravel\Octane\Events\RequestReceived', fn () => $this->resetStickiness(Facade::getFacadeApplication() ?: Container::getInstance()));
     }
 
     public function isHorizonContext(): bool
@@ -135,10 +125,9 @@ class RedisSentinelServiceProvider extends ServiceProvider
 
     protected function bootConnector(): void
     {
-
         $this->app->make(RedisSentinelManager::class)->extend(
             $this->name,
-            fn () => $this->app->make('redis.sentinel')
+            fn ($app) => $app->make('redis.sentinel')
         );
     }
 
@@ -147,7 +136,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
         $this->app->make(BroadcastFactory::class)->extend(
             $this->name,
             fn ($app, $conf) => new RedisBroadcaster(
-                $this->app->make($this->name),
+                $app->make($this->name),
                 Arr::get($conf, 'connection', 'default')
             )
         );
@@ -170,9 +159,9 @@ class RedisSentinelServiceProvider extends ServiceProvider
     {
         $this->app->make('session')->extend(
             $this->name,
-            function () {
-                $config = $this->app->make('config');
-                $cacheDriver = clone $this->app->make('cache')->driver($this->name);
+            function ($app) {
+                $config = $app->make('config');
+                $cacheDriver = clone $app->make('cache')->driver($this->name);
                 $cacheDriver->getStore()->setConnection($config->get('session.connection'));
 
                 return new CacheBasedSessionHandler(
@@ -204,7 +193,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
 
         $this->app->make('queue')->extend(
             $this->name,
-            fn () => new $connector($this->app->make($this->name))
+            fn ($app) => new $connector($app->make($this->name))
         );
     }
 
@@ -214,19 +203,16 @@ class RedisSentinelServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->app['events']->listen(JobProcessing::class, function () {
-            if (! $this->app->resolved(RedisSentinelManager::class)) {
-                return;
-            }
+        $this->app['events']->listen(JobProcessing::class, fn () => $this->resetStickiness($this->app));
+    }
 
-            $manager = $this->app->make(RedisSentinelManager::class);
+    protected function resetStickiness(Application $app): void
+    {
+        if (! $app->resolved(RedisSentinelManager::class)) {
+            return;
+        }
 
-            foreach ($manager->connections() as $connection) {
-                if ($connection instanceof RedisSentinelConnection) {
-                    $connection->resetStickiness();
-                }
-            }
-        });
+        $app->make(RedisSentinelManager::class)->resetConnectionStickiness();
     }
 
     protected function bootCommands(): void
