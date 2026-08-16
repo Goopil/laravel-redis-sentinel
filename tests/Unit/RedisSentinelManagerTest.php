@@ -140,3 +140,53 @@ test('patchHorizonConnectionName throws ConfigurationException when horizon.use 
     $manager = new RedisSentinelManager(app(), 'phpredis', []);
     $manager->resolveConnector('horizon');
 })->throws(ConfigurationException::class, 'The "horizon.use" configuration key is required');
+
+test('patchHorizonPrefix sets horizon prefix when in horizon context', function () {
+    config()->set('horizon.driver', 'phpredis-sentinel');
+    config()->set('horizon.prefix', 'horizon:');
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', []);
+    $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
+    $method->setAccessible(true);
+
+    $result = $method->invoke($manager, 'horizon', ['options' => ['prefix' => 'old:']]);
+
+    expect($result['options']['prefix'])->toBe('horizon:');
+});
+
+test('patchHorizonPrefix keeps existing prefix when horizon.prefix is not set', function () {
+    config()->set('horizon', ['driver' => 'phpredis-sentinel']);
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', []);
+    $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
+    $method->setAccessible(true);
+
+    $result = $method->invoke($manager, 'horizon', ['options' => ['prefix' => 'existing:']]);
+
+    expect($result['options']['prefix'])->toBe('existing:');
+});
+
+test('patchHorizonPrefix does nothing when name is not horizon', function () {
+    config()->set('horizon.driver', 'phpredis-sentinel');
+    config()->set('horizon.prefix', 'horizon:');
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', []);
+    $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
+    $method->setAccessible(true);
+
+    $result = $method->invoke($manager, 'default', ['options' => ['prefix' => 'default:']]);
+
+    expect($result['options']['prefix'])->toBe('default:');
+});
+
+test('patchHorizonPrefix does nothing when not in horizon context', function () {
+    config()->offsetUnset('horizon.driver');
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', []);
+    $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
+    $method->setAccessible(true);
+
+    $result = $method->invoke($manager, 'horizon', ['options' => ['prefix' => 'default:']]);
+
+    expect($result['options']['prefix'])->toBe('default:');
+});
