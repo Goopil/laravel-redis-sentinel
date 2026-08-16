@@ -30,11 +30,14 @@ class RedisSentinelConnector extends PhpRedisConnector
 
     protected NodeAddressCache $masterCache;
 
+    protected ConfigRepository $config;
+
     protected ?string $phpredisVersion = null;
 
     public function __construct(NodeAddressCache $masterCache, ConfigRepository $config)
     {
         $this->masterCache = $masterCache;
+        $this->config = $config;
 
         $this->setRetryLimit($config->get('phpredis-sentinel.retry.sentinel.attempts'))
             ->setRetryDelay($config->get('phpredis-sentinel.retry.sentinel.delay'))
@@ -60,14 +63,14 @@ class RedisSentinelConnector extends PhpRedisConnector
             ->setRetryLimit(Arr::get(
                 $config,
                 'retry.redis.attempts',
-                config('phpredis-sentinel.retry.redis.attempts', $this->retryLimit)
+                $this->config->get('phpredis-sentinel.retry.redis.attempts', $this->retryLimit)
             ))
             ->setRetryDelay(Arr::get(
                 $config,
                 'retry.redis.delay',
-                config('phpredis-sentinel.retry.redis.delay', $this->retryDelay)
+                $this->config->get('phpredis-sentinel.retry.redis.delay', $this->retryDelay)
             ))
-            ->setRetryMessages(config('phpredis-sentinel.retry.redis.messages', []));
+            ->setRetryMessages($this->config->get('phpredis-sentinel.retry.redis.messages', []));
     }
 
     /**

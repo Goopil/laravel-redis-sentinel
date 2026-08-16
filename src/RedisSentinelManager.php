@@ -82,7 +82,7 @@ class RedisSentinelManager extends RedisManager
             'predis' => new PredisConnector,
             'phpredis' => new PhpRedisConnector,
             'phpredis-sentinel' => $this->app->make(RedisSentinelConnector::class),
-            default => null,
+            default => throw new \InvalidArgumentException("Unsupported Redis driver [{$driver}]."),
         };
     }
 
