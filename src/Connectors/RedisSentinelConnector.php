@@ -328,7 +328,13 @@ class RedisSentinelConnector extends PhpRedisConnector
     private function needParamsAsArray(): bool
     {
         if ($this->phpredisVersion === null) {
-            $this->phpredisVersion = phpversion('redis');
+            $version = phpversion('redis');
+
+            if ($version === false) {
+                throw new ConfigurationException('PhpRedis extension is not loaded');
+            }
+
+            $this->phpredisVersion = $version;
         }
 
         return version_compare($this->phpredisVersion, '6.0', '>=');
