@@ -661,3 +661,19 @@ test('it does not mutate client property during read commands', function () {
 
     expect(spl_object_id($clientAfter))->toBe(spl_object_id($clientBefore));
 });
+
+test('cancelSubscription sets flag to break subscribe loop', function () {
+    $masterClient = Mockery::mock(Redis::class);
+
+    $connection = redisSentinelConnection($masterClient);
+
+    $reflection = new ReflectionClass($connection);
+    $cancelledProp = $reflection->getProperty('subscriptionCancelled');
+    $cancelledProp->setAccessible(true);
+
+    expect($cancelledProp->getValue($connection))->toBeFalse();
+
+    $connection->cancelSubscription();
+
+    expect($cancelledProp->getValue($connection))->toBeTrue();
+});

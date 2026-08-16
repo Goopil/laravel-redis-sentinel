@@ -115,6 +115,11 @@ class RedisSentinelConnection extends PhpRedisConnection
     protected int $transactionLevel = 0;
 
     /**
+     * Flag to cancel blocking subscribe/psubscribe loops.
+     */
+    protected bool $subscriptionCancelled = false;
+
+    /**
      * Create a new Redis Sentinel connection.
      *
      * @param  \Redis  $client  The master client instance
@@ -258,10 +263,7 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function subscribe($channels, Closure $callback): void
     {
-        $this->retry(
-            fn () => parent::subscribe($channels, $callback),
-            __FUNCTION__
-        );
+        $this->subscribeWithRetry('subscribe', $channels, $callback);
     }
 
     /**
@@ -269,10 +271,59 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function psubscribe($channels, Closure $callback): void
     {
-        $this->retry(
-            fn () => parent::psubscribe($channels, $callback),
-            __FUNCTION__
+        $this->subscribeWithRetry('psubscribe', $channels, $callback);
+    }
+
+    private function subscribeWithRetry(string $method, $channels, Closure $callback): void
+    {
+        $this->retryOnFailure(
+            function () use ($method, $channels, $callback) {
+                $client = $this->masterClient;
+                $client->{$method}((array) $channels, function ($redis, $channel, $message) use ($callback, $method) {
+                    if ($this->subscriptionCancelled) {
+                        if ($method === 'subscribe') {
+                            $redis->unsubscribe((array) $channel);
+                        } else {
+                            $redis->punsubscribe((array) $channel);
+                        }
+
+                        return;
+                    }
+
+                    $callback($message, $channel);
+                });
+            },
+            onFail: function ($exception, $attempts) use ($method) {
+                RedisSentinelConnectionFailed::dispatch($this, $exception, $method, $attempts);
+
+                $this->masterClient = $this->masterConnector
+                    ? call_user_func($this->masterConnector, true)
+                    : $this->masterClient;
+                $this->client = $this->masterClient;
+
+                $this->log($method.' - retry', [
+                    'method' => $method,
+                    'reason' => $exception->getMessage(),
+                    'attempts' => $attempts,
+                    'connection' => $this->name,
+                ], 'error');
+            },
+            onMaxFail: function ($exception, $attempts) use ($method) {
+                RedisSentinelConnectionMaxRetryFailed::dispatch($this, $exception, $method, $attempts);
+
+                $this->log($method.' - max fail', [
+                    'method' => $method,
+                    'reason' => $exception->getMessage(),
+                    'attempts' => $attempts,
+                    'connection' => $this->name,
+                ], 'error');
+            }
         );
+    }
+
+    public function cancelSubscription(): void
+    {
+        $this->subscriptionCancelled = true;
     }
 
     /**
