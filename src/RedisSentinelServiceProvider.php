@@ -131,6 +131,9 @@ class RedisSentinelServiceProvider extends ServiceProvider
             'redis.connection',
             fn () => $this->app->make($this->name)->connection()
         );
+
+        $this->app->forgetInstance('redis');
+        $this->app->forgetInstance('redis.connection');
     }
 
     protected function bootConnector(): void

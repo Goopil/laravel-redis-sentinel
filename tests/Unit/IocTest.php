@@ -31,6 +31,31 @@ describe('Ioc bindings', function () {
             ->and(app()->make('redis.connection'))->toBe('native redis connection');
     });
 
+    test('bootOverrides flushes already resolved redis instances', function () {
+        app()->forgetInstance('redis');
+        app()->forgetInstance('redis.connection');
+
+        app()->singleton('redis', fn ($app) => new RedisManager(
+            $app,
+            'phpredis',
+            $app['config']->get('database.redis', [])
+        ));
+
+        $originalInstance = app()->make('redis');
+        expect($originalInstance)->toBeInstanceOf(RedisManager::class)
+            ->not->toBeInstanceOf(RedisSentinelManager::class);
+
+        $provider = new RedisSentinelServiceProvider(app());
+        $method = new ReflectionMethod($provider, 'bootOverrides');
+        $method->setAccessible(true);
+        $method->invoke($provider);
+
+        $newInstance = app()->make('redis');
+
+        expect($newInstance)->toBeInstanceOf(RedisSentinelManager::class)
+            ->and(spl_object_id($newInstance))->not->toBe(spl_object_id($originalInstance));
+    });
+
     test('explicit Sentinel integrations keep working without global redis override', function () {
         config()->set('phpredis-sentinel.override_laravel_redis', false);
         config()->set('cache.stores.phpredis-sentinel.driver', 'phpredis-sentinel');
