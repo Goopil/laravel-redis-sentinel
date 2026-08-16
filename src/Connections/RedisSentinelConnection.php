@@ -484,7 +484,7 @@ class RedisSentinelConnection extends PhpRedisConnection
             return $this->readClient = call_user_func($this->readConnector);
         }
 
-        return $this->client;
+        return $this->masterClient;
     }
 
     /**
