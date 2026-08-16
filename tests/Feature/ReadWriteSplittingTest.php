@@ -647,43 +647,6 @@ test('master client reference is never corrupted', function () {
     expect($masterClientProp->getValue($connection))->toBe($masterClient);
 });
 
-test('it does not mutate client property during read commands', function () {
-    $masterClient = Mockery::mock(Redis::class);
-    $replicaClient = Mockery::mock(Redis::class);
-
-    $replicaClient->expects('get')->with('foo')->once()->andReturn('bar');
-
-    $connection = redisSentinelConnection($masterClient, $replicaClient);
-
-    $reflection = new ReflectionClass($connection);
-    $clientProp = $reflection->getProperty('client');
-    $clientProp->setAccessible(true);
-
-    $clientBefore = $clientProp->getValue($connection);
-
-    $connection->get('foo');
-
-    $clientAfter = $clientProp->getValue($connection);
-
-    expect(spl_object_id($clientAfter))->toBe(spl_object_id($clientBefore));
-});
-
-test('cancelSubscription sets flag to break subscribe loop', function () {
-    $masterClient = Mockery::mock(Redis::class);
-
-    $connection = redisSentinelConnection($masterClient);
-
-    $reflection = new ReflectionClass($connection);
-    $cancelledProp = $reflection->getProperty('subscriptionCancelled');
-    $cancelledProp->setAccessible(true);
-
-    expect($cancelledProp->getValue($connection))->toBeFalse();
-
-    $connection->cancelSubscription();
-
-    expect($cancelledProp->getValue($connection))->toBeTrue();
-});
-
 test('it allows custom read-only commands from config', function () {
     $masterClient = Mockery::mock(Redis::class);
     $replicaClient = Mockery::mock(Redis::class);

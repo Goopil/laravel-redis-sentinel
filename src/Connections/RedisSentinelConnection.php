@@ -9,8 +9,6 @@ use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionReconnected;
 use Illuminate\Redis\Connections\PhpRedisConnection;
-use Illuminate\Redis\Events\CommandExecuted;
-use Illuminate\Redis\Events\CommandFailed;
 use Illuminate\Support\Facades\Redis;
 use RedisException;
 use Throwable;
@@ -80,9 +78,6 @@ class RedisSentinelConnection extends PhpRedisConnection
         'object', 'latency', 'memory', 'client', 'debug', 'cluster',
     ];
 
-    /**
-     * Configurable read-only commands merged with the default constant.
-     */
     protected ?array $readOnlyCommands = null;
 
     /**
@@ -121,11 +116,6 @@ class RedisSentinelConnection extends PhpRedisConnection
     protected int $transactionLevel = 0;
 
     /**
-     * Flag to cancel blocking subscribe/psubscribe loops.
-     */
-    protected bool $subscriptionCancelled = false;
-
-    /**
      * Create a new Redis Sentinel connection.
      *
      * @param  \Redis  $client  The master client instance
@@ -137,7 +127,6 @@ class RedisSentinelConnection extends PhpRedisConnection
     {
         parent::__construct($client, $connector, $config);
 
-        // Store master client separately to guarantee writes always go to master
         $this->masterClient = $client;
         $this->masterConnector = $connector;
         $this->readConnector = $readConnector;
@@ -153,7 +142,10 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function scan($cursor, $options = []): mixed
     {
-        return $this->retryCallable('scan', fn () => parent::scan($cursor, $options));
+        return $this->retry(
+            fn () => parent::scan($cursor, $options),
+            __FUNCTION__
+        );
     }
 
     /**
@@ -167,7 +159,10 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function zscan($key, $cursor, $options = []): mixed
     {
-        return $this->retryCallable('zscan', fn () => parent::zscan($key, $cursor, $options));
+        return $this->retry(
+            fn () => parent::zscan($key, $cursor, $options),
+            __FUNCTION__
+        );
     }
 
     /**
@@ -175,7 +170,10 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function hscan($key, $cursor, $options = []): mixed
     {
-        return $this->retryCallable('hscan', fn () => parent::hscan($key, $cursor, $options));
+        return $this->retry(
+            fn () => parent::hscan($key, $cursor, $options),
+            __FUNCTION__
+        );
     }
 
     /**
@@ -183,7 +181,10 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function sscan($key, $cursor, $options = []): mixed
     {
-        return $this->retryCallable('sscan', fn () => parent::sscan($key, $cursor, $options));
+        return $this->retry(
+            fn () => parent::sscan($key, $cursor, $options),
+            __FUNCTION__
+        );
     }
 
     /**
@@ -194,8 +195,12 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function flushdb($async = null): mixed
     {
         try {
-            return $this->retryCallable('flushdb', fn () => parent::flushdb($async));
+            return $this->retry(
+                fn () => parent::flushdb($async),
+                __FUNCTION__
+            );
         } finally {
+            // Reset stickiness after flushing since all data is gone
             $this->wroteToMaster = false;
         }
     }
@@ -208,8 +213,12 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function flushall(?bool $sync = null): bool|\Redis
     {
         try {
-            return $this->executeOnMaster('flushall', [$sync]);
+            return $this->retry(
+                fn () => parent::flushall($sync),
+                __FUNCTION__
+            );
         } finally {
+            // Reset stickiness after flushing since all data is gone
             $this->wroteToMaster = false;
         }
     }
@@ -222,7 +231,10 @@ class RedisSentinelConnection extends PhpRedisConnection
         $this->transactionLevel++;
 
         try {
-            return $this->executeOnMaster('pipeline', [$callback]);
+            return $this->retry(
+                fn () => parent::pipeline($callback),
+                __FUNCTION__
+            );
         } finally {
             $this->transactionLevel--;
         }
@@ -236,70 +248,13 @@ class RedisSentinelConnection extends PhpRedisConnection
         $this->transactionLevel++;
 
         try {
-            return $this->executeOnMaster('multi', [$callback]);
+            return $this->retry(
+                fn () => parent::transaction($callback),
+                __FUNCTION__
+            );
         } finally {
             $this->transactionLevel--;
         }
-    }
-
-    private function executeOnMaster(string $method, array $parameters): mixed
-    {
-        return $this->retryOnFailure(
-            function () use ($method, $parameters) {
-                $client = $this->masterClient;
-                $start = microtime(true);
-
-                try {
-                    $pipeline = $client->{$method}();
-
-                    if (empty($parameters) || $parameters[0] === null) {
-                        $result = $pipeline;
-                    } else {
-                        $callback = $parameters[0];
-
-                        if (! is_callable($callback)) {
-                            $result = $pipeline;
-                        } else {
-                            $result = tap($pipeline, $callback)->exec();
-                        }
-                    }
-                } catch (Throwable $e) {
-                    $this->events?->dispatch(new CommandFailed(
-                        $method, [], $e, $this
-                    ));
-
-                    throw $e;
-                }
-
-                $time = round((microtime(true) - $start) * 1000, 2);
-
-                $this->events?->dispatch(new CommandExecuted(
-                    $method, [], $time, $this
-                ));
-
-                return $result;
-            },
-            onFail: function ($exception, $attempts) use ($method) {
-                RedisSentinelConnectionFailed::dispatch($this, $exception, $method, $attempts);
-
-                $this->masterClient = $this->masterConnector
-                    ? call_user_func($this->masterConnector, true)
-                    : $this->masterClient;
-
-                $this->log($method.' - retry', [
-                    'method' => $method,
-                    'reason' => $exception->getMessage(),
-                    'attempts' => $attempts,
-                    'connection' => $this->name,
-                ], 'error');
-            },
-            onReconnect: function ($attempts) use ($method) {
-                RedisSentinelConnectionReconnected::dispatch($this, $method, $attempts);
-            },
-            onMaxFail: function ($exception, $attempts) use ($method) {
-                RedisSentinelConnectionMaxRetryFailed::dispatch($this, $exception, $method, $attempts);
-            }
-        );
     }
 
     /**
@@ -307,7 +262,10 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function subscribe($channels, Closure $callback): void
     {
-        $this->subscribeWithRetry('subscribe', $channels, $callback);
+        $this->retry(
+            fn () => parent::subscribe($channels, $callback),
+            __FUNCTION__
+        );
     }
 
     /**
@@ -315,58 +273,10 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function psubscribe($channels, Closure $callback): void
     {
-        $this->subscribeWithRetry('psubscribe', $channels, $callback);
-    }
-
-    private function subscribeWithRetry(string $method, $channels, Closure $callback): void
-    {
-        $this->retryOnFailure(
-            function () use ($method, $channels, $callback) {
-                $client = $this->masterClient;
-                $client->{$method}((array) $channels, function ($redis, $channel, $message) use ($callback, $method) {
-                    if ($this->subscriptionCancelled) {
-                        if ($method === 'subscribe') {
-                            $redis->unsubscribe((array) $channel);
-                        } else {
-                            $redis->punsubscribe((array) $channel);
-                        }
-
-                        return;
-                    }
-
-                    $callback($message, $channel);
-                });
-            },
-            onFail: function ($exception, $attempts) use ($method) {
-                RedisSentinelConnectionFailed::dispatch($this, $exception, $method, $attempts);
-
-                $this->masterClient = $this->masterConnector
-                    ? call_user_func($this->masterConnector, true)
-                    : $this->masterClient;
-
-                $this->log($method.' - retry', [
-                    'method' => $method,
-                    'reason' => $exception->getMessage(),
-                    'attempts' => $attempts,
-                    'connection' => $this->name,
-                ], 'error');
-            },
-            onMaxFail: function ($exception, $attempts) use ($method) {
-                RedisSentinelConnectionMaxRetryFailed::dispatch($this, $exception, $method, $attempts);
-
-                $this->log($method.' - max fail', [
-                    'method' => $method,
-                    'reason' => $exception->getMessage(),
-                    'attempts' => $attempts,
-                    'connection' => $this->name,
-                ], 'error');
-            }
+        $this->retry(
+            fn () => parent::psubscribe($channels, $callback),
+            __FUNCTION__
         );
-    }
-
-    public function cancelSubscription(): void
-    {
-        $this->subscriptionCancelled = true;
     }
 
     /**
@@ -375,98 +285,10 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function command($method, array $parameters = []): mixed
     {
-        return $this->retry($method, $parameters);
-    }
-
-    /**
-     * Execute a parent method callable with retry logic and event dispatch.
-     *
-     * Used for methods like scan/zscan/hscan/sscan/flushdb that need to call
-     * the parent implementation (which uses $this->client internally) while
-     * still benefiting from retry, read/write routing, and event dispatch.
-     *
-     * @throws Throwable
-     */
-    private function retryCallable(string $method, callable $callback): mixed
-    {
-        $isReadOnly = $this->isReadOnlyCommand($method);
-
-        $result = $this->retryOnFailure(
-            function () use ($method, $callback) {
-                $targetClient = $this->resolveClientForCommand($method);
-
-                $start = microtime(true);
-
-                try {
-                    $previousClient = $this->client;
-                    $this->client = $targetClient;
-
-                    $result = $callback();
-                } catch (Throwable $e) {
-                    $this->events?->dispatch(new CommandFailed(
-                        $method, [], $e, $this
-                    ));
-
-                    throw $e;
-                } finally {
-                    $this->client = $previousClient ?? $this->masterClient;
-                }
-
-                $time = round((microtime(true) - $start) * 1000, 2);
-
-                $this->events?->dispatch(new CommandExecuted(
-                    $method, [], $time, $this
-                ));
-
-                return $result;
-            },
-            onFail: function ($exception, $attempts) use ($method, $isReadOnly) {
-                RedisSentinelConnectionFailed::dispatch($this, $exception, $method, $attempts);
-
-                if ($isReadOnly && $this->readConnector) {
-                    $this->readClient = call_user_func($this->readConnector, true);
-                } else {
-                    $newMasterClient = $this->masterConnector
-                        ? call_user_func($this->masterConnector, true)
-                        : $this->masterClient;
-
-                    $this->masterClient = $newMasterClient;
-                }
-
-                $this->log($method.' - retry', [
-                    'method' => $method,
-                    'reason' => $exception->getMessage(),
-                    'attempts' => $attempts,
-                    'connection' => $this->name,
-                    'read_only' => $isReadOnly,
-                ], 'error');
-            },
-            onReconnect: function ($attempts) use ($method) {
-                RedisSentinelConnectionReconnected::dispatch($this, $method, $attempts);
-
-                $this->log($method.' - reconnected', [
-                    'method' => $method,
-                    'connection' => $this->name,
-                    'attempts' => $attempts,
-                ]);
-            },
-            onMaxFail: function ($exception, $attempts) use ($method) {
-                RedisSentinelConnectionMaxRetryFailed::dispatch($this, $exception, $method, $attempts);
-
-                $this->log($method.' - max fail', [
-                    'method' => $method,
-                    'reason' => $exception->getMessage(),
-                    'attempts' => $attempts,
-                    'connection' => $this->name,
-                ], 'error');
-            }
+        return $this->retry(
+            fn () => parent::command($method, $parameters),
+            $method
         );
-
-        if (! $isReadOnly) {
-            $this->wroteToMaster = true;
-        }
-
-        return $result;
     }
 
     /**
@@ -479,36 +301,29 @@ class RedisSentinelConnection extends PhpRedisConnection
      *
      * @throws Throwable
      */
-    private function retry(string $method, array $parameters): mixed
+    private function retry(callable $callback, string $name): mixed
     {
-        $isReadOnly = $this->isReadOnlyCommand($method);
+        $isReadOnly = $this->isReadOnlyCommand($name);
 
         $result = $this->retryOnFailure(
-            function () use ($method, $parameters) {
-                $targetClient = $this->resolveClientForCommand($method);
+            function () use ($callback, $name) {
+                // Determine which client to use for this command
+                $targetClient = $this->resolveClientForCommand($name);
 
-                $start = microtime(true);
+                // CRITICAL: Temporarily swap $this->client to the target client
+                // This is necessary because parent class methods use $this->client
+                // We always restore to masterClient to ensure consistency
+                $this->client = $targetClient;
 
                 try {
-                    $result = $targetClient->{$method}(...$parameters);
-                } catch (Throwable $e) {
-                    $this->events?->dispatch(new CommandFailed(
-                        $method, $this->parseParametersForEvent($parameters), $e, $this
-                    ));
-
-                    throw $e;
+                    return $callback();
+                } finally {
+                    // Always restore to master client to ensure $this->client is never corrupted
+                    $this->client = $this->masterClient;
                 }
-
-                $time = round((microtime(true) - $start) * 1000, 2);
-
-                $this->events?->dispatch(new CommandExecuted(
-                    $method, $this->parseParametersForEvent($parameters), $time, $this
-                ));
-
-                return $result;
             },
-            onFail: function ($exception, $attempts) use ($method, $isReadOnly) {
-                RedisSentinelConnectionFailed::dispatch($this, $exception, $method, $attempts);
+            onFail: function ($exception, $attempts) use ($name, $isReadOnly) {
+                RedisSentinelConnectionFailed::dispatch($this, $exception, $name, $attempts);
 
                 // Reconnect the appropriate client based on command type
                 if ($isReadOnly && $this->readConnector) {
@@ -525,28 +340,28 @@ class RedisSentinelConnection extends PhpRedisConnection
                     $this->client = $newMasterClient;
                 }
 
-                $this->log($method.' - retry', [
-                    'method' => $method,
+                $this->log($name.' - retry', [
+                    'method' => $name,
                     'reason' => $exception->getMessage(),
                     'attempts' => $attempts,
                     'connection' => $this->name,
                     'read_only' => $isReadOnly,
                 ], 'error');
             },
-            onReconnect: function ($attempts) use ($method) {
-                RedisSentinelConnectionReconnected::dispatch($this, $method, $attempts);
+            onReconnect: function ($attempts) use ($name) {
+                RedisSentinelConnectionReconnected::dispatch($this, $name, $attempts);
 
-                $this->log($method.' - reconnected', [
-                    'method' => $method,
+                $this->log($name.' - reconnected', [
+                    'method' => $name,
                     'connection' => $this->name,
                     'attempts' => $attempts,
                 ]);
             },
-            onMaxFail: function ($exception, $attempts) use ($method) {
-                RedisSentinelConnectionMaxRetryFailed::dispatch($this, $exception, $method, $attempts);
+            onMaxFail: function ($exception, $attempts) use ($name) {
+                RedisSentinelConnectionMaxRetryFailed::dispatch($this, $exception, $name, $attempts);
 
-                $this->log($method.' - max fail', [
-                    'method' => $method,
+                $this->log($name.' - max fail', [
+                    'method' => $name,
                     'reason' => $exception->getMessage(),
                     'attempts' => $attempts,
                     'connection' => $this->name,
@@ -660,6 +475,9 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function __call($method, $parameters): mixed
     {
-        return $this->command(strtolower($method), $parameters);
+        return $this->retry(
+            fn () => parent::__call(strtolower($method), $parameters),
+            $method
+        );
     }
 }
