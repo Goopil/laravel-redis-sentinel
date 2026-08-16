@@ -8,6 +8,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
+use Workbench\App\Exceptions\SimulatedJobFailure;
 
 class SendEmailJob implements ShouldQueue
 {
@@ -35,7 +36,7 @@ class SendEmailJob implements ShouldQueue
         // Simulate failure for retry testing
         if ($this->shouldFail && $this->attempts() < $this->tries) {
             Cache::increment("email:{$this->email}:attempts");
-            throw new \Exception('Simulated email sending failure');
+            throw SimulatedJobFailure::forEmail($this->email);
         }
 
         // Store sent email in cache for test validation

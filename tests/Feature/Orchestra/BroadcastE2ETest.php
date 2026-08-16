@@ -86,7 +86,6 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
 
     test('broadcast handles high load with read/write splitting', function () {
         Queue::fake();
-        $testId = 'broadcast_load_'.time();
         $eventCount = 100;
         $startTime = microtime(true);
 
@@ -136,7 +135,6 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
 
     test('broadcast mixed event types with read/write splitting', function () {
         Queue::fake();
-        $testId = 'broadcast_mixed_'.time();
 
         // Mix of UserRegistered and OrderShipped events
         for ($i = 1; $i <= 30; $i++) {
@@ -206,7 +204,6 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
     test('broadcast events persist through connection reset', function () {
         Queue::fake();
         $connection = Redis::connection('phpredis-sentinel');
-        $testId = 'broadcast_reset_'.time();
 
         // Broadcast events before reset
         for ($i = 1; $i <= 5; $i++) {
@@ -295,7 +292,6 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
 
     test('broadcast handles concurrent events efficiently', function () {
         Queue::fake();
-        $testId = 'broadcast_concurrent_'.time();
         $batchSize = 50;
         $startTime = microtime(true);
 

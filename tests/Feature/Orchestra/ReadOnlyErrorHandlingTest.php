@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 
+const SKIP_MESSAGE = 'Not using RedisSentinelConnection';
+
 describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
     test('lib automatically retries and recovers from READONLY error', function () {
         // This test verifies that the lib can handle READONLY errors automatically
@@ -26,7 +28,7 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
         $connection = Redis::connection('phpredis-sentinel');
 
         if (! $connection instanceof RedisSentinelConnection) {
-            $this->markTestSkipped('Not using RedisSentinelConnection');
+            $this->markTestSkipped(SKIP_MESSAGE);
         }
 
         // Try a write operation - the lib should automatically:
@@ -105,7 +107,7 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
         $connection = Redis::connection('phpredis-sentinel');
 
         if (! $connection instanceof RedisSentinelConnection) {
-            $this->markTestSkipped('Not using RedisSentinelConnection');
+            $this->markTestSkipped(SKIP_MESSAGE);
         }
 
         // Do a read first (might initialize read client)
@@ -217,7 +219,7 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
         $connection = Redis::connection('phpredis-sentinel');
 
         if (! $connection instanceof RedisSentinelConnection) {
-            $this->markTestSkipped('Not using RedisSentinelConnection');
+            $this->markTestSkipped(SKIP_MESSAGE);
         }
 
         $reflection = new ReflectionClass($connection);
