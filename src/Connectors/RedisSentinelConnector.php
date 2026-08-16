@@ -11,6 +11,7 @@ use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterReconnected;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 use Goopil\LaravelRedisSentinel\Exceptions\NotImplementedException;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Redis\Connections\PhpRedisClusterConnection;
 use Illuminate\Redis\Connectors\PhpRedisConnector;
 use Illuminate\Support\Arr;
@@ -31,13 +32,13 @@ class RedisSentinelConnector extends PhpRedisConnector
 
     protected ?string $phpredisVersion = null;
 
-    public function __construct(NodeAddressCache $masterCache)
+    public function __construct(NodeAddressCache $masterCache, ConfigRepository $config)
     {
         $this->masterCache = $masterCache;
 
-        $this->setRetryLimit(config('phpredis-sentinel.retry.sentinel.attempts'))
-            ->setRetryDelay(config('phpredis-sentinel.retry.sentinel.delay'))
-            ->setRetryMessages(config('phpredis-sentinel.retry.sentinel.messages', []));
+        $this->setRetryLimit($config->get('phpredis-sentinel.retry.sentinel.attempts'))
+            ->setRetryDelay($config->get('phpredis-sentinel.retry.sentinel.delay'))
+            ->setRetryMessages($config->get('phpredis-sentinel.retry.sentinel.messages', []));
     }
 
     /**

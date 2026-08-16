@@ -23,7 +23,7 @@ test('it calls sentinel only once when cache is enabled', function () {
 
         public function __construct($sentinelMock, $mockRedis)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->mockSentinel = $sentinelMock;
             $this->mockRedis = $mockRedis;
         }
@@ -90,7 +90,7 @@ test('it invalidates cache when refresh is requested', function () {
 
         public function __construct($sentinelMock, $mockRedis)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->mockSentinel = $sentinelMock;
             $this->mockRedis = $mockRedis;
         }

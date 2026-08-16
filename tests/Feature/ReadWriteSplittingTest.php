@@ -300,7 +300,7 @@ test('it falls back to master if no replicas found', function () {
     {
         public function __construct(private $sentinelMock)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -345,7 +345,7 @@ test('it filters out unhealthy replicas', function () {
     {
         public function __construct(private $sentinelMock)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -478,7 +478,7 @@ test('it falls back to master if all replicas are unhealthy', function () {
     {
         public function __construct(private $sentinelMock)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -522,7 +522,7 @@ test('it discovers replicas using secondary sentinel if primary is down', functi
     {
         public function __construct(private $mocks)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->setRetryDelay(1);
         }
 

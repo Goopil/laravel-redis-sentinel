@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Event;
 
 test('onSentinelFail dispatches RedisSentinelMasterFailed', function () {
     Event::fake();
-    $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
     // Access protected method via reflection or just make a public wrapper in a test class
     $reflection = new ReflectionClass($connector);
     $method = $reflection->getMethod('onSentinelFail');

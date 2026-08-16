@@ -64,7 +64,7 @@ test('resolveConnector returns the correct connector', function () {
 
     // We need to extend the manager to register our connector
     $manager = new RedisSentinelManager(null, 'phpredis', $config);
-    $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
     $manager->extend('phpredis-sentinel', fn () => $connector);
 
     expect($manager->resolveConnector('default'))->toBe($connector);
@@ -86,7 +86,7 @@ test('resolveConnector does not mutate driver property', function () {
     ];
 
     $manager = new RedisSentinelManager(null, 'phpredis', $config);
-    $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
     $manager->extend('phpredis-sentinel', fn () => $connector);
     $manager->extend('phpredis', fn () => $connector);
 

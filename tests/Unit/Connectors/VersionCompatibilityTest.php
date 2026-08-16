@@ -4,7 +4,7 @@ use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 
 test('need params as array logic', function () {
-    $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
     $reflection = new ReflectionClass($connector);
     $property = $reflection->getProperty('phpredisVersion');
 
@@ -28,7 +28,7 @@ test('need params as array logic', function () {
 test('create sentinel instance uses correct path based on version', function () {
     $options = ['host' => '127.0.0.1', 'port' => 26379];
 
-    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
         public function setVersion($v)
         {
@@ -51,7 +51,7 @@ test('create sentinel instance uses correct path based on version', function () 
 });
 
 test('it caches phpredis version', function () {
-    $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
     $reflection = new ReflectionClass($connector);
     $property = $reflection->getProperty('phpredisVersion');
 
