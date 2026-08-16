@@ -65,6 +65,12 @@ function readOnlyCommandDataset(): array
         'type' => ['type', ['foo'], Redis::REDIS_STRING],
         'pttl' => ['pttl', ['foo'], 1000],
         'ttl' => ['ttl', ['foo'], 60],
+        'object' => ['object', ['encoding', 'foo'], 'raw'],
+        'latency' => ['latency', ['history'], []],
+        'memory' => ['memory', ['usage', 'foo'], 100],
+        'client' => ['client', ['list'], []],
+        'debug' => ['debug', ['object', 'foo'], ['debug info']],
+        'cluster' => ['cluster', ['countkeysinslot', 0], 0],
     ];
 }
 
@@ -676,4 +682,20 @@ test('cancelSubscription sets flag to break subscribe loop', function () {
     $connection->cancelSubscription();
 
     expect($cancelledProp->getValue($connection))->toBeTrue();
+});
+
+test('it allows custom read-only commands from config', function () {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $replicaClient->expects('customRead')->once()->andReturn('result');
+
+    $connection = new RedisSentinelConnection(
+        $masterClient,
+        fn () => $masterClient,
+        ['read_commands' => ['customread']],
+        fn () => $replicaClient,
+    );
+
+    expect($connection->command('customRead', []))->toBe('result');
 });

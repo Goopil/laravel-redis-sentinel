@@ -77,7 +77,13 @@ class RedisSentinelConnection extends PhpRedisConnection
         'zcard', 'zcount', 'zlexcount', 'zrange', 'zrank', 'zrevrange', 'zrevrank', 'zscore', 'zscan',
         'zrangebyscore', 'zrevrangebyscore', 'zrangebylex', 'zrevrangebylex',
         'exists', 'scan', 'type', 'pttl', 'ttl',
+        'object', 'latency', 'memory', 'client', 'debug', 'cluster',
     ];
+
+    /**
+     * Configurable read-only commands merged with the default constant.
+     */
+    protected ?array $readOnlyCommands = null;
 
     /**
      * The master client instance (always writes to master).
@@ -135,6 +141,11 @@ class RedisSentinelConnection extends PhpRedisConnection
         $this->masterClient = $client;
         $this->masterConnector = $connector;
         $this->readConnector = $readConnector;
+
+        $this->readOnlyCommands = array_unique(array_merge(
+            self::READ_ONLY_COMMAND,
+            $config['read_commands'] ?? [],
+        ));
     }
 
     /**
@@ -492,7 +503,7 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     protected function isReadOnlyCommand(string $method): bool
     {
-        return in_array(strtolower($method), static::READ_ONLY_COMMAND);
+        return in_array(strtolower($method), $this->readOnlyCommands ?? self::READ_ONLY_COMMAND);
     }
 
     /**

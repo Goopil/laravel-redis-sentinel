@@ -6,6 +6,9 @@ return [
     'log' => [
         'channel' => env('REDIS_SENTINEL_LOG_CHANNEL', env('LOG_CHANNEL')),
     ],
+
+    'read_commands' => [],
+
     'retry' => [
         'sentinel' => [
             'attempts' => 5,
