@@ -53,7 +53,7 @@ class HorizonWorkerPreStop extends Command
         $startCommand = $this->option('start-command');
 
         $pid = collect($masters->all())
-            ->filter(fn ($master) => str_contains($master->name, gethostname()))
+            ->filter(fn ($master) => str_starts_with($master->name, gethostname().':'))
             ->map(fn ($master) => (int) ($master->pid ?? 0))
             ->filter()
             ->first();
