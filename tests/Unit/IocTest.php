@@ -88,6 +88,40 @@ describe('Ioc bindings', function () {
             ->toBeAWorkingRedisConnection();
     });
 
+    test('session handler does not corrupt cache store connection', function () {
+        config()->set('session.connection', 'redis');
+        config()->set('session.lifetime', 120);
+
+        $cacheStore = app()->make('cache')->driver('phpredis-sentinel');
+        $store = $cacheStore->getStore();
+
+        $ref = new ReflectionProperty($store, 'connection');
+        $ref->setAccessible(true);
+        $originalConnection = $ref->getValue($store);
+
+        $provider = new RedisSentinelServiceProvider(app());
+        $bootMethod = new ReflectionMethod($provider, 'bootSessionHandler');
+        $bootMethod->setAccessible(true);
+        $bootMethod->invoke($provider);
+
+        $sessionManager = app()->make('session');
+        $driversRef = new ReflectionProperty($sessionManager, 'drivers');
+        $driversRef->setAccessible(true);
+        $driversRef->setValue($sessionManager, []);
+
+        $handler = app()->make('session')->driver('phpredis-sentinel')->getHandler();
+        $handlerStore = $handler->getCache()->getStore();
+
+        $handlerConnectionRef = new ReflectionProperty($handlerStore, 'connection');
+        $handlerConnectionRef->setAccessible(true);
+        $handlerConnection = $handlerConnectionRef->getValue($handlerStore);
+
+        $afterConnection = $ref->getValue($store);
+
+        expect($handlerConnection)->toBe('redis')
+            ->and($afterConnection)->toBe($originalConnection);
+    });
+
     test('RedisSentinelConnector is bound', function () {
         expect(app()->make(RedisSentinelConnector::class))->toBeInstanceOf(RedisSentinelConnector::class)
             ->and(app()->make('redis.sentinel'))->toBeInstanceOf(RedisSentinelConnector::class);
