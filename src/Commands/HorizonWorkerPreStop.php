@@ -106,6 +106,6 @@ class HorizonWorkerPreStop extends Command
 
     protected function buildPgrepProcess(string $startCommand, int $timeout): Process
     {
-        return new Process(['pgrep', '-x', '-f', $startCommand], timeout: $timeout);
+        return new Process(['pgrep', '-f', $startCommand], timeout: $timeout);
     }
 }

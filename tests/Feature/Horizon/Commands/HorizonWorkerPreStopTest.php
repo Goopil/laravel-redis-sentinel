@@ -82,7 +82,7 @@ test('horizon:pre-stop builds pgrep process safely', function () {
     $commandLine = $process->getCommandLine();
 
     expect($commandLine)->toContain('pgrep')
-        ->and($commandLine)->toContain('-x')
         ->and($commandLine)->toContain('-f')
+        ->and($commandLine)->not->toContain('-x')
         ->and($commandLine)->toContain("'php artisan horizon; rm -rf /'");
 });
