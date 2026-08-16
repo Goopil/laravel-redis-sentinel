@@ -132,3 +132,11 @@ test('resolve uses normalized name for non-sentinel connections in horizon conte
 
     expect($connection)->not->toBeNull();
 });
+
+test('patchHorizonConnectionName throws ConfigurationException when horizon.use is missing in horizon context', function () {
+    config()->set('horizon.driver', 'phpredis-sentinel');
+    config()->offsetUnset('horizon.use');
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', []);
+    $manager->resolveConnector('horizon');
+})->throws(ConfigurationException::class, 'The "horizon.use" configuration key is required');
