@@ -276,7 +276,6 @@ describe('Session', function () {
         ]);
 
         $response = $this->get('/session/metadata');
-        $sessionId = $response->json('session_id');
 
         // Simulate app restart by creating new request with same session
         $response = $this->withSession(['persistent_key' => 'persistent_value'])

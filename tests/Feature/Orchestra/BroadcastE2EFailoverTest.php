@@ -46,7 +46,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
 
     test('broadcast events complete successfully before failover', function () {
         Queue::fake();
-        $testId = 'pre_failover_'.time();
         $eventCount = 15;
 
         for ($i = 1; $i <= $eventCount; $i++) {
@@ -80,7 +79,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
     test('broadcast handles connection reset during event processing', function () {
         Queue::fake();
         $connection = Redis::connection('phpredis-sentinel');
-        $testId = 'reset_test_'.time();
 
         // Phase 1: Events before reset
         for ($i = 1; $i <= 8; $i++) {
@@ -139,7 +137,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
     test('broadcast maintains event integrity through failover', function () {
         Queue::fake();
         $connection = Redis::connection('phpredis-sentinel');
-        $testId = 'integrity_'.time();
         $eventsBeforeFailover = 20;
         $eventsDuringFailover = 10;
         $eventsAfterFailover = 20;
@@ -192,7 +189,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
 
     test('broadcast channel subscriptions persist through failover', function () {
         $connection = Redis::connection('phpredis-sentinel');
-        $testId = 'channel_persist_'.time();
 
         // Publish to channels before failover
         $connection->publish('user-registrations', json_encode(['test' => 1]));

@@ -83,7 +83,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
     });
 
     test('session data persists through connection reset', function () {
-        $sessionId = Session::getId();
         $connection = Redis::connection('phpredis-sentinel');
 
         // Store session data
@@ -112,7 +111,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
 
     test('session handles failover during active user session', function () {
         $connection = Redis::connection('phpredis-sentinel');
-        $sessionId = Session::getId();
 
         // Simulate user activity - Phase 1
         Session::put('step', 'login');
@@ -183,7 +181,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
 
     test('session handles multiple concurrent updates during failover', function () {
         $connection = Redis::connection('phpredis-sentinel');
-        $sessionId = Session::getId();
         $updateCount = 50;
 
         for ($i = 1; $i <= $updateCount; $i++) {
@@ -463,7 +460,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
 
     test('session with long expiration survives multiple failovers', function () {
         $connection = Redis::connection('phpredis-sentinel');
-        $sessionId = Session::getId();
 
         // Store persistent session data
         Session::put('persistent_user_id', 123456);
@@ -506,11 +502,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         Session::put('user_id', 1000);
         Session::put('session_type', 'session_1');
         Session::save();
-
-        $session1Data = [
-            'user_id' => Session::get('user_id'),
-            'session_type' => Session::get('session_type'),
-        ];
 
         // Create new session
         Session::flush();

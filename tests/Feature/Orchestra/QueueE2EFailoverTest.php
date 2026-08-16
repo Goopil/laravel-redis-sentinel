@@ -425,7 +425,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
         $testId = 'queue_retry_'.time();
         $connection = Redis::connection('phpredis-sentinel');
         $queueKey = "queues:retry:{$testId}";
-        $failedQueueKey = "queues:failed:{$testId}";
 
         // Push jobs
         for ($i = 1; $i <= 5; $i++) {
