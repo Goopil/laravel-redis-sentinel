@@ -135,19 +135,23 @@ class RedisSentinelServiceProvider extends ServiceProvider
 
     protected function bootConnector(): void
     {
+        $app = $this->app;
+        $name = $this->name;
 
         $this->app->make(RedisSentinelManager::class)->extend(
-            $this->name,
-            fn () => $this->app->make('redis.sentinel')
+            $name,
+            fn () => $app->make('redis.sentinel')
         );
     }
 
     protected function bootBroadcaster(): void
     {
+        $sentinelName = $this->name;
+
         $this->app->make(BroadcastFactory::class)->extend(
-            $this->name,
+            $sentinelName,
             fn ($app, $conf) => new RedisBroadcaster(
-                $this->app->make($this->name),
+                $app->make($sentinelName),
                 Arr::get($conf, 'connection', 'default')
             )
         );
@@ -198,13 +202,16 @@ class RedisSentinelServiceProvider extends ServiceProvider
 
     protected function bootQueue(): void
     {
+        $app = $this->app;
+        $name = $this->name;
+
         $connector = $this->isHorizonContext()
             ? self::HORIZON_REDIS_CONNECTOR
             : RedisConnector::class;
 
         $this->app->make('queue')->extend(
-            $this->name,
-            fn () => new $connector($this->app->make($this->name))
+            $name,
+            fn () => new $connector($app->make($name))
         );
     }
 
