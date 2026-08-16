@@ -468,6 +468,7 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function resetStickiness(): void
     {
         $this->wroteToMaster = false;
+        $this->transactionLevel = 0;
     }
 
     /**

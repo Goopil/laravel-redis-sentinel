@@ -28,6 +28,21 @@ test('wrote to master is reset with reset stickiness', function () {
     expect($property->getValue($connection))->toBeFalse();
 });
 
+test('resetStickiness also resets transaction level', function () {
+    $masterClient = Mockery::mock(Redis::class);
+
+    $connection = new RedisSentinelConnection($masterClient, fn () => $masterClient, []);
+
+    $reflection = new ReflectionClass($connection);
+    $transactionProp = $reflection->getProperty('transactionLevel');
+    $transactionProp->setAccessible(true);
+    $transactionProp->setValue($connection, 3);
+
+    $connection->resetStickiness();
+
+    expect($transactionProp->getValue($connection))->toBe(0);
+});
+
 test('bootOctane listens to all Octane lifecycle events', function () {
     app()->instance('octane', new stdClass);
 
