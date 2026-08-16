@@ -190,3 +190,44 @@ test('patchHorizonPrefix does nothing when not in horizon context', function () 
 
     expect($result['options']['prefix'])->toBe('default:');
 });
+
+test('patchHorizonConnectionName returns horizon.use value when in horizon context', function () {
+    config()->set('horizon', ['driver' => 'phpredis-sentinel', 'use' => 'my-sentinel']);
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', []);
+    $method = new ReflectionMethod($manager, 'patchHorizonConnectionName');
+    $method->setAccessible(true);
+
+    expect($method->invoke($manager, 'horizon'))->toBe('my-sentinel');
+});
+
+test('patchHorizonConnectionName returns original name when not horizon', function () {
+    config()->set('horizon', ['driver' => 'phpredis-sentinel', 'use' => 'my-sentinel']);
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', []);
+    $method = new ReflectionMethod($manager, 'patchHorizonConnectionName');
+    $method->setAccessible(true);
+
+    expect($method->invoke($manager, 'default'))->toBe('default')
+        ->and($method->invoke($manager, 'cache'))->toBe('cache');
+});
+
+test('patchHorizonConnectionName returns original name when not in horizon context', function () {
+    config()->offsetUnset('horizon.driver');
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', []);
+    $method = new ReflectionMethod($manager, 'patchHorizonConnectionName');
+    $method->setAccessible(true);
+
+    expect($method->invoke($manager, 'horizon'))->toBe('horizon');
+});
+
+test('patchHorizonConnectionName uses default when name is null', function () {
+    config()->set('horizon', ['driver' => 'phpredis-sentinel', 'use' => 'my-sentinel']);
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', []);
+    $method = new ReflectionMethod($manager, 'patchHorizonConnectionName');
+    $method->setAccessible(true);
+
+    expect($method->invoke($manager))->toBe('default');
+});
