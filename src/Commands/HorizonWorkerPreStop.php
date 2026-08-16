@@ -65,7 +65,12 @@ class HorizonWorkerPreStop extends Command
             );
 
             $process->run();
-            $pid = (int) $process->getOutput();
+            $output = trim($process->getOutput());
+            $pids = array_filter(explode("\n", $output), fn ($line) => ctype_digit(trim($line)));
+
+            if (! empty($pids)) {
+                $pid = (int) trim($pids[0]);
+            }
         }
 
         if ($pid) {
