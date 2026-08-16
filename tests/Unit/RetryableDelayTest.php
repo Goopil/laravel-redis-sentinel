@@ -115,3 +115,39 @@ test('it stops after retry limit', function () {
         ->and($retryable->sleeps)->toHaveCount(0)
         ->and($retryable->maxFailCalls)->toBe(1);
 });
+
+test('it does not retry when retryMessages is empty', function () {
+    $retryable = new class
+    {
+        use Retryable;
+
+        public int $callCount = 0;
+
+        public function test_retry()
+        {
+            return $this->retryOnFailure(
+                function () {
+                    $this->callCount++;
+                    throw new Exception('some random error');
+                }
+            );
+        }
+
+        protected function sleepWithBackoff(int $attempt): void {}
+    };
+
+    $retryable->setRetryLimit(5);
+    $retryable->setRetryMessages([]);
+
+    try {
+        $retryable->test_retry();
+        throw new Exception('Expected exception was not thrown.');
+    } catch (Exception $exception) {
+        if ($exception->getMessage() === 'Expected exception was not thrown.') {
+            throw $exception;
+        }
+        expect($exception->getMessage())->toBe('some random error');
+    }
+
+    expect($retryable->callCount)->toBe(1);
+});
