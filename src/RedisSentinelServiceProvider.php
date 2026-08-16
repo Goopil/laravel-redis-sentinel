@@ -191,12 +191,12 @@ class RedisSentinelServiceProvider extends ServiceProvider
             function () use ($app) {
                 $config = $app->make('config');
                 $manager = $app->make(RedisSentinelManager::class);
-                $driver = $app->make('cache')->repository($store);
                 $store = new RedisStore(
                     $manager,
                     $config->get('cache.prefix'),
                     $config->get('session.connection')
                 );
+                $driver = $app->make('cache')->repository($store);
 
                 return new CacheBasedSessionHandler(
                     $driver,
