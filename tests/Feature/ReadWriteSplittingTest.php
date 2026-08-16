@@ -580,7 +580,7 @@ test('write commands always use master client even after failures', function () 
     // Replica should NEVER be called for write commands
     $replicaClient->shouldNotReceive('set');
 
-    $connector = function ($refresh = false) use ($masterClient) {
+    $connector = function () use ($masterClient) {
         return $masterClient;
     };
     $readConnector = function () use ($replicaClient) {

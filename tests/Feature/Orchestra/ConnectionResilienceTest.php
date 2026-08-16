@@ -17,7 +17,7 @@ describe('Connection Resilience', function () {
             ->andReturn('success');
 
         $connectorCalled = 0;
-        $connector = function ($forceRefresh = false) use (&$connectorCalled, $mockClient) {
+        $connector = function () use (&$connectorCalled, $mockClient) {
             $connectorCalled++;
 
             return $mockClient;
@@ -47,7 +47,7 @@ describe('Connection Resilience', function () {
             ->atLeast()->times(3)
             ->andThrow(new RedisException('Persistent failure'));
 
-        $connector = function ($forceRefresh = false) use ($mockClient) {
+        $connector = function () use ($mockClient) {
             return $mockClient;
         };
 

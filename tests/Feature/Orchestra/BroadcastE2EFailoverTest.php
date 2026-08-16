@@ -237,7 +237,7 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
 
         // Most events should succeed
         $pushedCount = 0;
-        Queue::assertPushed(BroadcastEvent::class, function ($job) use (&$pushedCount) {
+        Queue::assertPushed(BroadcastEvent::class, function () use (&$pushedCount) {
             $pushedCount++;
 
             return true;
