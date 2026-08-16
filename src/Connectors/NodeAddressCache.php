@@ -8,17 +8,38 @@ final class NodeAddressCache
 
     private const REPLICAS_KEY = 'replicas';
 
+    private const DEFAULT_TTL = 300;
+
     /**
-     * @var array<string, array{master: ?array{ip: string, port: int}, replicas: array<array{ip: string, port: int}>}>
+     * @var array<string, array{master: ?array{ip: string, port: int, cached_at: int}, replicas: array<array{ip: string, port: int}>, replicas_cached_at: int}>
      */
     protected array $nodes = [];
+
+    protected int $ttl;
+
+    public function __construct(int $ttl = self::DEFAULT_TTL)
+    {
+        $this->ttl = $ttl;
+    }
 
     /**
      * Get the cached master address for a service.
      */
     public function get(string $service): ?array
     {
-        return $this->nodes[$service][self::MASTER_KEY] ?? null;
+        $entry = $this->nodes[$service][self::MASTER_KEY] ?? null;
+
+        if ($entry === null) {
+            return null;
+        }
+
+        if ($this->isExpired($entry['cached_at'] ?? 0)) {
+            $this->forgetMaster($service);
+
+            return null;
+        }
+
+        return ['ip' => $entry['ip'], 'port' => $entry['port']];
     }
 
     /**
@@ -29,6 +50,7 @@ final class NodeAddressCache
         $this->nodes[$service][self::MASTER_KEY] = [
             'ip' => $ip,
             'port' => (int) $port,
+            'cached_at' => time(),
         ];
     }
 
@@ -37,7 +59,16 @@ final class NodeAddressCache
      */
     public function getReplicas(string $service): array
     {
-        return $this->nodes[$service][self::REPLICAS_KEY] ?? [];
+        $replicas = $this->nodes[$service][self::REPLICAS_KEY] ?? [];
+        $cachedAt = $this->nodes[$service]['replicas_cached_at'] ?? 0;
+
+        if ($this->isExpired($cachedAt)) {
+            $this->forgetReplicas($service);
+
+            return [];
+        }
+
+        return $replicas;
     }
 
     /**
@@ -49,6 +80,7 @@ final class NodeAddressCache
             'ip' => $r['ip'] ?? $r[0],
             'port' => (int) ($r['port'] ?? $r[1]),
         ], $replicas);
+        $this->nodes[$service]['replicas_cached_at'] = time();
     }
 
     /**
@@ -68,7 +100,7 @@ final class NodeAddressCache
      */
     public function forgetReplicas(string $service): void
     {
-        unset($this->nodes[$service][self::REPLICAS_KEY]);
+        unset($this->nodes[$service][self::REPLICAS_KEY], $this->nodes[$service]['replicas_cached_at']);
 
         if (($this->nodes[$service] ?? []) === []) {
             unset($this->nodes[$service]);
@@ -89,5 +121,10 @@ final class NodeAddressCache
     public function flush(): void
     {
         $this->nodes = [];
+    }
+
+    private function isExpired(int $cachedAt): bool
+    {
+        return $this->ttl > 0 && (time() - $cachedAt) > $this->ttl;
     }
 }
