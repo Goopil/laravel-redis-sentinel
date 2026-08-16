@@ -24,12 +24,43 @@ test('horizon:alive returns 0 when all checks pass', function () {
 
     // 2. Mock Connection check (returns 0 on success)
     $connection = Mockery::mock(Connection::class);
-    $connection->allows('set')->andReturns(true);
+    $connection->allows('setex')->andReturns(true);
     $manager->allows('resolve')->with('phpredis-sentinel')->andReturns($connection);
 
     app()->instance(RedisSentinelManager::class, $manager);
 
     // 3. Mock horizon:ready (returns 0 on success)
+    $master = new stdClass;
+    $master->name = gethostname().':1';
+    $master->status = 'running';
+    $repository = Mockery::mock(MasterSupervisorRepository::class);
+    $repository->allows('all')->andReturns([$master]);
+    app()->instance(MasterSupervisorRepository::class, $repository);
+
+    $status = Artisan::call('horizon:alive');
+
+    expect($status)->toBe(0);
+});
+
+test('horizon:alive uses setex with TTL for liveness check key', function () {
+    $connector = Mockery::mock(RedisSentinelConnector::class);
+    $sentinel = Mockery::mock(RedisSentinel::class);
+    $sentinel->allows('getMasterAddrByName')->andReturns(['ip' => '127.0.0.1', 'port' => 26379]);
+    $connector->allows('createSentinel')->andReturns($sentinel);
+
+    $manager = Mockery::mock(RedisSentinelManager::class);
+    $manager->allows('resolveConnector')
+        ->with('phpredis-sentinel')
+        ->andReturns($connector);
+
+    $connection = Mockery::mock(Connection::class);
+    $connection->expects('setex')
+        ->withArgs(fn ($key, $ttl, $value) => str_starts_with($key, 'check:') && $ttl > 0 && is_int($value))
+        ->andReturns(true);
+    $manager->allows('resolve')->with('phpredis-sentinel')->andReturns($connection);
+
+    app()->instance(RedisSentinelManager::class, $manager);
+
     $master = new stdClass;
     $master->name = gethostname().':1';
     $master->status = 'running';
@@ -54,7 +85,7 @@ test('horizon:alive returns 0 when sentinel returns associative array (phpredis 
         ->andReturns($connector);
 
     $connection = Mockery::mock(Connection::class);
-    $connection->allows('set')->andReturns(true);
+    $connection->allows('setex')->andReturns(true);
     $manager->allows('resolve')->with('phpredis-sentinel')->andReturns($connection);
 
     app()->instance(RedisSentinelManager::class, $manager);
@@ -83,7 +114,7 @@ test('horizon:alive returns 1 when sentinel check fails (no master)', function (
         ->andReturns($connector);
 
     $connection = Mockery::mock(Connection::class);
-    $connection->allows('set')->andReturns(true);
+    $connection->allows('setex')->andReturns(true);
     $manager->allows('resolve')->andReturns($connection);
 
     app()->instance(RedisSentinelManager::class, $manager);
@@ -141,7 +172,7 @@ test('horizon:alive returns 1 when horizon:ready fails', function () {
         ->andReturns($connector);
 
     $connection = Mockery::mock(Connection::class);
-    $connection->allows('set')->andReturns(true);
+    $connection->allows('setex')->andReturns(true);
     $manager->allows('resolve')->andReturns($connection);
 
     app()->instance(RedisSentinelManager::class, $manager);

@@ -84,7 +84,7 @@ class HorizonWorkerLiveness extends Command
         try {
             $manager
                 ->resolve($connectionName)
-                ->set('check:'.php_uname(), Carbon::now()->timestamp);
+                ->setex('check:'.php_uname(), 300, Carbon::now()->timestamp);
 
             return 0;
         } catch (Throwable $exception) {
