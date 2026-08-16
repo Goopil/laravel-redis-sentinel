@@ -65,7 +65,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
                     }
                 }
             }
-        };
+        });
 
         foreach (['RequestReceived', 'TickReceived', 'TaskReceived', 'OperationTerminated'] as $event) {
             $this->app['events']->listen("Laravel\\Octane\\Events\\{$event}", $resetCallback);
@@ -188,7 +188,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
 
         $this->app->make('session')->extend(
             $name,
-            function () use ($app, $name) {
+            function () use ($app) {
                 $config = $app->make('config');
                 $manager = $app->make(RedisSentinelManager::class);
                 $driver = $app->make('cache')->repository($store);
