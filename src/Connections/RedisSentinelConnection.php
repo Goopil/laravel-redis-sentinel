@@ -9,6 +9,8 @@ use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionReconnected;
 use Illuminate\Redis\Connections\PhpRedisConnection;
+use Illuminate\Redis\Events\CommandExecuted;
+use Illuminate\Redis\Events\CommandFailed;
 use Illuminate\Support\Facades\Redis;
 use RedisException;
 use Throwable;
@@ -279,10 +281,7 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function command($method, array $parameters = []): mixed
     {
-        return $this->retry(
-            fn () => parent::command($method, $parameters),
-            $method
-        );
+        return $this->retry($method, $parameters);
     }
 
     /**
@@ -295,29 +294,36 @@ class RedisSentinelConnection extends PhpRedisConnection
      *
      * @throws Throwable
      */
-    private function retry(callable $callback, string $name): mixed
+    private function retry(string $method, array $parameters): mixed
     {
-        $isReadOnly = $this->isReadOnlyCommand($name);
+        $isReadOnly = $this->isReadOnlyCommand($method);
 
         $result = $this->retryOnFailure(
-            function () use ($callback, $name) {
-                // Determine which client to use for this command
-                $targetClient = $this->resolveClientForCommand($name);
+            function () use ($method, $parameters) {
+                $targetClient = $this->resolveClientForCommand($method);
 
-                // CRITICAL: Temporarily swap $this->client to the target client
-                // This is necessary because parent class methods use $this->client
-                // We always restore to masterClient to ensure consistency
-                $this->client = $targetClient;
+                $start = microtime(true);
 
                 try {
-                    return $callback();
-                } finally {
-                    // Always restore to master client to ensure $this->client is never corrupted
-                    $this->client = $this->masterClient;
+                    $result = $targetClient->{$method}(...$parameters);
+                } catch (Throwable $e) {
+                    $this->events?->dispatch(new CommandFailed(
+                        $method, $this->parseParametersForEvent($parameters), $e, $this
+                    ));
+
+                    throw $e;
                 }
+
+                $time = round((microtime(true) - $start) * 1000, 2);
+
+                $this->events?->dispatch(new CommandExecuted(
+                    $method, $this->parseParametersForEvent($parameters), $time, $this
+                ));
+
+                return $result;
             },
-            onFail: function ($exception, $attempts) use ($name, $isReadOnly) {
-                RedisSentinelConnectionFailed::dispatch($this, $exception, $name, $attempts);
+            onFail: function ($exception, $attempts) use ($method, $isReadOnly) {
+                RedisSentinelConnectionFailed::dispatch($this, $exception, $method, $attempts);
 
                 // Reconnect the appropriate client based on command type
                 if ($isReadOnly && $this->readConnector) {
@@ -334,28 +340,28 @@ class RedisSentinelConnection extends PhpRedisConnection
                     $this->client = $newMasterClient;
                 }
 
-                $this->log($name.' - retry', [
-                    'method' => $name,
+                $this->log($method.' - retry', [
+                    'method' => $method,
                     'reason' => $exception->getMessage(),
                     'attempts' => $attempts,
                     'connection' => $this->name,
                     'read_only' => $isReadOnly,
                 ], 'error');
             },
-            onReconnect: function ($attempts) use ($name) {
-                RedisSentinelConnectionReconnected::dispatch($this, $name, $attempts);
+            onReconnect: function ($attempts) use ($method) {
+                RedisSentinelConnectionReconnected::dispatch($this, $method, $attempts);
 
-                $this->log($name.' - reconnected', [
-                    'method' => $name,
+                $this->log($method.' - reconnected', [
+                    'method' => $method,
                     'connection' => $this->name,
                     'attempts' => $attempts,
                 ]);
             },
-            onMaxFail: function ($exception, $attempts) use ($name) {
-                RedisSentinelConnectionMaxRetryFailed::dispatch($this, $exception, $name, $attempts);
+            onMaxFail: function ($exception, $attempts) use ($method) {
+                RedisSentinelConnectionMaxRetryFailed::dispatch($this, $exception, $method, $attempts);
 
-                $this->log($name.' - max fail', [
-                    'method' => $name,
+                $this->log($method.' - max fail', [
+                    'method' => $method,
                     'reason' => $exception->getMessage(),
                     'attempts' => $attempts,
                     'connection' => $this->name,
@@ -468,9 +474,6 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function __call($method, $parameters): mixed
     {
-        return $this->retry(
-            fn () => parent::__call(strtolower($method), $parameters),
-            $method
-        );
+        return $this->command(strtolower($method), $parameters);
     }
 }

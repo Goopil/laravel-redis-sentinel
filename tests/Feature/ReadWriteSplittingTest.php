@@ -640,3 +640,24 @@ test('master client reference is never corrupted', function () {
     // Verify master client reference is STILL unchanged
     expect($masterClientProp->getValue($connection))->toBe($masterClient);
 });
+
+test('it does not mutate client property during read commands', function () {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $replicaClient->expects('get')->with('foo')->once()->andReturn('bar');
+
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
+
+    $reflection = new ReflectionClass($connection);
+    $clientProp = $reflection->getProperty('client');
+    $clientProp->setAccessible(true);
+
+    $clientBefore = $clientProp->getValue($connection);
+
+    $connection->get('foo');
+
+    $clientAfter = $clientProp->getValue($connection);
+
+    expect(spl_object_id($clientAfter))->toBe(spl_object_id($clientBefore));
+});
