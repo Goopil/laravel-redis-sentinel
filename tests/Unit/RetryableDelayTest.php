@@ -16,7 +16,7 @@ test('it waits correct amount of time', function () {
             $this->retryMessages = $messages;
         }
 
-        public function test_retry()
+        public function testRetry()
         {
             return $this->retryOnFailure(
                 function () {
@@ -44,7 +44,7 @@ test('it waits correct amount of time', function () {
     $retryable->setMessages(['retryable error']);
     $retryable->setRetryDelay(100);
 
-    $result = $retryable->test_retry();
+    $result = $retryable->testRetry();
 
     expect($result)->toBe('success')
         ->and($retryable->callCount)->toBe(3)
@@ -71,7 +71,7 @@ test('it stops after retry limit', function () {
             $this->retryMessages = $messages;
         }
 
-        public function test_retry()
+        public function testRetry()
         {
             return $this->retryOnFailure(
                 function () {
@@ -100,7 +100,7 @@ test('it stops after retry limit', function () {
     $retryable->setRetryLimit(1);
 
     try {
-        $retryable->test_retry();
+        $retryable->testRetry();
         // Since we're in a Pest test, fail() is available if we use the underlying PHPUnit,
         // but it's better to use expect()->toThrow() or just catch and assert.
         throw new Exception('Expected exception was not thrown.');
