@@ -172,11 +172,14 @@ class RedisSentinelServiceProvider extends ServiceProvider
 
     protected function bootSessionHandler(): void
     {
+        $app = $this->app;
+        $name = $this->name;
+
         $this->app->make('session')->extend(
-            $this->name,
-            function () {
-                $config = $this->app->make('config');
-                $cacheDriver = clone $this->app->make('cache')->driver($this->name);
+            $name,
+            function () use ($app, $name) {
+                $config = $app->make('config');
+                $cacheDriver = clone $app->make('cache')->driver($name);
                 $cacheDriver->getStore()->setConnection($config->get('session.connection'));
 
                 return new CacheBasedSessionHandler(
