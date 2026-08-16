@@ -91,6 +91,10 @@ class RedisSentinelServiceProvider extends ServiceProvider
     {
         $this->app->alias(RedisSentinelManager::class, $this->name);
 
+        // Note: The singleton captures database.redis config at first resolve.
+        // Runtime config changes after the first resolve will be ignored.
+        // For multi-tenant setups, call app()->forgetInstance(RedisSentinelManager::class)
+        // after changing config to force re-resolution with the new values.
         $this->app->singleton(
             RedisSentinelManager::class,
             fn ($app) => new RedisSentinelManager(
