@@ -3,6 +3,8 @@
 use Goopil\LaravelRedisSentinel\Concerns\Retryable;
 use Goopil\LaravelRedisSentinel\Tests\Unit\Stubs\RetryableTestException;
 
+const RETRY_MESSAGE = 'retryable error';
+
 test('it waits correct amount of time', function () {
     $retryable = new class
     {
@@ -23,7 +25,7 @@ test('it waits correct amount of time', function () {
                 function () {
                     $this->callCount++;
                     if ($this->callCount <= 2) {
-                        throw new RetryableTestException('retryable error');
+                        throw new RetryableTestException(RETRY_MESSAGE);
                     }
 
                     return 'success';
@@ -42,7 +44,7 @@ test('it waits correct amount of time', function () {
         }
     };
 
-    $retryable->setMessages(['retryable error']);
+    $retryable->setMessages([RETRY_MESSAGE]);
     $retryable->setRetryDelay(100);
 
     $result = $retryable->testRetry();
@@ -77,7 +79,7 @@ test('it stops after retry limit', function () {
             return $this->retryOnFailure(
                 function () {
                     $this->callCount++;
-                    throw new RetryableTestException('retryable error');
+                    throw new RetryableTestException(RETRY_MESSAGE);
                 },
                 onMaxFail: function () {
                     $this->maxFailCalls++;
@@ -96,7 +98,7 @@ test('it stops after retry limit', function () {
         }
     };
 
-    $retryable->setMessages(['retryable error']);
+    $retryable->setMessages([RETRY_MESSAGE]);
     $retryable->setRetryDelay(100);
     $retryable->setRetryLimit(1);
 
@@ -109,7 +111,7 @@ test('it stops after retry limit', function () {
         if ($exception->getMessage() === 'Expected exception was not thrown.') {
             throw $exception;
         }
-        expect($exception->getMessage())->toBe('retryable error');
+        expect($exception->getMessage())->toBe(RETRY_MESSAGE);
     }
 
     expect($retryable->callCount)->toBe(2)

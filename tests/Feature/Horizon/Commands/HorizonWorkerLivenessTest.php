@@ -6,6 +6,8 @@ use Illuminate\Redis\Connections\Connection;
 use Illuminate\Support\Facades\Artisan;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
 
+const HORIZON_LIVENESS_TEST_HOST = '127.0.0.1';
+
 beforeEach(function () {
     config(['horizon.use' => 'phpredis-sentinel']);
 });
@@ -14,7 +16,7 @@ test('horizon:alive returns 0 when all checks pass', function () {
     // 1. Mock Sentinel check (returns 1 on success)
     $connector = Mockery::mock(RedisSentinelConnector::class);
     $sentinel = Mockery::mock(RedisSentinel::class);
-    $sentinel->allows('getMasterAddrByName')->andReturns(['127.0.0.1', 26379]);
+    $sentinel->allows('getMasterAddrByName')->andReturns([HORIZON_LIVENESS_TEST_HOST, 26379]);
     $connector->allows('createSentinel')->andReturns($sentinel);
 
     $manager = Mockery::mock(RedisSentinelManager::class);
@@ -74,7 +76,7 @@ test('horizon:alive returns 1 when sentinel check fails (no master)', function (
 test('horizon:alive returns 1 when connection check fails', function () {
     $connector = Mockery::mock(RedisSentinelConnector::class);
     $sentinel = Mockery::mock(RedisSentinel::class);
-    $sentinel->allows('getMasterAddrByName')->andReturns(['127.0.0.1', 26379]);
+    $sentinel->allows('getMasterAddrByName')->andReturns([HORIZON_LIVENESS_TEST_HOST, 26379]);
     $connector->allows('createSentinel')->andReturns($sentinel);
 
     $manager = Mockery::mock(RedisSentinelManager::class);
@@ -103,7 +105,7 @@ test('horizon:alive returns 1 when connection check fails', function () {
 test('horizon:alive returns 1 when horizon:ready fails', function () {
     $connector = Mockery::mock(RedisSentinelConnector::class);
     $sentinel = Mockery::mock(RedisSentinel::class);
-    $sentinel->allows('getMasterAddrByName')->andReturns(['127.0.0.1', 26379]);
+    $sentinel->allows('getMasterAddrByName')->andReturns([HORIZON_LIVENESS_TEST_HOST, 26379]);
     $connector->allows('createSentinel')->andReturns($sentinel);
 
     $manager = Mockery::mock(RedisSentinelManager::class);

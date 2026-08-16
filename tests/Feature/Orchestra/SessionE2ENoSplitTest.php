@@ -5,6 +5,9 @@ use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Session;
 
+const SESSION_FLASH_MSG = 'Task completed';
+const NOSPLIT_TEST_EMAIL = 'user@example.com';
+
 describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', function () {
     beforeEach(function () {
         // Configure WITHOUT read/write splitting (master only mode)
@@ -147,12 +150,12 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         $connection = Redis::connection('phpredis-sentinel');
 
         // Flash data
-        Session::flash('message', 'Task completed');
+        Session::flash('message', SESSION_FLASH_MSG);
         Session::flash('alert', 'Warning: System update');
         Session::save();
 
         // Verify
-        expect(Session::get('message'))->toBe('Task completed')
+        expect(Session::get('message'))->toBe(SESSION_FLASH_MSG)
             ->and(Session::get('alert'))->toBe('Warning: System update');
 
         // Failover
@@ -165,7 +168,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         sleep(1);
 
         // Should still be available
-        expect(Session::get('message'))->toBe('Task completed');
+        expect(Session::get('message'))->toBe(SESSION_FLASH_MSG);
 
         // Age flash
         Session::ageFlashData();
@@ -406,14 +409,14 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
 
         // Store form data
         Session::put('_old_input', [
-            'email' => 'user@example.com',
+            'email' => NOSPLIT_TEST_EMAIL,
             'name' => 'Test User',
             'preferences' => ['marketing' => false],
         ]);
         Session::save();
 
         $oldInput = Session::get('_old_input');
-        expect($oldInput['email'])->toBe('user@example.com');
+        expect($oldInput['email'])->toBe(NOSPLIT_TEST_EMAIL);
 
         // Failover
         try {
@@ -425,7 +428,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         sleep(1);
 
         $oldInput = Session::get('_old_input');
-        expect($oldInput['email'])->toBe('user@example.com')
+        expect($oldInput['email'])->toBe(NOSPLIT_TEST_EMAIL)
             ->and($oldInput['preferences'])->toBe(['marketing' => false]);
     });
 

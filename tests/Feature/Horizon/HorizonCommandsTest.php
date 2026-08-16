@@ -7,6 +7,8 @@ use Laravel\Horizon\HorizonServiceProvider;
 use Laravel\Horizon\MasterSupervisor;
 use Mockery\MockInterface;
 
+const HORIZON_NOT_INSTALLED = 'Horizon not installed';
+
 describe('Horizon Commands', function () {
     beforeEach(function () {
         if (class_exists(HorizonServiceProvider::class)) {
@@ -29,7 +31,7 @@ describe('Horizon Commands', function () {
 
     test('horizon:ready returns 0 when master supervisor is running', function () {
         if (! interface_exists(MasterSupervisorRepository::class)) {
-            $this->markTestSkipped('Horizon not installed');
+            $this->markTestSkipped(HORIZON_NOT_INSTALLED);
         }
 
         $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) {
@@ -46,7 +48,7 @@ describe('Horizon Commands', function () {
 
     test('horizon:ready returns 1 when no master supervisor is running', function () {
         if (! interface_exists(MasterSupervisorRepository::class)) {
-            $this->markTestSkipped('Horizon not installed');
+            $this->markTestSkipped(HORIZON_NOT_INSTALLED);
         }
 
         $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) {
@@ -59,7 +61,7 @@ describe('Horizon Commands', function () {
 
     test('horizon:alive returns 0 when all checks pass', function () {
         if (! interface_exists(MasterSupervisorRepository::class)) {
-            $this->markTestSkipped('Horizon not installed');
+            $this->markTestSkipped(HORIZON_NOT_INSTALLED);
         }
 
         // Mock horizon:ready to return 0
@@ -80,7 +82,7 @@ describe('Horizon Commands', function () {
 
     test('horizon:pre-stop finds PID and sends TERM signal', function () {
         if (! interface_exists(MasterSupervisorRepository::class)) {
-            $this->markTestSkipped('Horizon not installed');
+            $this->markTestSkipped(HORIZON_NOT_INSTALLED);
         }
 
         if (! extension_loaded('pcntl') || ! extension_loaded('posix')) {

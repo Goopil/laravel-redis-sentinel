@@ -2,6 +2,11 @@
 
 use Illuminate\Session\CacheBasedSessionHandler;
 
+const SESSION_STORE_URL = '/session/store';
+const SESSION_METADATA_URL = '/session/metadata';
+const SESSION_INCREMENT_URL = '/session/increment/counter';
+const SESSION_GET_COUNT_URL = '/session/get/request_count';
+
 describe('Session', function () {
     beforeEach(function () {
         // Configure session to use phpredis-sentinel
@@ -24,7 +29,7 @@ describe('Session', function () {
     });
 
     test('session can store and retrieve values via routes', function () {
-        $response = $this->post('/session/store', [
+        $response = $this->post(SESSION_STORE_URL, [
             'key' => 'test_key',
             'value' => 'test_value',
         ]);
@@ -125,7 +130,7 @@ describe('Session', function () {
     test('session can be regenerated', function () {
         session()->put('test_key', 'test_value');
 
-        $response = $this->get('/session/metadata');
+        $response = $this->get(SESSION_METADATA_URL);
         $oldId = $response->json('session_id');
 
         $response = $this->post('/session/regenerate');
@@ -154,13 +159,13 @@ describe('Session', function () {
     test('session can increment counters', function () {
         session()->put('counter', 0);
 
-        $response = $this->post('/session/increment/counter');
+        $response = $this->post(SESSION_INCREMENT_URL);
         $response->assertJson(['value' => 1]);
 
-        $response = $this->post('/session/increment/counter');
+        $response = $this->post(SESSION_INCREMENT_URL);
         $response->assertJson(['value' => 2]);
 
-        $response = $this->post('/session/increment/counter');
+        $response = $this->post(SESSION_INCREMENT_URL);
         $response->assertJson(['value' => 3]);
     });
 
@@ -177,21 +182,21 @@ describe('Session', function () {
 
     test('session middleware tracks request activity', function () {
         // First request
-        $this->get('/session/metadata');
+        $this->get(SESSION_METADATA_URL);
 
-        $response = $this->get('/session/get/request_count');
+        $response = $this->get(SESSION_GET_COUNT_URL);
         $count1 = $response->json('value');
 
         // Second request
-        $this->get('/session/metadata');
+        $this->get(SESSION_METADATA_URL);
 
-        $response = $this->get('/session/get/request_count');
+        $response = $this->get(SESSION_GET_COUNT_URL);
         $count2 = $response->json('value');
 
         // Third request
-        $this->get('/session/metadata');
+        $this->get(SESSION_METADATA_URL);
 
-        $response = $this->get('/session/get/request_count');
+        $response = $this->get(SESSION_GET_COUNT_URL);
         $count3 = $response->json('value');
 
         expect($count2)->toBeGreaterThan($count1)
@@ -213,7 +218,7 @@ describe('Session', function () {
             ],
         ];
 
-        $response = $this->post('/session/store', [
+        $response = $this->post(SESSION_STORE_URL, [
             'key' => 'complex',
             'value' => $complexData,
         ]);
@@ -235,7 +240,7 @@ describe('Session', function () {
     test('session handles concurrent requests correctly', function () {
         // Simulate multiple concurrent requests
         for ($i = 1; $i <= 10; $i++) {
-            $this->post('/session/store', [
+            $this->post(SESSION_STORE_URL, [
                 'key' => "concurrent_{$i}",
                 'value' => "value_{$i}",
             ]);
@@ -249,7 +254,7 @@ describe('Session', function () {
     });
 
     test('session metadata is accessible', function () {
-        $response = $this->get('/session/metadata');
+        $response = $this->get(SESSION_METADATA_URL);
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -270,12 +275,12 @@ describe('Session', function () {
 
     test('session persists after application restart', function () {
         // Store data
-        $this->post('/session/store', [
+        $this->post(SESSION_STORE_URL, [
             'key' => 'persistent_key',
             'value' => 'persistent_value',
         ]);
 
-        $response = $this->get('/session/metadata');
+        $response = $this->get(SESSION_METADATA_URL);
 
         // Simulate app restart by creating new request with same session
         $response = $this->withSession(['persistent_key' => 'persistent_value'])
@@ -311,7 +316,7 @@ describe('Session', function () {
     test('session connection remains stable under load', function () {
         // Perform many session operations
         for ($i = 1; $i <= 50; $i++) {
-            $this->post('/session/store', [
+            $this->post(SESSION_STORE_URL, [
                 'key' => "load_test_{$i}",
                 'value' => "value_{$i}",
             ]);
@@ -325,7 +330,7 @@ describe('Session', function () {
         }
 
         // Session should still be functional
-        $response = $this->get('/session/metadata');
+        $response = $this->get(SESSION_METADATA_URL);
         $response->assertStatus(200);
     });
 
@@ -339,7 +344,7 @@ describe('Session', function () {
         ];
 
         foreach ($specialData as $key => $value) {
-            $this->post('/session/store', [
+            $this->post(SESSION_STORE_URL, [
                 'key' => $key,
                 'value' => $value,
             ]);

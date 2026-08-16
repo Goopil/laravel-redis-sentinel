@@ -5,12 +5,14 @@ use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionMaxRetryFailed;
 use Illuminate\Support\Facades\Event;
 
+const BROKEN_PIPE_MSG = 'broken pipe';
+
 test('RedisSentinelConnection throws exception after max retries on real command', function () {
     Event::fake();
 
     $client = Mockery::mock(Redis::class);
     // Always throw "broken pipe" to trigger retries
-    $client->allows('get')->with('foo')->andThrow(new RedisException('broken pipe'));
+    $client->allows('get')->with('foo')->andThrow(new RedisException(BROKEN_PIPE_MSG));
 
     $connectorCallCount = 0;
     $connector = function () use (&$connectorCallCount, $client) {
@@ -24,7 +26,7 @@ test('RedisSentinelConnection throws exception after max retries on real command
         $connector,
         ['sentinel' => ['retry' => ['attempts' => 2, 'delay' => 1]]]
     );
-    $connection->setRetryMessages(['broken pipe']);
+    $connection->setRetryMessages([BROKEN_PIPE_MSG]);
     $connection->setRetryLimit(2);
     $connection->setRetryDelay(1);
 
@@ -33,7 +35,7 @@ test('RedisSentinelConnection throws exception after max retries on real command
         $connection->get('foo');
         $this->fail('Expected RedisException was not thrown');
     } catch (RedisException $e) {
-        expect($e->getMessage())->toBe('broken pipe');
+        expect($e->getMessage())->toBe(BROKEN_PIPE_MSG);
     }
 
     // Initial attempt + 2 retries = 3 calls to get()

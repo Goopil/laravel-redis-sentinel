@@ -8,6 +8,8 @@ use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterFailed;
 use Illuminate\Support\Facades\Event;
 
+const CONN_CLOSED_MSG = 'connection closed';
+
 test('onSentinelFail dispatches RedisSentinelMasterFailed', function () {
     Event::fake();
     $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
@@ -27,7 +29,7 @@ test('RedisSentinelConnectionFailed is dispatched when connection fails', functi
     Event::fake();
 
     $client = Mockery::mock(Redis::class);
-    $client->allows('get')->andThrow(new RedisException('connection closed'));
+    $client->allows('get')->andThrow(new RedisException(CONN_CLOSED_MSG));
 
     $connector = function () use ($client) {
         return $client;
@@ -42,14 +44,14 @@ test('RedisSentinelConnectionFailed is dispatched when connection fails', functi
         ],
     ];
 
-    config(['phpredis-sentinel.retry.redis.messages' => ['connection closed']]);
+    config(['phpredis-sentinel.retry.redis.messages' => [CONN_CLOSED_MSG]]);
 
     $connection = new RedisSentinelConnection(
         $client,
         $connector,
         $config
     );
-    $connection->setRetryMessages(['connection closed']);
+    $connection->setRetryMessages([CONN_CLOSED_MSG]);
     $connection->setRetryLimit(1);
 
     try {

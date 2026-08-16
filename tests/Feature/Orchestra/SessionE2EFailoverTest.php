@@ -5,6 +5,10 @@ use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Session;
 
+const SESSION_SUCCESS_MSG = 'Operation completed successfully';
+const SESSION_MESSAGES_MSG = 'You have 3 new messages';
+const FAILOVER_TEST_EMAIL = 'test@example.com';
+
 describe('Session E2E Failover Tests with Read/Write Mode', function () {
     beforeEach(function () {
         // Configure read/write splitting for sessions BEFORE operations
@@ -150,13 +154,13 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         $connection = Redis::connection('phpredis-sentinel');
 
         // Flash data for next request
-        Session::flash('success', 'Operation completed successfully');
-        Session::flash('notification', 'You have 3 new messages');
+        Session::flash('success', SESSION_SUCCESS_MSG);
+        Session::flash('notification', SESSION_MESSAGES_MSG);
         Session::save();
 
         // Verify flash data exists
-        expect(Session::get('success'))->toBe('Operation completed successfully')
-            ->and(Session::get('notification'))->toBe('You have 3 new messages');
+        expect(Session::get('success'))->toBe(SESSION_SUCCESS_MSG)
+            ->and(Session::get('notification'))->toBe(SESSION_MESSAGES_MSG);
 
         // Simulate failover
         try {
@@ -168,8 +172,8 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         sleep(1);
 
         // Flash data should still be available (this is the "next" request)
-        expect(Session::get('success'))->toBe('Operation completed successfully')
-            ->and(Session::get('notification'))->toBe('You have 3 new messages');
+        expect(Session::get('success'))->toBe(SESSION_SUCCESS_MSG)
+            ->and(Session::get('notification'))->toBe(SESSION_MESSAGES_MSG);
 
         // After this request, flash data should be gone
         Session::ageFlashData();
@@ -431,7 +435,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Store form input data (common pattern for form handling)
         Session::put('_old_input', [
             'username' => 'testuser',
-            'email' => 'test@example.com',
+            'email' => FAILOVER_TEST_EMAIL,
             'preferences' => ['newsletter' => true],
         ]);
         Session::save();
@@ -440,7 +444,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         $oldInput = Session::get('_old_input');
         expect($oldInput)->toBeArray()
             ->and($oldInput['username'])->toBe('testuser')
-            ->and($oldInput['email'])->toBe('test@example.com');
+            ->and($oldInput['email'])->toBe(FAILOVER_TEST_EMAIL);
 
         // Simulate failover
         try {
@@ -454,7 +458,7 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         // Input data should persist
         $oldInput = Session::get('_old_input');
         expect($oldInput['username'])->toBe('testuser')
-            ->and($oldInput['email'])->toBe('test@example.com')
+            ->and($oldInput['email'])->toBe(FAILOVER_TEST_EMAIL)
             ->and($oldInput['preferences'])->toBe(['newsletter' => true]);
     });
 
