@@ -7,6 +7,7 @@ use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 const HOST_1 = '127.0.0.1';
 const HOST_2 = '127.0.0.2';
 const HOST_3 = '127.0.0.3';
+const HOST_4 = '127.0.0.4';
 const CONN_LOST_MSG = 'connection lost';
 
 beforeEach(function () {
@@ -428,7 +429,7 @@ test('it reindexes healthy replicas after filtering unhealthy replicas', functio
     $sentinelMock->shouldReceive('slaves')->with('mymaster')->andReturn([
         ['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave,s_down'],
         ['ip' => HOST_3, 'port' => 6379, 'flags' => 'slave'],
-        ['ip' => '127.0.0.4', 'port' => 6379, 'flags' => 'slave'],
+        ['ip' => HOST_4, 'port' => 6379, 'flags' => 'slave'],
     ]);
 
     $cache = app(NodeAddressCache::class);
@@ -463,7 +464,7 @@ test('it reindexes healthy replicas after filtering unhealthy replicas', functio
         'read_only_replicas' => true,
     ], []);
 
-    expect($connection->getReadClient()->getHost())->toBeIn([HOST_3, '127.0.0.4']);
+    expect($connection->getReadClient()->getHost())->toBeIn([HOST_3, HOST_4]);
     expect(array_keys($cache->getReplicas('mymaster')))->toBe([0, 1]);
 });
 
@@ -476,7 +477,7 @@ test('it falls back to master if all replicas are unhealthy', function () {
     $sentinelMock->shouldReceive('slaves')->with('mymaster')->andReturn([
         ['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave,s_down'],
         ['ip' => HOST_3, 'port' => 6379, 'flags' => 'slave,o_down'],
-        ['ip' => '127.0.0.4', 'port' => 6379, 'flags' => 'slave,disconnected'],
+        ['ip' => HOST_4, 'port' => 6379, 'flags' => 'slave,disconnected'],
     ]);
 
     $connector = new class($sentinelMock) extends RedisSentinelConnector
