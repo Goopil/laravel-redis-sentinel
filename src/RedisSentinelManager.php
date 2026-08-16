@@ -24,32 +24,27 @@ class RedisSentinelManager extends RedisManager
         $name = $name ?: 'default';
 
         $normalizedName = $this->patchHorizonConnectionName($name);
-        $previousDriver = $this->driver;
-        $this->driver = $this->config[$normalizedName]['client'] ?? $this->driver;
+        $driver = $this->config[$normalizedName]['client'] ?? $this->driver;
 
-        try {
-            if ($this->driver !== 'phpredis-sentinel') {
-                return parent::resolve($normalizedName);
-            }
-
-            $config = $this->parseConnectionConfiguration($this->config[$normalizedName]);
-
-            $config = $this->patchHorizonPrefix(
-                $name,
-                $config
-            );
-
-            $options = $this->config['options'] ?? [];
-
-            $options = array_merge(
-                Arr::except($options, 'parameters'),
-                ['parameters' => Arr::get($options, 'parameters.'.$name, Arr::get($options, 'parameters', []))]
-            );
-
-            return $this->connector()->connect($config, $options);
-        } finally {
-            $this->driver = $previousDriver;
+        if ($driver !== 'phpredis-sentinel') {
+            return $this->withDriver($driver, fn () => parent::resolve($normalizedName));
         }
+
+        $config = $this->parseConnectionConfiguration($this->config[$normalizedName]);
+
+        $config = $this->patchHorizonPrefix(
+            $name,
+            $config
+        );
+
+        $options = $this->config['options'] ?? [];
+
+        $options = array_merge(
+            Arr::except($options, 'parameters'),
+            ['parameters' => Arr::get($options, 'parameters.'.$name, Arr::get($options, 'parameters', []))]
+        );
+
+        return $this->connector($driver)->connect($config, $options);
     }
 
     public function resolveConnector($name = null): Connector|PhpRedisConnector|PredisConnector|RedisSentinelConnector
@@ -68,11 +63,36 @@ class RedisSentinelManager extends RedisManager
             );
         }
 
+        $driver = $this->config[$normalizedName]['client'] ?? $this->driver;
+
+        return $this->connector($driver);
+    }
+
+    protected function connector(?string $driver = null): mixed
+    {
+        $driver = $driver ?? $this->driver;
+
+        $customCreator = $this->customCreators[$driver] ?? null;
+
+        if ($customCreator) {
+            return $customCreator();
+        }
+
+        return match ($driver) {
+            'predis' => new PredisConnector,
+            'phpredis' => new PhpRedisConnector,
+            'phpredis-sentinel' => $this->app->make(RedisSentinelConnector::class),
+            default => null,
+        };
+    }
+
+    private function withDriver(string $driver, callable $callback): mixed
+    {
         $previousDriver = $this->driver;
-        $this->driver = $this->config[$normalizedName]['client'] ?? $this->driver;
+        $this->driver = $driver;
 
         try {
-            return $this->connector();
+            return $callback();
         } finally {
             $this->driver = $previousDriver;
         }

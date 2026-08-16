@@ -70,6 +70,35 @@ test('resolveConnector returns the correct connector', function () {
     expect($manager->resolveConnector('default'))->toBe($connector);
 });
 
+test('resolveConnector does not mutate driver property', function () {
+    $config = [
+        'default' => [
+            'client' => 'phpredis-sentinel',
+            'sentinel' => [
+                'host' => '127.0.0.1',
+                'service' => 'master',
+            ],
+        ],
+        'other' => [
+            'client' => 'phpredis',
+            'host' => '127.0.0.1',
+        ],
+    ];
+
+    $manager = new RedisSentinelManager(null, 'phpredis', $config);
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
+    $manager->extend('phpredis-sentinel', fn () => $connector);
+    $manager->extend('phpredis', fn () => $connector);
+
+    $driverProp = new ReflectionProperty($manager, 'driver');
+    $driverProp->setAccessible(true);
+    $originalDriver = $driverProp->getValue($manager);
+
+    $manager->resolveConnector('default');
+
+    expect($driverProp->getValue($manager))->toBe($originalDriver);
+});
+
 test('resolve uses normalized name for non-sentinel connections in horizon context', function () {
     config()->set('horizon.use', 'horizon-sentinel');
     config()->set('horizon.driver', 'phpredis-sentinel');
