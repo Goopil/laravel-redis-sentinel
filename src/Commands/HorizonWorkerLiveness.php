@@ -63,7 +63,7 @@ class HorizonWorkerLiveness extends Command
 
             $result = ! is_array($data) || empty($data)
                 ? false
-                : $data[0] ?? false;
+                : ($data['ip'] ?? ($data[0] ?? false));
 
             return $result ? 0 : 1;
         } catch (Throwable $exception) {
