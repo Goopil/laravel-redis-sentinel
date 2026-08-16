@@ -215,7 +215,7 @@ class RedisSentinelConnector extends PhpRedisConnector
             $this->masterCache->setReplicas($service, $replicas);
         }
 
-        $replica = $replicas[array_rand($replicas)];
+        $replica = $replicas[random_int(0, count($replicas) - 1)];
 
         return [
             'ip' => $replica['ip'] ?? $replica[0],
