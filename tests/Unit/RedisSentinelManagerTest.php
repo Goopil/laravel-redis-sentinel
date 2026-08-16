@@ -69,3 +69,37 @@ test('resolveConnector returns the correct connector', function () {
 
     expect($manager->resolveConnector('default'))->toBe($connector);
 });
+
+test('resolve uses normalized name for non-sentinel connections in horizon context', function () {
+    config()->set('horizon.use', 'horizon-sentinel');
+    config()->set('horizon.driver', 'phpredis-sentinel');
+
+    $config = [
+        'horizon-sentinel' => [
+            'client' => 'phpredis',
+            'host' => '127.0.0.1',
+            'port' => 6379,
+            'database' => 0,
+        ],
+    ];
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', $config);
+
+    $resolvedName = null;
+    $manager->extend('phpredis', function () use (&$resolvedName) {
+        return new class
+        {
+            public function connect($config, $options)
+            {
+                return new class
+                {
+                    public function close() {}
+                };
+            }
+        };
+    });
+
+    $connection = $manager->resolve('horizon');
+
+    expect($connection)->not->toBeNull();
+});

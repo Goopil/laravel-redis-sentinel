@@ -29,7 +29,7 @@ class RedisSentinelManager extends RedisManager
 
         try {
             if ($this->driver !== 'phpredis-sentinel') {
-                return parent::resolve($name);
+                return parent::resolve($normalizedName);
             }
 
             $config = $this->parseConnectionConfiguration($this->config[$normalizedName]);
