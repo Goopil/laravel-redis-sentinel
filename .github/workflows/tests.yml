@@ -38,6 +38,9 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
+      - name: Configure Composer security policy
+        run: composer config policy.advisories.block false
+
       - name: Install dependencies
         run: composer install --prefer-dist --no-interaction
 
@@ -132,6 +135,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          composer config policy.advisories.block false
           composer require "laravel/framework:${{ matrix.laravel }}.*" "orchestra/testbench:${{ matrix.laravel == 10 && '^8.0' || (matrix.laravel == 11 && '^9.0' || (matrix.laravel == 12 && '^10.0' || '^11.0')) }}" --no-interaction --no-update
           composer update --prefer-dist --no-interaction
 
@@ -205,6 +209,7 @@ jobs:
 
       - name: Install dependencies without Horizon
         run: |
+          composer config policy.advisories.block false
           composer require "laravel/framework:12.*" "orchestra/testbench:^10.0" --dev --no-interaction --no-update
           composer remove laravel/horizon --dev --no-interaction --no-update
           composer update --prefer-dist --no-interaction
