@@ -65,3 +65,41 @@ test('replicas cache expires after TTL', function () {
 
     expect($cache->getReplicas('mymaster'))->toBeEmpty();
 });
+
+test('forgetMaster on non-existent service does not error', function () {
+    $cache = new NodeAddressCache;
+
+    expect(fn () => $cache->forgetMaster('nonexistent'))->not->toThrow(Exception::class);
+});
+
+test('forgetMaster after flush does not error', function () {
+    $cache = new NodeAddressCache;
+    $cache->set('mymaster', '127.0.0.1', 6379);
+    $cache->flush();
+
+    expect(fn () => $cache->forgetMaster('mymaster'))->not->toThrow(Exception::class);
+    expect($cache->get('mymaster'))->toBeNull();
+});
+
+test('forgetMaster preserves replicas', function () {
+    $cache = new NodeAddressCache;
+    $cache->set('mymaster', '127.0.0.1', 6379);
+    $cache->setReplicas('mymaster', [['ip' => '127.0.0.2', 'port' => 6379]]);
+
+    $cache->forgetMaster('mymaster');
+
+    expect($cache->get('mymaster'))->toBeNull()
+        ->and($cache->getReplicas('mymaster'))->toHaveCount(1);
+});
+
+test('forgetMaster removes service entry when no replicas remain', function () {
+    $cache = new NodeAddressCache;
+    $cache->set('mymaster', '127.0.0.1', 6379);
+
+    $cache->forgetMaster('mymaster');
+
+    $ref = new ReflectionProperty($cache, 'nodes');
+    $ref->setAccessible(true);
+
+    expect($ref->getValue($cache))->not->toHaveKey('mymaster');
+});
