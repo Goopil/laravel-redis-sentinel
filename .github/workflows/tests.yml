@@ -99,7 +99,7 @@ jobs:
           LARAVEL_INDEX=${{ matrix.laravel }}  # 10, 11, 12
           REDIS_INDEX=${{ matrix.redis }}  # 6, 7
 
-          # Calculate unique index: ((PHP-2)*6 + (LARAVEL-10)*2 + (REDIS-6))
+          # Calculate unique index: ((PHP-2)*8 + (LARAVEL-10)*2 + (REDIS-6))
           MATRIX_INDEX=$(( (PHP_INDEX - 2) * 8 + (LARAVEL_INDEX - 10) * 2 + (REDIS_INDEX - 6) ))
           PORT_BASE=$((7000 + MATRIX_INDEX * 10))
 
