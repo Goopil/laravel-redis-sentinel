@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Concerns\Retryable;
+use Goopil\LaravelRedisSentinel\Tests\Unit\Stubs\RetryableTestException;
 
 test('it waits correct amount of time', function () {
     $retryable = new class
@@ -22,7 +23,7 @@ test('it waits correct amount of time', function () {
                 function () {
                     $this->callCount++;
                     if ($this->callCount <= 2) {
-                        throw new Exception('retryable error');
+                        throw new RetryableTestException('retryable error');
                     }
 
                     return 'success';
@@ -76,7 +77,7 @@ test('it stops after retry limit', function () {
             return $this->retryOnFailure(
                 function () {
                     $this->callCount++;
-                    throw new Exception('retryable error');
+                    throw new RetryableTestException('retryable error');
                 },
                 onMaxFail: function () {
                     $this->maxFailCalls++;
@@ -103,7 +104,7 @@ test('it stops after retry limit', function () {
         $retryable->testRetry();
         // Since we're in a Pest test, fail() is available if we use the underlying PHPUnit,
         // but it's better to use expect()->toThrow() or just catch and assert.
-        throw new Exception('Expected exception was not thrown.');
+        throw new RetryableTestException('Expected exception was not thrown.');
     } catch (Exception $exception) {
         if ($exception->getMessage() === 'Expected exception was not thrown.') {
             throw $exception;
