@@ -52,7 +52,7 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
             }
             throw $e;
         }
-    })->skip('This test might fail in CI if replicas are not properly configured - run locally for validation');
+    });
 
     test('lib configuration includes READONLY in retry messages', function () {
         $retryMessages = config('phpredis-sentinel.retry.redis.messages', []);
