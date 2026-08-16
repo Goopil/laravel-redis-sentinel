@@ -56,7 +56,7 @@ class RedisSentinelManager extends RedisManager
     {
         $normalizedName = $this->patchHorizonConnectionName($name);
 
-        if (($this->config[$normalizedName]['client'] ?? null) === 'phpredis-sentinel' && isset($this->config['clusters']['name'])) {
+        if (($this->config[$normalizedName]['client'] ?? null) === 'phpredis-sentinel' && isset($this->config['clusters'][$normalizedName])) {
             throw new ConfigurationException(
                 'Redis Sentinel connections do not support Redis Cluster.'
             );
