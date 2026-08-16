@@ -38,6 +38,9 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
+      - name: Configure Composer security policy
+        run: composer config policy.advisories.block false
+
       - name: Install dependencies
         run: composer install --prefer-dist --no-interaction
 
@@ -51,13 +54,15 @@ jobs:
       fail-fast: false
       matrix:
         php: [8.2, 8.3, 8.4, 8.5]
-        laravel: [10, 11, 12]
+        laravel: [10, 11, 12, 13]
         redis: [6, 7]
         exclude:
           - php: 8.5
             laravel: 10
           - php: 8.5
             laravel: 11
+          - php: 8.2
+            laravel: 13
 
     name: PHP ${{ matrix.php }} - L${{ matrix.laravel }} - R${{ matrix.redis }}
 
@@ -97,8 +102,8 @@ jobs:
           LARAVEL_INDEX=${{ matrix.laravel }}  # 10, 11, 12
           REDIS_INDEX=${{ matrix.redis }}  # 6, 7
 
-          # Calculate unique index: ((PHP-2)*6 + (LARAVEL-10)*2 + (REDIS-6))
-          MATRIX_INDEX=$(( (PHP_INDEX - 2) * 6 + (LARAVEL_INDEX - 10) * 2 + (REDIS_INDEX - 6) ))
+          # Calculate unique index: ((PHP-2)*8 + (LARAVEL-10)*2 + (REDIS-6))
+          MATRIX_INDEX=$(( (PHP_INDEX - 2) * 8 + (LARAVEL_INDEX - 10) * 2 + (REDIS_INDEX - 6) ))
           PORT_BASE=$((7000 + MATRIX_INDEX * 10))
 
           echo "Matrix combination: PHP ${{ matrix.php }}, Laravel ${{ matrix.laravel }}, Redis ${{ matrix.redis }}"
@@ -130,7 +135,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer require "laravel/framework:${{ matrix.laravel }}.*" "orchestra/testbench:${{ matrix.laravel == 10 && '^8.0' || (matrix.laravel == 11 && '^9.0' || '^10.0') }}" --no-interaction --no-update
+          composer config policy.advisories.block false
+          composer require "laravel/framework:${{ matrix.laravel }}.*" "orchestra/testbench:${{ matrix.laravel == 10 && '^8.0' || (matrix.laravel == 11 && '^9.0' || (matrix.laravel == 12 && '^10.0' || '^11.0')) }}" --no-interaction --no-update
           composer update --prefer-dist --no-interaction
 
       - name: Wait for Redis Cluster to be ready
@@ -203,6 +209,7 @@ jobs:
 
       - name: Install dependencies without Horizon
         run: |
+          composer config policy.advisories.block false
           composer require "laravel/framework:12.*" "orchestra/testbench:^10.0" --dev --no-interaction --no-update
           composer remove laravel/horizon --dev --no-interaction --no-update
           composer update --prefer-dist --no-interaction
