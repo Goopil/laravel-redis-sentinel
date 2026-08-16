@@ -61,13 +61,6 @@ describe('Read/Write', function () {
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        // Debug: see the config used by the connection
-        $reflection = new ReflectionClass($connection);
-        $configProp = $reflection->getProperty('config');
-        $connConfig = $configProp->getValue($connection);
-
-        // expect($connConfig)->toHaveKey('read_only_replicas', true);
-
         // Verify that the read connector is present
         $state = getInternalState($connection);
         expect($state['hasReadConnector'])->toBeTrue('Read connector should be present')

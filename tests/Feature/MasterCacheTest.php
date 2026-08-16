@@ -4,6 +4,8 @@ use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Illuminate\Support\Arr;
 
+const MASTER_CACHE_TEST_HOST = '127.0.0.1';
+
 test('it calls sentinel only once when cache is enabled', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
 
@@ -11,7 +13,7 @@ test('it calls sentinel only once when cache is enabled', function () {
     $sentinelMock->expects('master')
         ->with('mymaster')
         ->once()
-        ->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
+        ->andReturn(['ip' => MASTER_CACHE_TEST_HOST, 'port' => 6379]);
 
     $mockRedisClient = Mockery::mock(Redis::class);
 
@@ -57,7 +59,7 @@ test('it calls sentinel only once when cache is enabled', function () {
         'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
-            'host' => '127.0.0.1',
+            'host' => MASTER_CACHE_TEST_HOST,
         ],
     ];
 
@@ -76,7 +78,7 @@ test('it invalidates cache when refresh is requested', function () {
         ->with('mymaster')
         ->twice()
         ->andReturn(
-            ['ip' => '127.0.0.1', 'port' => 6379],
+            ['ip' => MASTER_CACHE_TEST_HOST, 'port' => 6379],
             ['ip' => '127.0.0.2', 'port' => 6379]
         );
 
@@ -123,7 +125,7 @@ test('it invalidates cache when refresh is requested', function () {
         'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
-            'host' => '127.0.0.1',
+            'host' => MASTER_CACHE_TEST_HOST,
         ],
     ];
 

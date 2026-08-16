@@ -397,13 +397,9 @@ class RedisSentinelConnector extends PhpRedisConnector
             return null;
         }
 
-        // Validate IP address
-        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
-            return $host;
-        }
-
-        // Validate domain name
-        if (filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false) {
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false
+            || filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false
+        ) {
             return $host;
         }
 

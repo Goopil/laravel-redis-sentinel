@@ -9,6 +9,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
+use Workbench\App\Exceptions\SimulatedJobFailure;
 
 class BatchableJob implements ShouldQueue
 {
@@ -29,7 +30,7 @@ class BatchableJob implements ShouldQueue
 
         // Simulate failure for testing batch failure handling
         if ($this->shouldFail) {
-            throw new \Exception("Simulated failure for item {$this->itemNumber}");
+            throw SimulatedJobFailure::forItem($this->itemNumber);
         }
 
         // Record the processing of this item

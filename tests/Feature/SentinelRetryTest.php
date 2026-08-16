@@ -8,6 +8,9 @@ use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterReconnected;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 
+const SENTINEL_RETRY_TEST_HOST = '127.0.0.1';
+const NO_MASTER_MSG = 'No master found for service';
+
 test('it retries when master not found', function () {
     Event::fake();
 
@@ -15,7 +18,7 @@ test('it retries when master not found', function () {
     $sentinelMock->expects('master')
         ->with('mymaster')
         ->times(3)
-        ->andReturns(false, false, ['ip' => '127.0.0.1', 'port' => 6379]);
+        ->andReturns(false, false, ['ip' => SENTINEL_RETRY_TEST_HOST, 'port' => 6379]);
 
     $mockRedisClient = Mockery::mock(Redis::class);
 
@@ -31,7 +34,7 @@ test('it retries when master not found', function () {
             $this->mockSentinel = $sentinelMock;
             $this->mockRedis = $mockRedis;
             $this->setRetryDelay(1);
-            $this->setRetryMessages(['No master found for service']);
+            $this->setRetryMessages([NO_MASTER_MSG]);
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -62,7 +65,7 @@ test('it retries when master not found', function () {
         'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
-            'host' => '127.0.0.1',
+            'host' => SENTINEL_RETRY_TEST_HOST,
         ],
     ];
 
@@ -95,7 +98,7 @@ test('it throws after max retries', function () {
             $this->mockRedis = $mockRedis;
             $this->setRetryLimit(2);
             $this->setRetryDelay(1);
-            $this->setRetryMessages(['No master found for service']);
+            $this->setRetryMessages([NO_MASTER_MSG]);
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -126,7 +129,7 @@ test('it throws after max retries', function () {
         'password' => 'test',
         'sentinel' => [
             'service' => 'mymaster',
-            'host' => '127.0.0.1',
+            'host' => SENTINEL_RETRY_TEST_HOST,
         ],
     ];
 
@@ -159,7 +162,7 @@ test('it does not retry unrecognized exceptions', function () {
             parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->mockSentinel = $sentinelMock;
             $this->mockRedis = $mockRedis;
-            $this->setRetryMessages(['No master found for service']);
+            $this->setRetryMessages([NO_MASTER_MSG]);
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -188,7 +191,7 @@ test('it does not retry unrecognized exceptions', function () {
 
     expect(fn () => $connector->exposeCreateClient([
         'password' => 'test',
-        'sentinel' => ['service' => 'mymaster', 'host' => '127.0.0.1'],
+        'sentinel' => ['service' => 'mymaster', 'host' => SENTINEL_RETRY_TEST_HOST],
     ]))->toThrow(Exception::class, 'something bad happened');
 
     Event::assertNotDispatched(RedisSentinelMasterFailed::class);
@@ -222,7 +225,7 @@ test('it retries create sentinel on connection failure', function () {
 
     config(['database.redis.my-sentinel' => [
         'sentinel' => [
-            'host' => '127.0.0.1',
+            'host' => SENTINEL_RETRY_TEST_HOST,
             'service' => 'master',
         ],
     ]]);

@@ -274,11 +274,14 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
 
         // Process with intermittent disconnects
         $processed = [];
+        $attempted = 0;
         $disconnectAt = [10, 20, 30];
 
-        for ($i = 1; $i <= $jobCount; $i++) {
+        while (count($processed) < $jobCount && $attempted < $jobCount * 3) {
+            $attempted++;
+
             try {
-                if (in_array($i, $disconnectAt)) {
+                if (in_array(count($processed) + 1, $disconnectAt)) {
                     try {
                         $connection->disconnect();
                     } catch (Exception $e) {
@@ -293,7 +296,6 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 }
             } catch (Exception $e) {
                 usleep(100000);
-                $i--;
             }
         }
 

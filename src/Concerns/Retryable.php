@@ -73,20 +73,16 @@ trait Retryable
 
                 $attempts++;
 
-                if ($attempts >= $this->retryLimit) {
-                    if (is_callable($onFail)) {
-                        $onFail($exception, $attempts);
-                    }
+                if (is_callable($onFail)) {
+                    $onFail($exception, $attempts);
+                }
 
+                if ($attempts > $this->retryLimit) {
                     if (is_callable($onMaxFail)) {
                         $onMaxFail($exception, $attempts);
                     }
 
                     throw $exception;
-                }
-
-                if (is_callable($onFail)) {
-                    $onFail($exception, $attempts);
                 }
 
                 $this->sleepWithBackoff($attempts);

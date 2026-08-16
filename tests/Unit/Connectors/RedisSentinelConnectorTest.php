@@ -7,6 +7,8 @@ use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 use Goopil\LaravelRedisSentinel\Exceptions\NotImplementedException;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 
+const CONNECTOR_TEST_HOST = '127.0.0.1';
+
 test('connectToCluster throws NotImplementedException', function () {
     $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
     $connector->connectToCluster([], [], []);
@@ -47,7 +49,7 @@ test('createSentinel throws ConfigurationException if host is missing', function
 test('createSentinel throws ConfigurationException if service is missing', function () {
     config(['database.redis.my-sentinel' => [
         'sentinel' => [
-            'host' => '127.0.0.1',
+            'host' => CONNECTOR_TEST_HOST,
         ],
     ]]);
 
@@ -69,7 +71,7 @@ test('connect preserves merged options across reconnects', function () {
 
         protected function getMasterAddress(array $config, bool $refresh = false): array
         {
-            return ['ip' => '127.0.0.1', 'port' => 6379];
+            return ['ip' => CONNECTOR_TEST_HOST, 'port' => 6379];
         }
 
         protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
@@ -83,7 +85,7 @@ test('connect preserves merged options across reconnects', function () {
     $config = [
         'sentinel' => [
             'service' => 'master',
-            'host' => '127.0.0.1',
+            'host' => CONNECTOR_TEST_HOST,
         ],
         'options' => [
             'prefix' => 'conn:',
@@ -120,7 +122,7 @@ test('connect applies redis retry config with overrides', function () {
     {
         protected function getMasterAddress(array $config, bool $refresh = false): array
         {
-            return ['ip' => '127.0.0.1', 'port' => 6379];
+            return ['ip' => CONNECTOR_TEST_HOST, 'port' => 6379];
         }
 
         protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
@@ -132,7 +134,7 @@ test('connect applies redis retry config with overrides', function () {
     $connection = $connector->connect([
         'sentinel' => [
             'service' => 'master',
-            'host' => '127.0.0.1',
+            'host' => CONNECTOR_TEST_HOST,
         ],
         'retry' => [
             'redis' => [

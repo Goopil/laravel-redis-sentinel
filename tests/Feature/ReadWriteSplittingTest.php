@@ -4,6 +4,12 @@ use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 
+const HOST_1 = '127.0.0.1';
+const HOST_2 = '127.0.0.2';
+const HOST_3 = '127.0.0.3';
+const HOST_4 = '127.0.0.4';
+const CONN_LOST_MSG = 'connection lost';
+
 beforeEach(function () {
     // Flush the cache before each test to avoid interference
     app(NodeAddressCache::class)->flush();
@@ -233,7 +239,7 @@ test('it refreshes read client on failure', function () {
     $replicaClient2 = Mockery::mock(Redis::class);
 
     // First replica call fails
-    $replicaClient1->expects('get')->with('foo')->once()->andThrow(new RedisException('connection lost'));
+    $replicaClient1->expects('get')->with('foo')->once()->andThrow(new RedisException(CONN_LOST_MSG));
 
     // Second replica call (after refresh) succeeds
     $replicaClient2->expects('get')->with('foo')->once()->andReturn('bar');
@@ -250,7 +256,7 @@ test('it refreshes read client on failure', function () {
     };
 
     $connection = new RedisSentinelConnection($masterClient, $masterConnector, [], $readConnector);
-    $connection->setRetryMessages(['connection lost']);
+    $connection->setRetryMessages([CONN_LOST_MSG]);
     $connection->setRetryLimit(1);
     $connection->setRetryDelay(1);
 
@@ -297,7 +303,7 @@ test('it stays on master if read only replicas is disabled', function () {
 test('it falls back to master if no replicas found', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->shouldReceive('ping')->andReturn(true);
-    $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => 6380]);
+    $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => HOST_1, 'port' => 6380]);
 
     // Sentinel returns empty list for slaves
     $sentinelMock->shouldReceive('slaves')->with('mymaster')->andReturn([]);
@@ -328,23 +334,23 @@ test('it falls back to master if no replicas found', function () {
     };
 
     $connection = $connector->connect([
-        'sentinel' => ['service' => 'mymaster', 'host' => '127.0.0.1'],
+        'sentinel' => ['service' => 'mymaster', 'host' => HOST_1],
         'read_only_replicas' => true,
     ], []);
 
     // Since no replicas, both clients should point to master
-    expect($connection->getReadClient()->getHost())->toBe('127.0.0.1');
+    expect($connection->getReadClient()->getHost())->toBe(HOST_1);
 });
 
 test('it filters out unhealthy replicas', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->shouldReceive('ping')->andReturn(true);
-    $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
+    $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => HOST_1, 'port' => 6379]);
 
     // One healthy, one down
     $sentinelMock->shouldReceive('slaves')->with('mymaster')->andReturn([
-        ['ip' => '127.0.0.2', 'port' => 6379, 'flags' => 'slave,s_down'],
-        ['ip' => '127.0.0.3', 'port' => 6379, 'flags' => 'slave'],
+        ['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave,s_down'],
+        ['ip' => HOST_3, 'port' => 6379, 'flags' => 'slave'],
     ]);
 
     $connector = new class($sentinelMock) extends RedisSentinelConnector
@@ -373,20 +379,20 @@ test('it filters out unhealthy replicas', function () {
     };
 
     $connection = $connector->connect([
-        'sentinel' => ['service' => 'mymaster', 'host' => '127.0.0.1'],
+        'sentinel' => ['service' => 'mymaster', 'host' => HOST_1],
         'read_only_replicas' => true,
     ], []);
 
-    expect($connection->getReadClient()->getHost())->toBe('127.0.0.3');
+    expect($connection->getReadClient()->getHost())->toBe(HOST_3);
 });
 
 test('it keeps cached master address when refreshing replicas', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->shouldReceive('ping')->andReturn(true);
-    $sentinelMock->shouldReceive('master')->with('mymaster')->once()->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
+    $sentinelMock->shouldReceive('master')->with('mymaster')->once()->andReturn(['ip' => HOST_1, 'port' => 6379]);
     $sentinelMock->shouldReceive('slaves')->with('mymaster')->twice()->andReturn(
-        [['ip' => '127.0.0.2', 'port' => 6379, 'flags' => 'slave']],
-        [['ip' => '127.0.0.3', 'port' => 6379, 'flags' => 'slave']],
+        [['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave']],
+        [['ip' => HOST_3, 'port' => 6379, 'flags' => 'slave']],
     );
 
     $cache = app(NodeAddressCache::class);
@@ -414,22 +420,22 @@ test('it keeps cached master address when refreshing replicas', function () {
         }
     };
 
-    $config = ['sentinel' => ['service' => 'mymaster', 'host' => '127.0.0.1']];
+    $config = ['sentinel' => ['service' => 'mymaster', 'host' => HOST_1]];
 
-    expect($connector->master($config))->toBe(['ip' => '127.0.0.1', 'port' => 6379]);
-    expect($connector->replica($config))->toBe(['ip' => '127.0.0.2', 'port' => 6379]);
-    expect($connector->replica($config, true))->toBe(['ip' => '127.0.0.3', 'port' => 6379]);
-    expect($cache->get('mymaster'))->toBe(['ip' => '127.0.0.1', 'port' => 6379]);
+    expect($connector->master($config))->toBe(['ip' => HOST_1, 'port' => 6379]);
+    expect($connector->replica($config))->toBe(['ip' => HOST_2, 'port' => 6379]);
+    expect($connector->replica($config, true))->toBe(['ip' => HOST_3, 'port' => 6379]);
+    expect($cache->get('mymaster'))->toBe(['ip' => HOST_1, 'port' => 6379]);
 });
 
 test('it reindexes healthy replicas after filtering unhealthy replicas', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->shouldReceive('ping')->andReturn(true);
-    $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
+    $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => HOST_1, 'port' => 6379]);
     $sentinelMock->shouldReceive('slaves')->with('mymaster')->andReturn([
-        ['ip' => '127.0.0.2', 'port' => 6379, 'flags' => 'slave,s_down'],
-        ['ip' => '127.0.0.3', 'port' => 6379, 'flags' => 'slave'],
-        ['ip' => '127.0.0.4', 'port' => 6379, 'flags' => 'slave'],
+        ['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave,s_down'],
+        ['ip' => HOST_3, 'port' => 6379, 'flags' => 'slave'],
+        ['ip' => HOST_4, 'port' => 6379, 'flags' => 'slave'],
     ]);
 
     $cache = app(NodeAddressCache::class);
@@ -460,24 +466,24 @@ test('it reindexes healthy replicas after filtering unhealthy replicas', functio
     };
 
     $connection = $connector->connect([
-        'sentinel' => ['service' => 'mymaster', 'host' => '127.0.0.1'],
+        'sentinel' => ['service' => 'mymaster', 'host' => HOST_1],
         'read_only_replicas' => true,
     ], []);
 
-    expect($connection->getReadClient()->getHost())->toBeIn(['127.0.0.3', '127.0.0.4']);
+    expect($connection->getReadClient()->getHost())->toBeIn([HOST_3, HOST_4]);
     expect(array_keys($cache->getReplicas('mymaster')))->toBe([0, 1]);
 });
 
 test('it falls back to master if all replicas are unhealthy', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->shouldReceive('ping')->andReturn(true);
-    $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
+    $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => HOST_1, 'port' => 6379]);
 
     // All replicas down
     $sentinelMock->shouldReceive('slaves')->with('mymaster')->andReturn([
-        ['ip' => '127.0.0.2', 'port' => 6379, 'flags' => 'slave,s_down'],
-        ['ip' => '127.0.0.3', 'port' => 6379, 'flags' => 'slave,o_down'],
-        ['ip' => '127.0.0.4', 'port' => 6379, 'flags' => 'slave,disconnected'],
+        ['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave,s_down'],
+        ['ip' => HOST_3, 'port' => 6379, 'flags' => 'slave,o_down'],
+        ['ip' => HOST_4, 'port' => 6379, 'flags' => 'slave,disconnected'],
     ]);
 
     $connector = new class($sentinelMock) extends RedisSentinelConnector
@@ -506,11 +512,11 @@ test('it falls back to master if all replicas are unhealthy', function () {
     };
 
     $connection = $connector->connect([
-        'sentinel' => ['service' => 'mymaster', 'host' => '127.0.0.1'],
+        'sentinel' => ['service' => 'mymaster', 'host' => HOST_1],
         'read_only_replicas' => true,
     ], []);
 
-    expect($connection->getReadClient()->getHost())->toBe('127.0.0.1');
+    expect($connection->getReadClient()->getHost())->toBe(HOST_1);
 });
 
 test('it discovers replicas using secondary sentinel if primary is down', function () {
@@ -519,9 +525,9 @@ test('it discovers replicas using secondary sentinel if primary is down', functi
 
     $sentinel2 = Mockery::mock(RedisSentinel::class);
     $sentinel2->shouldReceive('ping')->andReturn(true);
-    $sentinel2->shouldReceive('master')->with('mymaster')->andReturn(['ip' => '127.0.0.1', 'port' => 6379]);
+    $sentinel2->shouldReceive('master')->with('mymaster')->andReturn(['ip' => HOST_1, 'port' => 6379]);
     $sentinel2->shouldReceive('slaves')->with('mymaster')->andReturn([
-        ['ip' => '127.0.0.2', 'port' => 6379, 'flags' => 'slave'],
+        ['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave'],
     ]);
 
     $connector = new class(['sentinel1' => $sentinel1, 'sentinel2' => $sentinel2]) extends RedisSentinelConnector
@@ -561,7 +567,7 @@ test('it discovers replicas using secondary sentinel if primary is down', functi
         'read_only_replicas' => true,
     ], []);
 
-    expect($connection->getReadClient()->getHost())->toBe('127.0.0.2');
+    expect($connection->getReadClient()->getHost())->toBe(HOST_2);
 });
 
 test('write commands always use master client even after failures', function () {
@@ -586,7 +592,7 @@ test('write commands always use master client even after failures', function () 
     // Replica should NEVER be called for write commands
     $replicaClient->shouldNotReceive('set');
 
-    $connector = function ($refresh = false) use ($masterClient) {
+    $connector = function () use ($masterClient) {
         return $masterClient;
     };
     $readConnector = function () use ($replicaClient) {
@@ -595,7 +601,7 @@ test('write commands always use master client even after failures', function () 
 
     $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
     $connection->setRetryLimit(3)
-        ->setRetryMessages(['connection lost']);
+        ->setRetryMessages([CONN_LOST_MSG]);
 
     // Execute write command - should retry and succeed, always on master
     expect($connection->set('key', 'value'))->toBeTrue();
