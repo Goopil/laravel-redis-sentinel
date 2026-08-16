@@ -97,6 +97,8 @@ class HorizonWorkerPreStop extends Command
                 'failed to find command %s pid',
                 $startCommand
             ));
+
+            return 1;
         }
 
         return 0;

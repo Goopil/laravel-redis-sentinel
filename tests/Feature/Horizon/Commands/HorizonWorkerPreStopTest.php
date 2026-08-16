@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Artisan;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
 use Symfony\Component\Process\Process;
 
-test('horizon:pre-stop returns 0 even if no pid found', function () {
+test('horizon:pre-stop returns non-zero when no pid found', function () {
     // We assume pcntl and posix are loaded in the test environment
     if (! extension_loaded('pcntl') || ! extension_loaded('posix')) {
         $this->expectException(ConfigurationException::class);
@@ -18,7 +18,7 @@ test('horizon:pre-stop returns 0 even if no pid found', function () {
     app()->instance(MasterSupervisorRepository::class, $repository);
 
     $status = Artisan::call('horizon:pre-stop', ['--start-command' => 'non-existent-command-xyz']);
-    expect($status)->toBe(0);
+    expect($status)->toBe(1);
 });
 
 test('horizon:pre-stop does not match hostname as substring of another master', function () {
