@@ -11,7 +11,7 @@ describe('Reconnect', function () {
     /**
      * dirty fix to retrieve the message from the not yet loaded config file...
      */
-    $messages = Arr::get(require (__DIR__.'/../../config/phpredis-sentinel.php'), 'retry.redis.messages');
+    $messages = Arr::get(require __DIR__.'/../../config/phpredis-sentinel.php', 'retry.redis.messages');
 
     foreach ($messages as $message) {
         test(sprintf('Reconnecting after [%s] in exception message', $message), function () use ($message) {
