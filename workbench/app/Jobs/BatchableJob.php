@@ -29,7 +29,7 @@ class BatchableJob implements ShouldQueue
 
         // Simulate failure for testing batch failure handling
         if ($this->shouldFail) {
-            throw new \Exception("Simulated failure for item {$this->itemNumber}");
+            throw SimulatedJobFailure::forItem($this->itemNumber);
         }
 
         // Record the processing of this item
