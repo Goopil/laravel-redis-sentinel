@@ -1,6 +1,9 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Concerns\Retryable;
+use Goopil\LaravelRedisSentinel\Tests\Unit\Stubs\RetryableTestException;
+
+const RETRY_MESSAGE = 'retryable error';
 
 test('it waits correct amount of time', function () {
     $retryable = new class
@@ -16,13 +19,13 @@ test('it waits correct amount of time', function () {
             $this->retryMessages = $messages;
         }
 
-        public function test_retry()
+        public function testRetry()
         {
             return $this->retryOnFailure(
                 function () {
                     $this->callCount++;
                     if ($this->callCount <= 2) {
-                        throw new Exception('retryable error');
+                        throw new RetryableTestException(RETRY_MESSAGE);
                     }
 
                     return 'success';
@@ -41,10 +44,10 @@ test('it waits correct amount of time', function () {
         }
     };
 
-    $retryable->setMessages(['retryable error']);
+    $retryable->setMessages([RETRY_MESSAGE]);
     $retryable->setRetryDelay(100);
 
-    $result = $retryable->test_retry();
+    $result = $retryable->testRetry();
 
     expect($result)->toBe('success')
         ->and($retryable->callCount)->toBe(3)
@@ -71,12 +74,12 @@ test('it stops after retry limit', function () {
             $this->retryMessages = $messages;
         }
 
-        public function test_retry()
+        public function testRetry()
         {
             return $this->retryOnFailure(
                 function () {
                     $this->callCount++;
-                    throw new Exception('retryable error');
+                    throw new RetryableTestException(RETRY_MESSAGE);
                 },
                 onMaxFail: function () {
                     $this->maxFailCalls++;
@@ -95,20 +98,20 @@ test('it stops after retry limit', function () {
         }
     };
 
-    $retryable->setMessages(['retryable error']);
+    $retryable->setMessages([RETRY_MESSAGE]);
     $retryable->setRetryDelay(100);
     $retryable->setRetryLimit(1);
 
     try {
-        $retryable->test_retry();
+        $retryable->testRetry();
         // Since we're in a Pest test, fail() is available if we use the underlying PHPUnit,
         // but it's better to use expect()->toThrow() or just catch and assert.
-        throw new Exception('Expected exception was not thrown.');
+        throw new RetryableTestException('Expected exception was not thrown.');
     } catch (Exception $exception) {
         if ($exception->getMessage() === 'Expected exception was not thrown.') {
             throw $exception;
         }
-        expect($exception->getMessage())->toBe('retryable error');
+        expect($exception->getMessage())->toBe(RETRY_MESSAGE);
     }
 
     expect($retryable->callCount)->toBe(2)

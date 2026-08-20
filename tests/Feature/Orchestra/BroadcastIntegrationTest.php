@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Queue;
 use Workbench\App\Events\OrderShipped;
 use Workbench\App\Events\UserRegistered;
 
+const BROADCAST_TEST_EMAIL = 'user@example.com';
+
 describe('Broadcast', function () {
     beforeEach(function () {
         // Configure broadcasting to use phpredis-sentinel
@@ -74,13 +76,13 @@ describe('Broadcast', function () {
     });
 
     test('user registered event has correct broadcast name', function () {
-        $event = new UserRegistered(1, 'user', 'user@example.com');
+        $event = new UserRegistered(1, 'user', BROADCAST_TEST_EMAIL);
 
         expect($event->broadcastAs())->toBe('user.registered');
     });
 
     test('user registered event should broadcast', function () {
-        $event = new UserRegistered(1, 'user', 'user@example.com');
+        $event = new UserRegistered(1, 'user', BROADCAST_TEST_EMAIL);
 
         expect($event->broadcastWhen())->toBeTrue();
     });
@@ -254,7 +256,7 @@ describe('Broadcast', function () {
     });
 
     test('broadcast channels can be extracted for authorization', function () {
-        $userEvent = new UserRegistered(123, 'user', 'user@example.com');
+        $userEvent = new UserRegistered(123, 'user', BROADCAST_TEST_EMAIL);
         $orderEvent = new OrderShipped('order_456', 789, 'TRACK456');
 
         $userChannels = $userEvent->broadcastOn();

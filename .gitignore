@@ -8,3 +8,7 @@ coverage/
 coverage.xml
 .pest_coverage_cache
 composer.lock
+.worktrees/
+.claude/
+.superpowers/
+docs/

@@ -1,0 +1,244 @@
+Command finished with exit code 0.
+Command output:
+Run linting rules on PHP code.
+
+Checks PHP code against configured linting rules to identify style violations, code smells, and
+potential bugs. Results can be output in various formats including human-readable, JSON, and GitHub
+Actions.
+
+**Usage**: `mago lint [OPTIONS]`
+
+Usage: mago lint [OPTIONS] [PATH]...
+
+Arguments:
+  [PATH]...
+          Specific files or directories to lint instead of using configuration.
+          
+          When provided, these paths override the source configuration in mago.toml. You can specify
+          individual files or entire directories to lint.
+
+Options:
+  -s, --semantics
+          Skip linter rules and only perform basic syntax and semantic validation.
+          
+          This mode only checks that your PHP code parses correctly and has valid semantic
+          structure, without applying any style or quality rules. Useful for quick syntax
+          validation.
+
+      --pedantic
+          Enable every available linter rule for maximum thoroughness.
+          
+          This overrides your configuration and enables all rules, including those disabled by
+          default. The output will be extremely verbose and is not recommended for regular use.
+          Useful for comprehensive code audits.
+
+      --explain <EXPLAIN>
+          Show detailed documentation for a specific linter rule.
+          
+          Displays the rule's description, examples of good and bad code, and available
+          configuration options. Use the rule's code name, such as 'no-empty' or
+          'prefer-while-loop'.
+
+      --list-rules
+          Show all currently enabled linter rules and their descriptions.
+          
+          This displays a table of all rules that are active for your current configuration, along
+          with their severity levels and categories. Combine with --json for machine-readable
+          output.
+
+      --json
+          Output rule information in JSON format.
+          
+          When combined with --list-rules, outputs rule information as JSON instead of a
+          human-readable table. Useful for generating documentation or integrating with other tools.
+
+  -o, --only <ONLY>
+          Run only specific rules, ignoring the configuration file.
+          
+          Provide a comma-separated list of rule codes to run only those rules. This overrides your
+          mago.toml configuration and is useful for targeted analysis or testing specific rules.
+
+      --staged
+          Only lint files that are staged in git.
+          
+          This flag is designed for git pre-commit hooks. It will find all PHP files currently
+          staged for commit and lint only those files.
+          
+          Fails if not in a git repository.
+
+      --stdin-input
+          Read the file content from stdin and use the given path for baseline and reporting.
+          
+          Intended for editor integrations: pipe unsaved buffer content and pass the real file path.
+
+      --baseline <PATH>
+          Specify a baseline file to ignore existing issues.
+          
+          A baseline file contains a list of known issues that should be ignored in future runs.
+          This is useful for gradually improving code quality by focusing on new issues while
+          suppressing existing ones. Can be overridden by configuration in mago.toml.
+
+      --generate-baseline
+          Generate a new baseline file from current issues.
+          
+          This creates a baseline file containing all issues found in the current run. Use this to
+          establish a starting point for future issue tracking. Requires --baseline to specify where
+          to save the file.
+
+      --backup-baseline
+          Create a backup of the existing baseline file before generating a new one.
+          
+          When generating a new baseline (or removing outdated entries), the old file will be saved
+          with a .bkp extension. This provides a safety net in case you need to revert the baseline.
+          Requires --generate-baseline or --remove-outdated-baseline-entries to be enabled.
+
+      --verify-baseline
+          Check if the baseline file is synchronized with current issues.
+          
+          This compares the baseline against current issues to detect if the baseline is outdated.
+          Exits with failure if issues have changed since the baseline was created. Cannot be used
+          with --generate-baseline.
+
+      --remove-outdated-baseline-entries
+          Remove outdated entries from the baseline file without adding new ones.
+          
+          Like --generate-baseline, this rewrites the baseline file, but it only removes entries
+          that no longer match a current issue. New issues introduced since the baseline was created
+          are left unsuppressed, so fixing old issues never silently hides new ones. Requires
+          --baseline to specify the file to update.
+
+      --fail-on-out-of-sync-baseline
+          Fail the command when baseline is out of sync, even with no new issues.
+          
+          Normally, if there are no current issues to report, the command succeeds even if the
+          baseline is outdated. This flag forces failure when the baseline contains issues that no
+          longer exist, ensuring baselines stay clean.
+
+      --ignore-baseline
+          Ignore the baseline file, reporting all issues.
+          
+          When this flag is set, any configured or specified baseline file is ignored, and all
+          issues are reported as if no baseline exists. This is useful for fixing issues that are
+          currently suppressed by the baseline.
+
+  -f, --fixable-only
+          Filter the output to only show issues that can be automatically fixed.
+          
+          When enabled, only issues that have available automatic fixes will be displayed. This is
+          useful when you want to focus on issues that can be resolved immediately.
+
+      --sort
+          Sort reported issues by severity level, rule code, and file location.
+          
+          By default, issues are reported in the order they appear in files. This option provides a
+          more organized view for reviewing large numbers of issues.
+
+      --fix
+          Apply automatic fixes to the source code where possible.
+          
+          This will modify your files to fix issues that have automatic solutions. Only safe fixes
+          are applied by default. Use --unsafe or --potentially-unsafe to enable riskier fixes.
+          Cannot be used with --fixable-only.
+
+      --unsafe
+          Apply fixes that are marked as unsafe.
+          
+          Unsafe fixes might change code behavior or have unintended consequences. Always review
+          changes carefully after applying unsafe fixes. Requires --fix to be enabled.
+
+      --potentially-unsafe
+          Apply fixes that are marked as potentially unsafe.
+          
+          These fixes are less risky than unsafe ones but may still require manual review to ensure
+          they don't break your code's intended behavior. Requires --fix to be enabled.
+
+      --format-after-fix
+          Format the fixed files after applying changes.
+          
+          This runs the formatter on any files that were modified by fixes to ensure consistent code
+          style. Requires --fix to be enabled.
+
+  -d, --dry-run
+          Preview fixes without writing any changes to disk.
+          
+          Shows exactly what changes would be made if fixes were applied, but doesn't modify any
+          files. Useful for reviewing fixes before applying them. Requires --fix to be enabled.
+
+      --fail-on-remaining
+          Exit with a non-zero status code if there are remaining issues after fixing.
+          
+          When used with --fix, the command will exit with code 1 if there are any issues that could
+          not be automatically fixed and require manual attention. This is useful in CI/CD pipelines
+          to ensure all issues are addressed. Requires --fix to be enabled.
+
+      --reporting-target <REPORTING_TARGET>
+          Specify where to send the output.
+          
+          Choose stdout for normal output or stderr for error streams. Not available when using
+          --fix mode.
+          
+          [default: stdout]
+          [possible values: stdout, stderr]
+
+      --reporting-format <REPORTING_FORMAT>
+          Choose the output format for issue reports.
+          
+          Available formats: rich (colorful, detailed), medium (balanced), short (compact), json
+          (machine-readable), and others.
+          
+          Not available when using --fix mode.
+          
+          [default: rich]
+          [possible values: rich, medium, short, ariadne, github, gitlab, json, count, code-count,
+          checkstyle, emacs, sarif]
+
+  -m, --minimum-fail-level <MINIMUM_FAIL_LEVEL>
+          Set the minimum issue severity that causes the command to fail.
+          
+          The command will exit with a non-zero status if any issues at or above this level are
+          found. For example, setting this to 'warning' means the command fails on warnings and
+          errors, but not on notes or help suggestions.
+          
+          Defaults to 'error', or the value set in the configuration file.
+          
+          [possible values: note, help, warning, error]
+
+      --minimum-report-level <MINIMUM_REPORT_LEVEL>
+          Set the minimum issue severity to be shown in the report.
+          
+          Issues below this level will be completely ignored and not displayed. This is different
+          from --minimum-fail-level which only affects exit status. Useful for filtering out
+          low-priority suggestions.
+          
+          [possible values: note, help, warning, error]
+
+      --retain-code <CODE>
+          Retain only issues with the specified code(s).
+          
+          When provided, only issues matching one of the specified codes will be displayed. All
+          other issues will be filtered out. This is the inverse of the ignore configuration - it
+          keeps only the specified codes instead of removing them.
+          
+          Can be specified multiple times to retain multiple issue codes.
+          
+          IMPORTANT: This is a reporting filter only. All rules and checks still run; only the
+          output is filtered. This is different from `--only` in the lint command, which runs only
+          specific rules. For example: - `mago lint --only foo`: Runs ONLY the 'foo' rule - `mago
+          lint --retain-code foo`: Runs ALL rules, shows only 'foo' issues
+          
+          Examples: --retain-code invalid-argument --retain-code invalid-argument --retain-code
+          semantics
+
+      --substitute <ORIG=TEMP>
+          Replace a host file with another file for this invocation (`ORIG=TEMP`).
+          
+          Both paths must be absolute. `ORIG` must be a host file inside the project; `TEMP` is any
+          readable file providing the replacement content. Repeat the flag to substitute multiple
+          files in a single run.
+          
+          Primarily intended for mutation-testing frameworks that generate a mutated copy of a
+          source file and want the analyzer or linter to evaluate it against the rest of the project
+          without writing the mutation to its original location.
+
+  -h, --help
+          Print help (see a summary with '-h')

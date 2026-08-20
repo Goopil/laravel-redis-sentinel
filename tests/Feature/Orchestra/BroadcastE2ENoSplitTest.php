@@ -81,7 +81,6 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
 
     test('broadcast handles high volume in master-only mode', function () {
         Queue::fake();
-        $testId = 'broadcast_volume_'.time();
         $eventCount = 150;
         $startTime = microtime(true);
 
@@ -120,7 +119,6 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
     test('broadcast connection stability in master-only mode', function () {
         Queue::fake();
         $connection = Redis::connection('phpredis-sentinel');
-        $testId = 'broadcast_stable_'.time();
         $rounds = 8;
         $eventsPerRound = 15;
 

@@ -313,11 +313,14 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
 
         // Process with intermittent disconnections
         $processed = [];
+        $attempted = 0;
         $disconnectPoints = [10, 20]; // Disconnect after job 10 and 20
 
-        for ($i = 1; $i <= $jobCount; $i++) {
+        while (count($processed) < $jobCount && $attempted < $jobCount * 3) {
+            $attempted++;
+
             try {
-                if (in_array($i, $disconnectPoints)) {
+                if (in_array(count($processed) + 1, $disconnectPoints)) {
                     try {
                         $connection->disconnect();
                     } catch (Exception $e) {
@@ -333,7 +336,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
             } catch (Exception $e) {
                 // Retry on failure
                 usleep(100000); // 100ms
-                $i--; // Retry same job
             }
         }
 
@@ -425,7 +427,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
         $testId = 'queue_retry_'.time();
         $connection = Redis::connection('phpredis-sentinel');
         $queueKey = "queues:retry:{$testId}";
-        $failedQueueKey = "queues:failed:{$testId}";
 
         // Push jobs
         for ($i = 1; $i <= 5; $i++) {

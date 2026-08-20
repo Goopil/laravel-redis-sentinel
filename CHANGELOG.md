@@ -1,3 +1,11 @@
+## [1.2.4](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.3...1.2.4) (2026-08-16)
+
+
+### Bug Fixes
+
+* remove llm folders ([d6c0872](https://github.com/Goopil/laravel-redis-sentinel/commit/d6c08723b8a75cf96e27aa30b9c213e3bbc751f6))
+* sonarcloud code smells ([#30](https://github.com/Goopil/laravel-redis-sentinel/issues/30)) ([17bf23c](https://github.com/Goopil/laravel-redis-sentinel/commit/17bf23ca44bdc4289eeb9c06acb343e7268bb672))
+
 ## [1.2.3](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.2...1.2.3) (2026-05-22)
 
 
