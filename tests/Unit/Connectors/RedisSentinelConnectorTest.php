@@ -130,3 +130,33 @@ test('connect applies redis retry config with overrides', function () {
     expect($limitProperty->getValue($connection))->toBe(4);
     expect($delayProperty->getValue($connection))->toBe(500);
 });
+
+test('the data client does not inherit the sentinel password', function () {
+    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    {
+        public array $captured = [];
+
+        protected function getMasterAddress(array $config, bool $refresh = false): array
+        {
+            return ['ip' => CONNECTOR_TEST_HOST, 'port' => 6379];
+        }
+
+        protected function establishConnection($client, array $config): void
+        {
+            $this->captured[] = $config;
+
+            throw new RuntimeException('abort before any network I/O');
+        }
+    };
+
+    try {
+        $connector->connect([
+            'sentinel' => ['service' => 'master', 'host' => CONNECTOR_TEST_HOST, 'password' => 'sentinel-secret'],
+            'options' => ['prefix' => 'conn:'],
+        ], []);
+    } catch (RuntimeException) {
+        // establishConnection captures the built client config and aborts before any network I/O
+    }
+
+    expect($connector->captured[0]['password'])->toBe('');
+});
