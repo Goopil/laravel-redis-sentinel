@@ -211,10 +211,7 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function flushdb($async = null): mixed
     {
         try {
-            return $this->retry(
-                fn () => parent::flushdb($async),
-                __FUNCTION__
-            );
+            return parent::flushdb($async);
         } finally {
             // Reset stickiness after flushing since all data is gone
             $this->wroteToMaster = false;
@@ -229,10 +226,7 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function flushall(?bool $sync = null): bool|\Redis
     {
         try {
-            return $this->retry(
-                fn () => parent::flushall($sync),
-                __FUNCTION__
-            );
+            return parent::flushall($sync);
         } finally {
             // Reset stickiness after flushing since all data is gone
             $this->wroteToMaster = false;
