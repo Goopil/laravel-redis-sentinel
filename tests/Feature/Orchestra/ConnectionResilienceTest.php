@@ -9,7 +9,7 @@ describe('Connection Resilience', function () {
     test('connection retries and reconnects on RedisException', function () {
         $mockClient = Mockery::mock(Redis::class);
         $mockClient->expects('get')
-            ->andThrow(new RedisException('Connection lost'));
+            ->andThrow(new RedisException('broken pipe'));
 
         $mockClient->expects('get')
             ->once()
@@ -24,7 +24,7 @@ describe('Connection Resilience', function () {
         };
 
         $connection = new RedisSentinelConnection($mockClient, $connector);
-        $connection->setRetryMessages(['Connection lost']);
+        $connection->setRetryMessages(['broken pipe']);
         $connection->setRetryDelay(0); // No wait in tests
 
         Event::fake([
