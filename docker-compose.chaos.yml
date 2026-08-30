@@ -1,0 +1,24 @@
+services:
+  toxiproxy:
+    image: 'ghcr.io/shopify/toxiproxy:2.12.0'
+    network_mode: host
+    command: '--host 0.0.0.0 --port ${TOXIPROXY_API_PORT:-8474}'
+
+  redis-replica1:
+    command: 'redis-server --slaveof 127.0.0.1 ${REDIS_MAIN_PORT:-6380} --requirepass "test" --masterauth "test" --port ${REDIS_REPLICA1_PORT:-6381} --replica-announce-ip 127.0.0.1 --replica-announce-port ${REDIS_REPLICA1_PROXY_PORT:-16381}'
+
+  redis-replica2:
+    command: 'redis-server --slaveof 127.0.0.1 ${REDIS_MAIN_PORT:-6380} --requirepass "test" --masterauth "test" --port ${REDIS_REPLICA2_PORT:-6382} --replica-announce-ip 127.0.0.1 --replica-announce-port ${REDIS_REPLICA2_PROXY_PORT:-16382}'
+
+  redis-sentinel:
+    command: >
+      sh -c "echo 'port ${REDIS_SENTINEL_PORT:-26379}' > /tmp/sentinel.conf &&
+      echo 'sentinel monitor master 127.0.0.1 ${REDIS_MAIN_PROXY_PORT:-16380} 1' >> /tmp/sentinel.conf &&
+      echo 'sentinel resolve-hostnames yes' >> /tmp/sentinel.conf &&
+      echo 'sentinel announce-hostnames yes' >> /tmp/sentinel.conf &&
+      echo 'sentinel auth-pass master test' >> /tmp/sentinel.conf &&
+      echo 'requirepass test' >> /tmp/sentinel.conf &&
+      echo 'sentinel down-after-milliseconds master 2000' >> /tmp/sentinel.conf &&
+      echo 'sentinel parallel-syncs master 1' >> /tmp/sentinel.conf &&
+      echo 'sentinel failover-timeout master 60000' >> /tmp/sentinel.conf &&
+      redis-sentinel /tmp/sentinel.conf"
