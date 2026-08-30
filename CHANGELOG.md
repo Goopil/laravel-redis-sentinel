@@ -1,3 +1,10 @@
+## [1.2.5](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.4...1.2.5) (2026-08-30)
+
+
+### Bug Fixes
+
+* patch dependency vulnerabilities and add blocking security audit gate ([#31](https://github.com/Goopil/laravel-redis-sentinel/issues/31)) ([c144f9b](https://github.com/Goopil/laravel-redis-sentinel/commit/c144f9bd7d4e2f148df6d327979b239a829ebdfd))
+
 ## [1.2.4](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.3...1.2.4) (2026-08-16)
 
 
