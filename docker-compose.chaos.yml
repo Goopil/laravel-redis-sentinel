@@ -16,6 +16,11 @@ services:
       - source: toxiproxy-proxies
         target: /proxies.json
 
+  redis-main:
+    # announce-port must be the proxy port: if this node is promoted after having been a
+    # replica, Sentinel must report the proxied address so tests can cut it via toxiproxy
+    command: 'redis-server --requirepass "test" --masterauth "test" --port ${REDIS_MAIN_PORT:-6380} --replica-announce-ip 127.0.0.1 --replica-announce-port ${REDIS_MAIN_PROXY_PORT:-16380}'
+
   redis-replica1:
     command: 'redis-server --slaveof 127.0.0.1 ${REDIS_MAIN_PORT:-6380} --requirepass "test" --masterauth "test" --port ${REDIS_REPLICA1_PORT:-6381} --replica-announce-ip 127.0.0.1 --replica-announce-port ${REDIS_REPLICA1_PROXY_PORT:-16381}'
 
