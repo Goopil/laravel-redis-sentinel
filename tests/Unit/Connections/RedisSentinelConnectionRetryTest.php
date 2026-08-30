@@ -38,3 +38,35 @@ test('a dynamic command that succeeds after one failure returns its result', fun
     expect($connection->hset('key', 'field', 'value'))->toBe(1)
         ->and(Event::assertDispatchedTimes(RedisSentinelConnectionFailed::class, 1))->toBeNull();
 });
+
+test('a failed sticky read refreshes the master, not the replica', function () {
+    Event::fake();
+
+    $master1 = Mockery::mock(Redis::class);
+    $master2 = Mockery::mock(Redis::class);
+    $replica = Mockery::mock(Redis::class);
+
+    $master1->expects('set')->with('foo', 'bar', null)->once()->andReturn(true);
+    $master1->expects('get')->with('foo')->once()->andThrow(new RedisException('broken pipe'));
+    $master2->expects('get')->with('foo')->once()->andReturn('baz');
+    $replica->shouldNotReceive('get');
+
+    $masterRefreshes = 0;
+    $connection = new RedisSentinelConnection(
+        $master1,
+        function () use (&$masterRefreshes, $master2) {
+            $masterRefreshes++;
+
+            return $master2;
+        },
+        [],
+        fn () => $replica,
+    );
+    $connection->setRetryLimit(2);
+    $connection->setRetryDelay(1);
+    $connection->setRetryMessages(['broken pipe']);
+
+    $connection->set('foo', 'bar');
+    expect($connection->get('foo'))->toBe('baz')
+        ->and($masterRefreshes)->toBe(1);
+});

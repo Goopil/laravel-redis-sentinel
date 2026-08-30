@@ -314,10 +314,13 @@ class RedisSentinelConnection extends PhpRedisConnection
     {
         $isReadOnly = $this->isReadOnlyCommand($name);
 
+        $usedClient = null;
+
         $result = $this->retryOnFailure(
-            function () use ($callback, $name) {
+            function () use ($callback, $name, &$usedClient) {
                 // Determine which client to use for this command
                 $targetClient = $this->resolveClientForCommand($name);
+                $usedClient = $targetClient;
 
                 // CRITICAL: Temporarily swap $this->client to the target client
                 // This is necessary because parent class methods use $this->client
@@ -331,20 +334,19 @@ class RedisSentinelConnection extends PhpRedisConnection
                     $this->client = $this->masterClient;
                 }
             },
-            onFail: function ($exception, $attempts) use ($name, $isReadOnly) {
+            onFail: function ($exception, $attempts) use ($name, $isReadOnly, &$usedClient) {
                 RedisSentinelConnectionFailed::dispatch($this, $exception, $name, $attempts);
 
-                // Reconnect the appropriate client based on command type
-                if ($isReadOnly && $this->readConnector) {
-                    // Refresh read replica connection
+                if ($usedClient !== $this->masterClient && $this->readConnector) {
+                    // The failing attempt ran on the read replica - refresh it
                     $this->readClient = call_user_func($this->readConnector, true);
                 } else {
-                    // Refresh master connection - this is critical for write commands
+                    // The failing attempt ran on the master (write or sticky/fallback read)
+                    // - refresh it
                     $newMasterClient = $this->masterConnector
                         ? call_user_func($this->masterConnector, true)
                         : $this->masterClient;
 
-                    // Update both references to guarantee consistency
                     $this->masterClient = $newMasterClient;
                     $this->client = $newMasterClient;
                 }
