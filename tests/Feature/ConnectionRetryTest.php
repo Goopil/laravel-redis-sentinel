@@ -96,6 +96,21 @@ describe('Reconnect', function () {
             ->and($property->getValue($connection))->toBeFalse();
     });
 
+    test('flushall routes once through the client and resets stickiness', function () {
+        Event::fake();
+
+        $client = Mockery::mock(Redis::class);
+        $client->expects('flushall')->withNoArgs()->once()->andReturn(true);
+
+        $connection = new RedisSentinelConnection($client, fn () => $client, []);
+
+        $property = (new ReflectionClass($connection))->getProperty('wroteToMaster');
+        $property->setValue($connection, true);
+
+        expect($connection->flushall())->toBeTrue()
+            ->and($property->getValue($connection))->toBeFalse();
+    });
+
     test('Reconnecting after a manual fail over', function () {
         Event::fake();
 
