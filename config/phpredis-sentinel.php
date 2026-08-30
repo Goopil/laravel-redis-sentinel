@@ -12,6 +12,11 @@ return [
     'log' => [
         'channel' => env('REDIS_SENTINEL_LOG_CHANNEL', env('LOG_CHANNEL')),
     ],
+    'commands' => [
+        'events' => [
+            'emit_success' => env('REDIS_SENTINEL_EMIT_SUCCESS_EVENTS', false),
+        ],
+    ],
     'retry' => [
         'sentinel' => [
             'attempts' => 5,

@@ -2,12 +2,16 @@
 
 namespace Goopil\LaravelRedisSentinel\Commands;
 
+use Goopil\LaravelRedisSentinel\Concerns\EmitsWorkerEvents;
 use Goopil\LaravelRedisSentinel\Concerns\Loggable;
+use Goopil\LaravelRedisSentinel\Events\HorizonWorkerNotReady;
+use Goopil\LaravelRedisSentinel\Events\HorizonWorkerReady;
 use Illuminate\Console\Command;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
 
 class HorizonWorkerReadiness extends Command
 {
+    use EmitsWorkerEvents;
     use Loggable;
 
     /**
@@ -35,16 +39,25 @@ class HorizonWorkerReadiness extends Command
             );
 
         if ($result->count() === 1) {
+            $this->emitSuccessEvent(new HorizonWorkerReady);
+
             return 0;
         }
+
+        $all = $masters->all();
 
         $this->log(
             ' current master is not ready',
             [
                 'current' => $result->toArray(),
-                'masters' => $masters->all(),
+                'masters' => $all,
             ]
         );
+
+        $this->emitFailureEvent(new HorizonWorkerNotReady(
+            masters: $all,
+            running: $result->values()->all(),
+        ));
 
         return 1;
     }
