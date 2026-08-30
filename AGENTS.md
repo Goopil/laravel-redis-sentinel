@@ -37,7 +37,7 @@ docker compose -f docker-compose.yml -f docker-compose.chaos.yml up -d   # overl
 vendor/bin/pest --group=toxiproxy                                        # run only the chaos tests
 ```
 
-The overlay gives Sentinel a quorum of 1 and a 2000 ms down-after, so cutting the master proxy triggers a real promotion. Chaos tests skip automatically when the overlay is not running.
+The overlay gives Sentinel a quorum of 1, a 2000 ms down-after and a 5000 ms failover-timeout, so cutting the master proxy triggers a real promotion and the post-failover cool-down is only ~10 s (tests may trigger promotions back-to-back). Chaos tests skip automatically when the overlay is not running.
 
 ## Test wiring
 
