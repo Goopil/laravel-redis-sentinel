@@ -129,6 +129,12 @@ required.
 - Redis Sentinel cluster (minimum 3 nodes recommended)
 - Redis version 6.0 or higher recommended
 
+### Valkey Compatibility
+
+[Valkey](https://valkey.io/) is wire-compatible with Redis and is supported out of the box. Compatibility is validated by
+the automated test bench: a Valkey 8 Sentinel cluster runs the full test suite in CI (the `tests-valkey` job) and can be
+run locally through the Docker environment (see [Local Development](#local-development)).
+
 ## Installation
 
 ### 1. Install via Composer
@@ -850,6 +856,7 @@ The package includes a comprehensive GitHub Actions workflow that tests:
 - ✅ PHP 8.2, 8.3, 8.4, 8.5
 - ✅ Laravel 10, 11, 12, 13
 - ✅ Redis 6, 7
+- ✅ Valkey 8 (dedicated `tests-valkey` job)
 - ✅ Linting before the test matrix
 - ✅ **Matrix test jobs** across isolated Redis Sentinel clusters
 - ✅ A dedicated PHP 8.4 / Laravel 12 job without Horizon installed
@@ -883,6 +890,22 @@ redis-cli -h 127.0.0.1 -p 26379 -a test
 
 # Check sentinel status
 redis-cli -h 127.0.0.1 -p 26379 -a test sentinel masters
+```
+
+### Running Tests Against Valkey
+
+The Docker environment also includes a Valkey 8 Sentinel cluster (wire-compatible with Redis) on dedicated ports:
+
+- 1 Valkey Master (port 6385)
+- 2 Valkey Replicas (ports 6386, 6387)
+- 1 Valkey Sentinel (port 26380)
+
+Start the Valkey services and run the test suite against them:
+
+```bash
+docker compose up -d valkey-main valkey-replica1 valkey-replica2 valkey-sentinel
+
+REDIS_SENTINEL_PORT=26380 REDIS_STANDALONE_PORT=6385 vendor/bin/pest
 ```
 
 ## Troubleshooting
