@@ -12,10 +12,18 @@
 */
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\Tests\Feature\Toxiproxy\ToxiproxyTestCase;
 use Goopil\LaravelRedisSentinel\Tests\TestCase;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 
-uses(TestCase::class)->in(__DIR__);
+// Per-directory bindings: Pest rejects two different test-case classes matching the same
+// file (TestCaseAlreadyInUse), so the toxiproxy folder cannot inherit the global TestCase
+// binding and is bound to ToxiproxyTestCase exclusively.
+uses(TestCase::class)->in(__DIR__.'/Unit', __DIR__.'/Feature/Horizon', __DIR__.'/Feature/Orchestra');
+
+uses(ToxiproxyTestCase::class)
+    ->group('toxiproxy')
+    ->in(__DIR__.'/Feature/Toxiproxy');
 
 /*
 |--------------------------------------------------------------------------
