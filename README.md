@@ -659,8 +659,9 @@ your own Redis topology, workload, and deployment model.
   semantics allow duplicates).
 - **`read_timeout` defaults to 0** (no timeout, like Laravel's PhpRedis driver): blocking commands can hang indefinitely if the
   server disappears without closing the socket. Set an explicit `read_timeout` for latency-sensitive paths.
-- **`flushdb($async)` / `flushall($sync)` flags are accepted but are no-ops**: the arguments are never forwarded as Redis
-  `ASYNC` markers; both commands run synchronously. Do not rely on the parameter for background flushing.
+- **`flushdb($async)` / `flushall($sync)` flags are not reliably forwarded**: on phpredis 6.x the flag is ignored (commands
+  run synchronously); on older 5.x releases a truthy argument may be sent as `ASYNC`. Do not rely on the parameter for
+  predictable background flushing.
 
 ### Long-Running Workers
 
@@ -786,7 +787,7 @@ The package includes a comprehensive GitHub Actions workflow that tests:
 - ✅ Laravel 10, 11, 12, 13
 - ✅ Redis 6, 7
 - ✅ Linting before the test matrix
-- ✅ **29 matrix test jobs** with isolated Redis Sentinel clusters
+- ✅ **Matrix test jobs** across isolated Redis Sentinel clusters
 - ✅ A dedicated PHP 8.4 / Laravel 12 job without Horizon installed
 - ✅ Coverage reporting with a minimum coverage threshold
 
