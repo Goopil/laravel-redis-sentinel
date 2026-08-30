@@ -58,3 +58,54 @@ services:
       test: [ "CMD", "redis-cli", "-p", "${REDIS_STANDALONE_PORT:-6379}", "-a", "test", "ping" ]
       retries: 3
       timeout: 5s
+
+  valkey-main:
+    image: valkey/valkey:${VALKEY_VERSION:-8}-alpine
+    command: valkey-server --requirepass "test" --masterauth "test" --port ${VALKEY_MAIN_PORT:-6385} --replica-announce-ip 127.0.0.1
+    network_mode: host
+    healthcheck:
+      test: [ "CMD", "valkey-cli", "-p", "${VALKEY_MAIN_PORT:-6385}", "-a", "test", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  valkey-replica1:
+    image: valkey/valkey:${VALKEY_VERSION:-8}-alpine
+    command: valkey-server --slaveof 127.0.0.1 ${VALKEY_MAIN_PORT:-6385} --requirepass "test" --masterauth "test" --port ${VALKEY_REPLICA1_PORT:-6386} --replica-announce-ip 127.0.0.1
+    network_mode: host
+    healthcheck:
+      test: [ "CMD", "valkey-cli", "-p", "${VALKEY_REPLICA1_PORT:-6386}", "-a", "test", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  valkey-replica2:
+    image: valkey/valkey:${VALKEY_VERSION:-8}-alpine
+    command: valkey-server --slaveof 127.0.0.1 ${VALKEY_MAIN_PORT:-6385} --requirepass "test" --masterauth "test" --port ${VALKEY_REPLICA2_PORT:-6387} --replica-announce-ip 127.0.0.1
+    network_mode: host
+    healthcheck:
+      test: [ "CMD", "valkey-cli", "-p", "${VALKEY_REPLICA2_PORT:-6387}", "-a", "test", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  valkey-sentinel:
+    image: valkey/valkey:${VALKEY_VERSION:-8}-alpine
+    network_mode: host
+    environment:
+      - SENTINEL_EXTRA_CONFIG=${SENTINEL_EXTRA_CONFIG:-}
+    command: >
+      sh -c "echo 'port ${VALKEY_SENTINEL_PORT:-26380}' > /tmp/sentinel.conf &&
+      echo 'sentinel monitor master 127.0.0.1 ${VALKEY_MAIN_PORT:-6385} 2' >> /tmp/sentinel.conf &&
+      echo 'sentinel auth-pass master test' >> /tmp/sentinel.conf &&
+      echo 'requirepass test' >> /tmp/sentinel.conf &&
+      $SENTINEL_EXTRA_CONFIG
+      echo 'sentinel down-after-milliseconds master 5000' >> /tmp/sentinel.conf &&
+      echo 'sentinel parallel-syncs master 1' >> /tmp/sentinel.conf &&
+      echo 'sentinel failover-timeout master 60000' >> /tmp/sentinel.conf &&
+      valkey-sentinel /tmp/sentinel.conf"
+    healthcheck:
+      test: [ "CMD", "valkey-cli", "-p", "${VALKEY_SENTINEL_PORT:-26380}", "-a", "test", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
