@@ -138,8 +138,13 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function scan($cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::scan($cursor, $options),
-            __FUNCTION__
+            function () use (&$cursor, $options) {
+                return parent::scan($cursor, $options);
+            },
+            __FUNCTION__,
+            function () use (&$cursor) {
+                $cursor = null;
+            }
         );
     }
 
@@ -156,8 +161,13 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function zscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::zscan($key, $cursor, $options),
-            __FUNCTION__
+            function () use ($key, &$cursor, $options) {
+                return parent::zscan($key, $cursor, $options);
+            },
+            __FUNCTION__,
+            function () use (&$cursor) {
+                $cursor = null;
+            }
         );
     }
 
@@ -167,8 +177,13 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function hscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::hscan($key, $cursor, $options),
-            __FUNCTION__
+            function () use ($key, &$cursor, $options) {
+                return parent::hscan($key, $cursor, $options);
+            },
+            __FUNCTION__,
+            function () use (&$cursor) {
+                $cursor = null;
+            }
         );
     }
 
@@ -178,8 +193,13 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function sscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::sscan($key, $cursor, $options),
-            __FUNCTION__
+            function () use ($key, &$cursor, $options) {
+                return parent::sscan($key, $cursor, $options);
+            },
+            __FUNCTION__,
+            function () use (&$cursor) {
+                $cursor = null;
+            }
         );
     }
 
@@ -310,7 +330,7 @@ class RedisSentinelConnection extends PhpRedisConnection
      *
      * @throws Throwable
      */
-    private function retry(callable $callback, string $name): mixed
+    private function retry(callable $callback, string $name, ?Closure $onFailExtra = null): mixed
     {
         $isReadOnly = $this->isReadOnlyCommand($name);
 
@@ -334,8 +354,10 @@ class RedisSentinelConnection extends PhpRedisConnection
                     $this->client = $this->masterClient;
                 }
             },
-            onFail: function ($exception, $attempts) use ($name, $isReadOnly, &$usedClient) {
+            onFail: function ($exception, $attempts) use ($name, $isReadOnly, &$usedClient, $onFailExtra) {
                 RedisSentinelConnectionFailed::dispatch($this, $exception, $name, $attempts);
+
+                $onFailExtra?->__invoke();
 
                 if ($usedClient !== $this->masterClient && $this->readConnector) {
                     // The failing attempt ran on the read replica - refresh it

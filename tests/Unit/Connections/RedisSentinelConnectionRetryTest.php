@@ -70,3 +70,18 @@ test('a failed sticky read refreshes the master, not the replica', function () {
     expect($connection->get('foo'))->toBe('baz')
         ->and($masterRefreshes)->toBe(1);
 });
+
+test('a retried scan restarts its cursor on the refreshed client', function () {
+    $master1 = Mockery::mock(Redis::class);
+    $master2 = Mockery::mock(Redis::class);
+
+    $master1->expects('scan')->with(5, '*', 10)->once()->andThrow(new RedisException('broken pipe'));
+    $master2->expects('scan')->with(null, '*', 10)->once()->andReturn(['key1']);
+
+    $connection = new RedisSentinelConnection($master1, fn () => $master2, []);
+    $connection->setRetryLimit(1);
+    $connection->setRetryDelay(1);
+    $connection->setRetryMessages(['broken pipe']);
+
+    expect($connection->scan(5))->toBe([null, ['key1']]);
+});
