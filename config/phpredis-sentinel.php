@@ -12,6 +12,7 @@ return [
             'delay' => 1000,
             'messages' => [
                 'No master found for service',
+                'No reachable Redis Sentinel host found',
             ],
         ],
         'redis' => [
