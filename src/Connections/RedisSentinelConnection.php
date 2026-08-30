@@ -286,6 +286,19 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * Laravel 13+ retries read-only commands internally in PhpRedisConnection::command().
+     * Its connector is not Sentinel-aware and it dispatches no events, which would mask
+     * failovers and bypass this connection's retry logic. Disable it entirely so this
+     * connection's retry() wrapper stays the single retry path.
+     *
+     * No-op on Laravel 10-12 where the method does not exist on the parent.
+     */
+    protected function isRetryable($method, array $parameters): bool
+    {
+        return false;
+    }
+
+    /**
      * Execute the given callback with retry logic.
      *
      * This method ensures that:
