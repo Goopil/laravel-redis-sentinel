@@ -1,8 +1,20 @@
+configs:
+  toxiproxy-proxies:
+    content: |
+      [
+        {"name": "main", "listen": "0.0.0.0:${REDIS_MAIN_PROXY_PORT:-16380}", "upstream": "127.0.0.1:${REDIS_MAIN_PORT:-6380}"},
+        {"name": "replica1", "listen": "0.0.0.0:${REDIS_REPLICA1_PROXY_PORT:-16381}", "upstream": "127.0.0.1:${REDIS_REPLICA1_PORT:-6381}"},
+        {"name": "replica2", "listen": "0.0.0.0:${REDIS_REPLICA2_PROXY_PORT:-16382}", "upstream": "127.0.0.1:${REDIS_REPLICA2_PORT:-6382}"}
+      ]
+
 services:
   toxiproxy:
     image: 'ghcr.io/shopify/toxiproxy:2.12.0'
     network_mode: host
-    command: '--host 0.0.0.0 --port ${TOXIPROXY_API_PORT:-8474}'
+    command: '--host 0.0.0.0 --port ${TOXIPROXY_API_PORT:-8474} --config /proxies.json'
+    configs:
+      - source: toxiproxy-proxies
+        target: /proxies.json
 
   redis-replica1:
     command: 'redis-server --slaveof 127.0.0.1 ${REDIS_MAIN_PORT:-6380} --requirepass "test" --masterauth "test" --port ${REDIS_REPLICA1_PORT:-6381} --replica-announce-ip 127.0.0.1 --replica-announce-port ${REDIS_REPLICA1_PROXY_PORT:-16381}'
