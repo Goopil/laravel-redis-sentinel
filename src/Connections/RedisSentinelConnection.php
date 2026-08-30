@@ -17,9 +17,11 @@ use Throwable;
  * The connection to Redis after connecting through a Sentinel using the PhpRedis extension.
  *
  * NOTE: Most Redis commands (get, set, mget, etc.) are NOT explicitly overridden here.
- * They are handled by the parent class calling command() or via __call(), both of which
- * are wrapped by our retry() method. This avoids "Nested Retries" where a method-level
- * retry would wrap a command-level retry, leading to an exponential number of attempts.
+ * The single retry layer lives in command() (explicit framework methods route through it
+ * via $this->command()) and in the wrappers below for methods that bypass command()
+ * (scan-family, pipeline, transaction, subscribe-family). __call is deliberately NOT
+ * overridden: the framework's __call routes dynamic commands through $this->command(),
+ * so overriding it here would create nested retries (up to (limit+1)^2 attempts).
  *
  * @method mixed get(string $key) Get the value of a key
  * @method bool set(string $key, mixed $value, mixed $expireResolution = null, mixed $expireTTL = null, mixed $flag = null) Set the string value of a key
@@ -448,42 +450,5 @@ class RedisSentinelConnection extends PhpRedisConnection
     protected function isReadOnlyCommand(string $method): bool
     {
         return in_array(strtolower($method), static::READ_ONLY_COMMAND);
-    }
-
-    /**
-     * Dynamically pass method calls to the Redis client.
-     *
-     * This magic method handles all Redis commands that are not explicitly defined in this class.
-     * It provides automatic retry logic with exponential backoff and intelligent read/write splitting.
-     *
-     * Read/Write Splitting Behavior:
-     * - Read-only commands (get, hget, lrange, etc.) are routed to replica nodes when available
-     * - Write commands (set, hset, lpush, etc.) are always routed to the master node
-     * - After a write operation, subsequent reads use the master (sticky sessions) to avoid replication lag
-     * - During transactions/pipelines, all commands are routed to the master
-     *
-     * Retry Logic:
-     * - Automatically retries on connection failures (broken pipe, connection lost, etc.)
-     * - Uses exponential backoff with jitter to avoid thundering herd
-     * - Respects configured retry limits (default: 5 attempts)
-     * - Refreshes connections between retry attempts
-     *
-     * @param  string  $method  The Redis command name (case-insensitive)
-     * @param  array  $parameters  The command parameters
-     * @return mixed The result from Redis
-     *
-     * @throws RedisException If Redis operation fails after all retry attempts
-     * @throws Throwable If a non-retryable error occurs
-     *
-     * @see retry() For the retry logic implementation
-     * @see isReadOnlyCommand() For the list of read-only commands
-     * @see getClientForCommand() For read/write routing logic
-     */
-    public function __call($method, $parameters): mixed
-    {
-        return $this->retry(
-            fn () => parent::__call(strtolower($method), $parameters),
-            $method
-        );
     }
 }
