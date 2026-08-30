@@ -127,7 +127,7 @@ final class ToxiproxyManager
             'type' => $type,
             'stream' => $stream,
             'toxicity' => $toxicity,
-            'attributes' => $attributes,
+            'attributes' => (object) $attributes,
         ]);
 
         if ($response['status'] >= 400) {
