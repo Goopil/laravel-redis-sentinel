@@ -182,7 +182,7 @@ jobs:
           echo "Redis Sentinel is ready!"
 
       - name: Execute tests
-        run: vendor/bin/pest --coverage-clover coverage.xml --min=50 --testdox
+        run: vendor/bin/pest --coverage-clover coverage.xml --min=50 --testdox --log-junit junit.xml
         env:
           REDIS_PASSWORD: test
           REDIS_SENTINEL_PASSWORD: test
@@ -198,6 +198,16 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.xml
+          fail_ci_if_error: false
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: junit.xml
+          report-type: test_results
+          flags: php-${{ matrix.php }},laravel-${{ matrix.laravel }},redis-${{ matrix.redis }}
           fail_ci_if_error: false
 
       - name: Cleanup Redis Cluster
@@ -288,7 +298,7 @@ jobs:
           file_put_contents("without-horizon-tests.txt", implode(PHP_EOL, $files));
           '
 
-          vendor/bin/pest $(cat without-horizon-tests.txt) --testdox
+          vendor/bin/pest $(cat without-horizon-tests.txt) --testdox --log-junit junit.xml
         env:
           REDIS_PASSWORD: test
           REDIS_SENTINEL_PASSWORD: test
@@ -298,6 +308,16 @@ jobs:
           REDIS_STANDALONE_PORT: 7603
           REDIS_SENTINEL_PORT: 7604
           REDIS_SENTINEL_HOST: 127.0.0.1
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: junit.xml
+          report-type: test_results
+          flags: php-8.4,laravel-12,redis-7,without-horizon
+          fail_ci_if_error: false
 
       - name: Cleanup Redis Cluster
         if: always()

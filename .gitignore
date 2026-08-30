@@ -6,6 +6,7 @@ node_modules/
 .phpunit.result.cache
 coverage/
 coverage.xml
+junit.xml
 .pest_coverage_cache
 composer.lock
 .worktrees/
