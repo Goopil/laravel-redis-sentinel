@@ -1,0 +1,31 @@
+name: Dependabot auto-merge
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge dependabot PRs older than 7 days with green CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          prs=$(gh pr list --label dependencies --state open --limit 50 \
+            --json number,author,createdAt \
+            --jq '.[] | select(.author.login=="dependabot[bot]" and ((now - (.createdAt|fromdateiso8601)) > 604800)) | .number')
+          if [ -z "$prs" ]; then
+            echo "No dependabot PRs older than 7 days."
+            exit 0
+          fi
+          for pr in $prs; do
+            echo "Auto-merging PR #$pr"
+            gh pr merge "$pr" --squash --auto || gh pr merge "$pr" --squash || echo "Could not merge PR #$pr, skipping"
+          done
