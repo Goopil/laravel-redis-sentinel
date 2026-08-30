@@ -96,7 +96,9 @@ class RedisSentinelServiceProvider extends ServiceProvider
             )
         );
 
-        $this->app->singleton(NodeAddressCache::class);
+        $this->app->singleton(NodeAddressCache::class, fn ($app) => new NodeAddressCache(
+            (float) $app['config']->get('phpredis-sentinel.node_cache.ttl', 0)
+        ));
         $this->app->bind('redis.sentinel', RedisSentinelConnector::class);
     }
 

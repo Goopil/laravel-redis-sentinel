@@ -3,6 +3,12 @@
 return [
     'override_laravel_redis' => env('REDIS_SENTINEL_OVERRIDE_LARAVEL_REDIS', true),
 
+    'node_cache' => [
+        // Seconds a resolved master/replica address may stay cached in this process.
+        // 0 disables expiry (legacy behaviour). Stale entries delay failover detection.
+        'ttl' => env('REDIS_SENTINEL_NODE_CACHE_TTL', 0),
+    ],
+
     'log' => [
         'channel' => env('REDIS_SENTINEL_LOG_CHANNEL', env('LOG_CHANNEL')),
     ],
