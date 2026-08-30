@@ -149,13 +149,6 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
-     * Scans the given set for all values based on options.
-     *
-     * @param  string  $key
-     * @param  mixed  $cursor
-     * @param  array  $options
-     */
-    /**
      * @throws Throwable
      */
     public function zscan($key, $cursor, $options = []): mixed
