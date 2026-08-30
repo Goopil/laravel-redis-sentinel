@@ -12,17 +12,20 @@
 */
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
-use Goopil\LaravelRedisSentinel\Tests\Feature\Toxiproxy\ToxiproxyTestCase;
+use Goopil\LaravelRedisSentinel\Tests\Support\Toxiproxy\InteractsWithToxiproxy;
 use Goopil\LaravelRedisSentinel\Tests\TestCase;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 
-// Per-directory bindings: Pest rejects two different test-case classes matching the same
-// file (TestCaseAlreadyInUse), so the toxiproxy folder cannot inherit the global TestCase
-// binding and is bound to ToxiproxyTestCase exclusively.
-uses(TestCase::class)->in(__DIR__.'/Unit', __DIR__.'/Feature/Horizon', __DIR__.'/Feature/Orchestra');
+uses(TestCase::class)->in(__DIR__);
 
-uses(ToxiproxyTestCase::class)
+// Pest closure test files accept at most one test-case class (TestCaseAlreadyInUse), and
+// Pest's Testable trait shadows inherited setUp() hooks, so the chaos suite gets its
+// members via the InteractsWithToxiproxy trait plus beforeEach/afterEach hooks instead
+// of the ToxiproxyTestCase class binding (that class serves class-based chaos tests).
+uses(InteractsWithToxiproxy::class)
     ->group('toxiproxy')
+    ->beforeEach(fn () => $this->bootToxiproxy())
+    ->afterEach(fn () => $this->cleanupToxiproxy())
     ->in(__DIR__.'/Feature/Toxiproxy');
 
 /*
