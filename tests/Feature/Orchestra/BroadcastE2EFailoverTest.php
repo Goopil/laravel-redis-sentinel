@@ -94,8 +94,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Phase 2: Events after reconnection
         for ($i = 9; $i <= 16; $i++) {
             event(new UserRegistered($i, "after_reset_{$i}", "after{$i}@example.com"));
@@ -119,7 +117,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(2); // Failover window
                 }
 
                 event(new UserRegistered($i, "failover_{$i}", "failover{$i}@example.com"));
@@ -158,8 +155,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(2);
-
         // Phase 3: During failover window
         $duringSuccess = 0;
         for ($i = 1; $i <= $eventsDuringFailover; $i++) {
@@ -174,8 +169,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         }
 
         // Phase 4: After failover recovery
-        sleep(1);
-
         for ($i = 1; $i <= $eventsAfterFailover; $i++) {
             event(new UserRegistered($eventsBeforeFailover + $eventsDuringFailover + $i, "after_{$i}", "after{$i}@example.com", [
                 'phase' => 'after',
@@ -201,8 +194,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Connection should reconnect and channels should still work
         $result = $connection->publish('user-registrations', json_encode(['test' => 3]));
         expect($result)->toBeGreaterThanOrEqual(0);
@@ -222,7 +213,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(2);
                 }
 
                 if ($i % 2 === 0) {
@@ -267,8 +257,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // After reconnection, publish should still work
         $result = $connection->publish('test-channel', 'message2');
         expect($result)->toBeGreaterThanOrEqual(0);
@@ -289,7 +277,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    usleep(500000); // 500ms recovery
                 }
 
                 event(new UserRegistered($i, "intermittent_{$i}", "intermittent{$i}@example.com"));
@@ -320,8 +307,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // After failover
         event(new OrderShipped('order_3', 3, 'TRACK_3', ['item']));
         event(new OrderShipped('order_4', 4, '', [])); // Should not broadcast
@@ -347,8 +332,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(1);
 
         // After failover with different metadata
         $metadata2 = ['profile' => ['name' => 'Jane', 'age' => 25]];
@@ -381,8 +364,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(3); // Extended outage
-
         // Connection should recover
         for ($i = 11; $i <= 20; $i++) {
             event(new UserRegistered($i, "after_outage_{$i}", "after{$i}@example.com"));
@@ -409,8 +390,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(2);
 
         // Phase 2: After failover
         $startTime2 = microtime(true);
@@ -439,7 +418,6 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
                 } catch (Exception $e) {
                     // Expected
                 }
-                sleep(1);
             }
 
             event(new UserRegistered($i, "ordered_{$i}", "ordered{$i}@example.com"));

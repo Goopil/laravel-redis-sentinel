@@ -101,8 +101,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
             // Expected
         }
 
-        sleep(1);
-
         // Verify persistence
         expect(Session::get('user_id'))->toBe(88888)
             ->and(Session::get('cart'))->toBe(['product1', 'product2', 'product3'])
@@ -131,8 +129,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(2);
 
         // Phase 3 - after failover
         Session::put('step', 'complete');
@@ -165,8 +161,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
             // Expected
         }
 
-        sleep(1);
-
         // Should still be available
         expect(Session::get('message'))->toBe(SESSION_FLASH_MSG);
 
@@ -189,7 +183,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(2);
                 }
 
                 Session::put("data_{$i}", [
@@ -234,8 +227,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
             // Expected
         }
 
-        sleep(1);
-
         // Regenerate
         Session::regenerate();
         $secondId = Session::getId();
@@ -262,8 +253,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(1);
 
         // Forget
         Session::forget('temp1');
@@ -296,7 +285,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(1);
                 }
 
                 Session::increment('views');
@@ -334,8 +322,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
             // Expected
         }
 
-        sleep(1);
-
         // Add more
         Session::push('cart', ['id' => 12, 'name' => 'Item 12']);
         Session::save();
@@ -361,8 +347,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
             // Expected
         }
 
-        sleep(1);
-
         $retrievedToken = Session::token();
         expect($retrievedToken)->toBe($token);
     });
@@ -380,7 +364,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                     } catch (Exception $e) {
                         // Expected
                     }
-                    usleep(500000);
                 }
 
                 // Mixed operations
@@ -425,8 +408,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
             // Expected
         }
 
-        sleep(1);
-
         $oldInput = Session::get('_old_input');
         expect($oldInput['email'])->toBe(NOSPLIT_TEST_EMAIL)
             ->and($oldInput['preferences'])->toBe(['marketing' => false]);
@@ -449,8 +430,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
             } catch (Exception $e) {
                 // Expected
             }
-
-            sleep(1);
 
             Session::put("failover_{$round}", now()->timestamp);
             Session::save();
@@ -493,8 +472,6 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(1);
 
         // Still isolated
         expect(Session::get('user_id'))->toBe(2222)

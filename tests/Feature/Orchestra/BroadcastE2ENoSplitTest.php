@@ -108,7 +108,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
                 } catch (Exception $ex) {
                     // Ignore
                 }
-                sleep(1);
+                sleep(1); // retained: no observable condition
                 // Mark test as incomplete but don't fail - this is a transient Redis issue
                 $this->markTestIncomplete('Connection lost during transaction - this is a transient Redis issue');
             }
@@ -131,7 +131,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             // Verify connection health
             expect($connection->ping())->toBeTrue();
 
-            usleep(50000); // 50ms
+            usleep(50000); // 50ms retained: no observable condition
         }
 
         $totalEvents = $rounds * $eventsPerRound;
@@ -169,8 +169,6 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(1);
 
         // Events after reset
         for ($i = 11; $i <= 20; $i++) {
@@ -245,7 +243,7 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
         for ($i = 1; $i <= 20; $i++) {
             event(new UserRegistered($i, "ordered_{$i}", "order{$i}@example.com"));
             $eventIds[] = $i;
-            usleep(5000); // 5ms
+            usleep(5000); // 5ms retained: no observable condition
         }
 
         Queue::assertPushed(BroadcastEvent::class, 20);
@@ -342,7 +340,6 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
                 } catch (Exception $e) {
                     // Expected
                 }
-                usleep(300000); // 300ms
             }
 
             event(new UserRegistered($i, "resilient_{$i}", "user{$i}@example.com"));
