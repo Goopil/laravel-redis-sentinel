@@ -82,6 +82,24 @@ describe('Horizon Command Events', function () {
         Event::assertDispatched(HorizonWorkerReady::class);
     });
 
+    test('horizon:ready emits HorizonWorkerReady when emit_success is set to "1"', function () {
+        if (! interface_exists(MasterSupervisorRepository::class)) {
+            $this->markTestSkipped(HORIZON_EVENTS_NOT_INSTALLED);
+        }
+
+        config(['phpredis-sentinel.commands.events.emit_success' => '1']);
+
+        $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) {
+            $mock->expects('all')->andReturn([horizonEventsRunningMaster()]);
+        });
+
+        $exitCode = Artisan::call('horizon:ready');
+
+        expect($exitCode)->toBe(0);
+
+        Event::assertDispatched(HorizonWorkerReady::class);
+    });
+
     test('horizon:ready always emits HorizonWorkerNotReady on failure with masters context', function () {
         if (! interface_exists(MasterSupervisorRepository::class)) {
             $this->markTestSkipped(HORIZON_EVENTS_NOT_INSTALLED);
@@ -102,6 +120,36 @@ describe('Horizon Command Events', function () {
         Event::assertDispatched(HorizonWorkerNotReady::class, function (HorizonWorkerNotReady $event) use ($master) {
             return $event->masters === [$master] && $event->running === [];
         });
+    });
+
+    test('a throwing listener does not change the probe exit code', function () {
+        if (! interface_exists(MasterSupervisorRepository::class)) {
+            $this->markTestSkipped(HORIZON_EVENTS_NOT_INSTALLED);
+        }
+
+        // Reach real listeners: unwrap the fake dispatcher registered in beforeEach.
+        $dispatcher = Event::getFacadeRoot()->dispatcher;
+        Event::swap($dispatcher);
+
+        $listenerInvoked = false;
+        Event::listen(HorizonWorkerNotReady::class, function (HorizonWorkerNotReady $event) use (&$listenerInvoked): void {
+            $listenerInvoked = true;
+
+            throw new RuntimeException('listener failed');
+        });
+
+        $master = new MasterSupervisor;
+        $master->name = gethostname().':1';
+        $master->status = 'paused';
+
+        $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) use ($master) {
+            $mock->expects('all')->twice()->andReturn([$master]);
+        });
+
+        $exitCode = Artisan::call('horizon:ready');
+
+        expect($exitCode)->toBe(1)
+            ->and($listenerInvoked)->toBeTrue();
     });
 
     test('horizon:alive emits no event by default', function () {
