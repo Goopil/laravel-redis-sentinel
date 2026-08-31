@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.5...1.3.0) (2026-08-31)
+
+
+### Features
+
+* production-readiness remediation (single retry path, sentinel auth decoupling, node cache ttl, lazy boot) ([#35](https://github.com/Goopil/laravel-redis-sentinel/issues/35)) ([27211be](https://github.com/Goopil/laravel-redis-sentinel/commit/27211be1fccb615f05095f2bd1654f7c0d31ca50))
+
 ## [1.2.5](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.4...1.2.5) (2026-08-30)
 
 
