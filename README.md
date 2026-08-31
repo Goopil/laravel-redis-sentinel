@@ -662,10 +662,10 @@ your own Redis topology, workload, and deployment model.
 - **`flushdb($async)` / `flushall($sync)` flags are not reliably forwarded**: on phpredis 6.x the flag is ignored (commands
   run synchronously); on older 5.x releases a truthy argument may be sent as `ASYNC`. Do not rely on the parameter for
   predictable background flushing.
-- **Laravel's PhpRedis driver retries some commands on its own**: recent framework versions wrap `command()` with a built-in
-  single retry (retryable commands such as `GET`, vendor message list including `Connection lost`) and reconnect through the
-  connector before this package's retry layer sees the failure. For those messages the first failure is consumed silently (no
-  `RedisSentinelConnectionFailed` event) and effective attempts double.
+- **Laravel's built-in command retry is disabled for this connection**: Laravel 13+ wraps `command()` with an internal single
+  retry whose connector is not Sentinel-aware and dispatches no events. This connection overrides `isRetryable()` to turn it
+  off, so the package's `retry()` layer stays the single retry path and `RedisSentinelConnectionFailed` /
+  `RedisSentinelConnectionReconnected` fire on the first failure.
 
 ### Long-Running Workers
 
