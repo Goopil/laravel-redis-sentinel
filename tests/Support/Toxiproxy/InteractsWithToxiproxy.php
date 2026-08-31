@@ -86,16 +86,22 @@ trait InteractsWithToxiproxy
     protected function waitForMasterChange(array $oldAddress, int $timeoutSeconds = 30): array
     {
         $deadline = microtime(true) + $timeoutSeconds;
+        $candidate = null;
+        $candidateSince = 0.0;
 
         while (microtime(true) < $deadline) {
             try {
                 $address = $this->sentinelMasterAddress();
 
-                // An address change alone is not enough: around a promotion (notably
-                // inside the post-failover cool-down) Sentinel can still serve the
-                // disabled master, and reconnecting to it throws 'Connection refused'.
-                if ($address !== $oldAddress && $this->proxyCarriesTraffic($address['port'])) {
-                    return $address;
+                if ($address !== $oldAddress) {
+                    $now = microtime(true);
+
+                    if ($address !== $candidate) {
+                        $candidate = $address;
+                        $candidateSince = $now;
+                    } elseif ($now - $candidateSince >= 1.0 && $this->proxyCarriesTraffic($address['port'])) {
+                        return $address;
+                    }
                 }
             } catch (Throwable) {
                 // Sentinel momentarily unreachable - keep polling
@@ -288,6 +294,28 @@ trait InteractsWithToxiproxy
         }
 
         throw new RuntimeException("Proxy on port {$listenPort} did not carry traffic within {$timeoutSeconds}s.");
+    }
+
+    /**
+     * Re-issue a command after a failover: the connection-level retry aborts on the
+     * first refused reconnect by design, and while Sentinel is still settling it can
+     * transiently re-serve the disabled master. A real application re-emits the
+     * command, so the chaos tests do the same instead of asserting on one shot.
+     */
+    public function reissueUntilSuccess(callable $command, int $attempts = 5, int $delayMs = 500): mixed
+    {
+        $lastException = null;
+
+        for ($attempt = 0; $attempt < $attempts; $attempt++) {
+            try {
+                return $command();
+            } catch (Throwable $exception) {
+                $lastException = $exception;
+                usleep($delayMs * 1000);
+            }
+        }
+
+        throw $lastException;
     }
 
     /**

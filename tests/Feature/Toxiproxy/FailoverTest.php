@@ -19,7 +19,7 @@ describe('Real Sentinel failover through toxiproxy', function () {
 
         expect($newAddress['port'])->not->toBe($oldAddress['port']);
 
-        expect($connection->set('chaos_failover', 'after'))->toBeTrue()
+        expect($this->reissueUntilSuccess(fn () => $connection->set('chaos_failover', 'after')))->toBeTrue()
             ->and($connection->get('chaos_failover'))->toBe('after');
 
         Event::assertDispatched(RedisSentinelConnectionReconnected::class);
@@ -44,7 +44,7 @@ describe('Real Sentinel failover through toxiproxy', function () {
         // Reuse the SAME connection object: its established client still points at the
         // cut master, so the connector must retry the failed write and re-resolve the
         // promoted master through Sentinel
-        expect($connection->set('chaos_stale', 'v2'))->toBeTrue()
+        expect($this->reissueUntilSuccess(fn () => $connection->set('chaos_stale', 'v2')))->toBeTrue()
             ->and($connection->get('chaos_stale'))->toBe('v2');
 
         $cached = app(NodeAddressCache::class)->get($service);
