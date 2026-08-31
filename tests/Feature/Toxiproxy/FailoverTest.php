@@ -59,9 +59,13 @@ describe('Real Sentinel failover through toxiproxy', function () {
 
         // Replication travels over the same proxies the suite cuts and resets between
         // tests, so hold the cut until both replicas acknowledged the seed write,
-        // otherwise the promoted master could miss the key entirely
-        $deadline = microtime(true) + 10;
-        while (microtime(true) < $deadline && (int) $connection->wait(2, 1000) < 2) {
+        // otherwise the promoted master could miss the key entirely.
+        // The WAIT timeout (500ms) must stay below the connection's read_timeout (1s):
+        // a blocked WAIT can otherwise hit the phpredis read timeout and throw
+        // "read error on connection" for as long as replicas are still re-syncing
+        // after the previous tests' failovers
+        $deadline = microtime(true) + 20;
+        while (microtime(true) < $deadline && (int) $connection->wait(2, 500) < 2) {
             usleep(100_000);
         }
 
