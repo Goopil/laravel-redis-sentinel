@@ -865,8 +865,8 @@ The package includes a comprehensive GitHub Actions workflow that tests:
 ### Resilience Testing
 
 An optional chaos suite in `tests/Feature/Toxiproxy/` exercises real-world failure scenarios over a toxified network
-using [Toxiproxy](https://github.com/Shopify/toxiproxy): actual Sentinel-driven master promotion, stale-master
-`READONLY` retries, and network toxics such as timeouts, latency, and connection cuts. Run it with:
+using [Toxiproxy](https://github.com/Shopify/toxiproxy): actual Sentinel-driven master promotion, `READONLY` retries
+caused by a stale cached master address, and network toxics such as timeouts, latency, and connection cuts. Run it with:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.chaos.yml up -d

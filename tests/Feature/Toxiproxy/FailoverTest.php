@@ -14,7 +14,7 @@ describe('Real Sentinel failover through toxiproxy', function () {
 
         $oldAddress = $this->sentinelMasterAddress();
 
-        $this->toxiproxy->disable(chaosProxyForMasterPort($oldAddress['port']));
+        $this->toxiproxy->disable($this->proxyNameForPort($oldAddress['port']));
         $newAddress = $this->waitForMasterChange($oldAddress);
 
         expect($newAddress['port'])->not->toBe($oldAddress['port']);
@@ -25,19 +25,20 @@ describe('Real Sentinel failover through toxiproxy', function () {
         Event::assertDispatched(RedisSentinelConnectionReconnected::class);
 
         // Sentinel can only demote the old master once its proxy is reachable again
-        $this->toxiproxy->enable(chaosProxyForMasterPort($oldAddress['port']));
+        $this->toxiproxy->enable($this->proxyNameForPort($oldAddress['port']));
 
-        expect($this->waitForReplicaRole(chaosNodePortForProxyPort($oldAddress['port']), 'slave', 30))
+        expect($this->waitForReplicaRole($this->nodePortForProxyPort($oldAddress['port']), 'slave', 30))
             ->toBeTrue('Old master should be demoted to replica');
     });
 
     test('stale master connection retries and lands on the promoted master', function () {
+        $service = (string) config('database.redis.phpredis-sentinel.sentinel.service', 'master');
         $connection = Redis::connection('phpredis-sentinel');
         expect($connection->set('chaos_stale', 'v1'))->toBeTrue();
 
         $oldAddress = $this->sentinelMasterAddress();
 
-        $this->toxiproxy->disable(chaosProxyForMasterPort($oldAddress['port']));
+        $this->toxiproxy->disable($this->proxyNameForPort($oldAddress['port']));
         $newAddress = $this->waitForMasterChange($oldAddress);
 
         // Reuse the SAME connection object: its established client still points at the
@@ -46,11 +47,48 @@ describe('Real Sentinel failover through toxiproxy', function () {
         expect($connection->set('chaos_stale', 'v2'))->toBeTrue()
             ->and($connection->get('chaos_stale'))->toBe('v2');
 
-        $cached = app(NodeAddressCache::class)->get('master');
+        $cached = app(NodeAddressCache::class)->get($service);
         expect($cached['port'])->toBe($newAddress['port'], 'NodeAddressCache must point at the promoted master');
 
         app('redis')->purge('phpredis-sentinel');
         expect(Redis::connection('phpredis-sentinel')->get('chaos_stale'))->toBe('v2');
+    });
+
+    test('stale node address cache writes to the demoted master, hits READONLY and recovers', function () {
+        Event::fake([RedisSentinelConnectionReconnected::class]);
+
+        $service = (string) config('database.redis.phpredis-sentinel.sentinel.service', 'master');
+        $connection = Redis::connection('phpredis-sentinel');
+        expect($connection->set('chaos_readonly', 'v1'))->toBeTrue();
+
+        $oldAddress = $this->sentinelMasterAddress();
+
+        $this->toxiproxy->disable($this->proxyNameForPort($oldAddress['port']));
+        $newAddress = $this->waitForMasterChange($oldAddress);
+
+        // Sentinel can only demote the old master once its proxy is reachable again
+        $this->toxiproxy->enable($this->proxyNameForPort($oldAddress['port']));
+        expect($this->waitForReplicaRole($this->nodePortForProxyPort($oldAddress['port']), 'slave', 30))
+            ->toBeTrue('Old master should be demoted to replica');
+
+        // Prime the in-process address cache with the demoted node, mimicking a
+        // long-running process (Octane, queue workers) whose cached master address
+        // survived the failover, then force a fresh connection to read that cache
+        app(NodeAddressCache::class)->set($service, $oldAddress['ip'], $oldAddress['port']);
+        $this->purgeSentinelConnection();
+
+        $stale = Redis::connection('phpredis-sentinel');
+
+        // The write targets the demoted node: phpredis 6 raises the -READONLY server
+        // error, a retryable message, so the retry must re-resolve the promoted master
+        // through Sentinel instead of surfacing the failure
+        expect($stale->set('chaos_readonly', 'v2'))->toBeTrue()
+            ->and($stale->get('chaos_readonly'))->toBe('v2');
+
+        Event::assertDispatched(RedisSentinelConnectionReconnected::class);
+
+        $cached = app(NodeAddressCache::class)->get($service);
+        expect($cached['port'])->toBe($newAddress['port'], 'Cache must be refreshed to the promoted master');
     });
 
     test('reads keep working from replicas while the master is unreachable', function () {
@@ -76,7 +114,7 @@ describe('Real Sentinel failover through toxiproxy', function () {
         $connection = Redis::connection('phpredis-sentinel');
 
         $oldAddress = $this->sentinelMasterAddress();
-        $this->toxiproxy->disable(chaosProxyForMasterPort($oldAddress['port']));
+        $this->toxiproxy->disable($this->proxyNameForPort($oldAddress['port']));
 
         $read = null;
         $deadline = microtime(true) + 10;
@@ -99,33 +137,3 @@ describe('Real Sentinel failover through toxiproxy', function () {
         expect($connection->get('chaos_reads'))->toBe('survives');
     });
 });
-
-function chaosProxyForMasterPort(int $port): string
-{
-    $proxies = [
-        (int) (getenv('REDIS_MAIN_PROXY_PORT') ?: 16380) => 'main',
-        (int) (getenv('REDIS_REPLICA1_PROXY_PORT') ?: 16381) => 'replica1',
-        (int) (getenv('REDIS_REPLICA2_PROXY_PORT') ?: 16382) => 'replica2',
-    ];
-
-    if (! isset($proxies[$port])) {
-        throw new RuntimeException("No toxiproxy proxy listens for master port {$port}.");
-    }
-
-    return $proxies[$port];
-}
-
-function chaosNodePortForProxyPort(int $proxyPort): int
-{
-    $nodes = [
-        (int) (getenv('REDIS_MAIN_PROXY_PORT') ?: 16380) => (int) (getenv('REDIS_MAIN_PORT') ?: 6380),
-        (int) (getenv('REDIS_REPLICA1_PROXY_PORT') ?: 16381) => (int) (getenv('REDIS_REPLICA1_PORT') ?: 6381),
-        (int) (getenv('REDIS_REPLICA2_PROXY_PORT') ?: 16382) => (int) (getenv('REDIS_REPLICA2_PORT') ?: 6382),
-    ];
-
-    if (! isset($nodes[$proxyPort])) {
-        throw new RuntimeException("No redis node port maps to proxy port {$proxyPort}.");
-    }
-
-    return $nodes[$proxyPort];
-}

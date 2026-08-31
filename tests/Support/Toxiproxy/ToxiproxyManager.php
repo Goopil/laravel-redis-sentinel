@@ -53,12 +53,20 @@ final class ToxiproxyManager
 
     public function disable(string $name): void
     {
-        $this->request('POST', "/proxies/{$name}", ['enabled' => false]);
+        $response = $this->request('POST', "/proxies/{$name}", ['enabled' => false]);
+
+        if ($response['status'] >= 400) {
+            throw new RuntimeException("Toxiproxy: failed to disable proxy {$name}: {$response['body']}");
+        }
     }
 
     public function enable(string $name): void
     {
-        $this->request('POST', "/proxies/{$name}", ['enabled' => true]);
+        $response = $this->request('POST', "/proxies/{$name}", ['enabled' => true]);
+
+        if ($response['status'] >= 400) {
+            throw new RuntimeException("Toxiproxy: failed to enable proxy {$name}: {$response['body']}");
+        }
     }
 
     public function resetProxy(string $name): void
@@ -124,7 +132,11 @@ final class ToxiproxyManager
 
     public function removeToxic(string $proxy, string $toxic): void
     {
-        $this->request('DELETE', "/proxies/{$proxy}/toxics/{$toxic}", null, 1);
+        $response = $this->request('DELETE', "/proxies/{$proxy}/toxics/{$toxic}", null, 1);
+
+        if ($response['status'] >= 400) {
+            throw new RuntimeException("Toxiproxy: failed to remove toxic {$toxic} from {$proxy}: {$response['body']}");
+        }
     }
 
     private function addToxic(string $proxy, string $type, string $stream, float $toxicity, array $attributes): string
@@ -195,6 +207,7 @@ final class ToxiproxyManager
 
         $raw = (string) curl_exec($handle);
         $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        curl_close($handle);
 
         return ['status' => $status, 'body' => $raw];
     }
