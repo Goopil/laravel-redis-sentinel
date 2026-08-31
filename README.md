@@ -862,6 +862,19 @@ The package includes a comprehensive GitHub Actions workflow that tests:
 - ✅ A dedicated PHP 8.4 / Laravel 12 job without Horizon installed
 - ✅ Coverage reporting with a minimum coverage threshold
 
+### Resilience Testing
+
+An optional chaos suite in `tests/Feature/Toxiproxy/` exercises real-world failure scenarios over a toxified network
+using [Toxiproxy](https://github.com/Shopify/toxiproxy): actual Sentinel-driven master promotion, stale-master
+`READONLY` retries, and network toxics such as timeouts, latency, and connection cuts. Run it with:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.chaos.yml up -d
+vendor/bin/pest --group=toxiproxy
+```
+
+The chaos tests are skipped automatically when the chaos stack is not running.
+
 ## Local Development
 
 ### Docker Environment
