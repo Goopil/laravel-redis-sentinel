@@ -79,12 +79,19 @@ final class ToxiproxyManager
         ];
 
         foreach ($defaults as $name => $default) {
-            $this->ensureProxy(
-                $name,
-                (int) (getenv("REDIS_{$default['env']}_PROXY_PORT") ?: $default['listenPort']),
-                '127.0.0.1',
-                (int) (getenv("REDIS_{$default['env']}_PORT") ?: $default['upstreamPort']),
-            );
+            $spec = [
+                'listenPort' => (int) (getenv("REDIS_{$default['env']}_PROXY_PORT") ?: $default['listenPort']),
+                'upstreamHost' => '127.0.0.1',
+                'upstreamPort' => (int) (getenv("REDIS_{$default['env']}_PORT") ?: $default['upstreamPort']),
+            ];
+
+            $this->specs[$name] = $spec;
+
+            if ($this->pristine($name, $spec)) {
+                continue;
+            }
+
+            $this->ensureProxy($name, $spec['listenPort'], $spec['upstreamHost'], $spec['upstreamPort']);
         }
     }
 
@@ -137,6 +144,36 @@ final class ToxiproxyManager
         $created = json_decode($response['body'], true, 512, JSON_THROW_ON_ERROR);
 
         return $created['name'];
+    }
+
+    /**
+     * A pristine proxy must not be deleted/recreated: each listener bounce severs
+     * Sentinel's monitoring links through it and bootstraps sdown/odown flapping.
+     * The listen address is compared by port only, because toxiproxy normalizes
+     * configured "0.0.0.0:{port}" to "[::]:{port}" in its API responses.
+     *
+     * @param  array{listenPort: int, upstreamHost: string, upstreamPort: int}  $spec
+     */
+    private function pristine(string $name, array $spec): bool
+    {
+        $response = $this->request('GET', "/proxies/{$name}", null, 1);
+
+        if ($response['status'] !== 200) {
+            return false;
+        }
+
+        try {
+            $proxy = json_decode($response['body'], true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return false;
+        }
+
+        return is_array($proxy)
+            && ($proxy['name'] ?? null) === $name
+            && str_ends_with((string) ($proxy['listen'] ?? ''), ':'.$spec['listenPort'])
+            && ($proxy['upstream'] ?? null) === "{$spec['upstreamHost']}:{$spec['upstreamPort']}"
+            && ($proxy['enabled'] ?? null) === true
+            && ($proxy['toxics'] ?? null) === [];
     }
 
     /**

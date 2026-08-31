@@ -35,7 +35,7 @@ services:
       echo 'sentinel announce-hostnames yes' >> /tmp/sentinel.conf &&
       echo 'sentinel auth-pass master test' >> /tmp/sentinel.conf &&
       echo 'requirepass test' >> /tmp/sentinel.conf &&
-      echo 'sentinel down-after-milliseconds master 2000' >> /tmp/sentinel.conf &&
+      echo 'sentinel down-after-milliseconds master 5000' >> /tmp/sentinel.conf &&
       echo 'sentinel parallel-syncs master 1' >> /tmp/sentinel.conf &&
       echo 'sentinel failover-timeout master 5000' >> /tmp/sentinel.conf &&
       redis-sentinel /tmp/sentinel.conf"
