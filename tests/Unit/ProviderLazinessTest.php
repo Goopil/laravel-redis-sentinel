@@ -3,9 +3,17 @@
 use Illuminate\Cache\RedisStore;
 
 test('the provider does not eagerly resolve the cache, queue and session managers', function () {
-    expect(app()->resolved('cache'))->toBeFalse()
-        ->and(app()->resolved('queue'))->toBeFalse()
+    // Laravel 10's Testbench skeleton resolves `cache` during boot, independently of this
+    // package; the provider itself stays lazy on every supported version (probed on L10:
+    // queue/session remain unresolved with the provider registered).
+    $frameworkResolvesCache = version_compare(app()->version(), '11.0', '<');
+
+    expect(app()->resolved('queue'))->toBeFalse()
         ->and(app()->resolved('session'))->toBeFalse();
+
+    if (! $frameworkResolvesCache) {
+        expect(app()->resolved('cache'))->toBeFalse();
+    }
 });
 
 test('the sentinel drivers are registered once the managers are resolved', function () {

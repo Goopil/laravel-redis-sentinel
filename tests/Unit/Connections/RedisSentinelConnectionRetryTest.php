@@ -15,11 +15,14 @@ test('a failing dynamic command is retried exactly retryLimit + 1 times', functi
     $connection->setRetryDelay(1);
     $connection->setRetryMessages(['broken pipe']);
 
-    $connection->hset('key', 'field', 'value');
-})->throws(RedisException::class, 'broken pipe')
-    ->after(function () {
+    try {
+        $connection->hset('key', 'field', 'value');
+        $this->fail('RedisException was not thrown.');
+    } catch (RedisException $exception) {
+        expect($exception->getMessage())->toBe('broken pipe');
         Event::assertDispatchedTimes(RedisSentinelConnectionFailed::class, 2);
-    });
+    }
+});
 
 test('a dynamic command that succeeds after one failure returns its result', function () {
     Event::fake();
