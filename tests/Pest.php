@@ -79,3 +79,20 @@ function getRedisConnection()
 {
     return app()->get('redis')->connection('redis');
 }
+
+function waitFor(callable $condition, int $timeoutMs = 5000, int $intervalMs = 50): mixed
+{
+    $deadline = microtime(true) + $timeoutMs / 1000;
+
+    while (microtime(true) < $deadline) {
+        $result = $condition();
+
+        if ($result) {
+            return $result;
+        }
+
+        usleep($intervalMs * 1000);
+    }
+
+    throw new RuntimeException("Condition not met within {$timeoutMs}ms");
+}
