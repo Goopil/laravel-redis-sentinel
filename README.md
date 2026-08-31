@@ -726,6 +726,49 @@ Events\RedisSentinelConnectionReconnected::class
 Events\RedisSentinelConnectionMaxRetryFailed::class
 ```
 
+### Horizon Worker Events
+
+The Kubernetes probe commands also dispatch worker lifecycle events:
+
+```php
+use Goopil\LaravelRedisSentinel\Events;
+
+// horizon:ready
+Events\HorizonWorkerReady::class;           // worker is ready (opt-in, see emit_success below)
+Events\HorizonWorkerNotReady::class;        // no running master supervisor found (always emitted)
+                                            // properties: $masters, $running
+
+// horizon:alive
+Events\HorizonWorkerAlive::class;           // all liveness checks pass (opt-in, see emit_success below)
+Events\HorizonWorkerNotAlive::class;        // one or more checks failed (always emitted)
+                                            // property: $failedChecks (check name => exit code)
+
+// horizon:pre-stop
+Events\HorizonWorkerTerminating::class;     // TERM signal sent to the master supervisor (opt-in, see emit_success below)
+                                            // properties: $pid, $startCommand
+Events\HorizonWorkerTerminateFailed::class; // TERM signal failed or PID not found (always emitted)
+                                            // properties: $startCommand, $pid (null when not found), $reason
+```
+
+Success events are disabled by default so probes stay quiet during normal operation. Enable them in
+`config/phpredis-sentinel.php`:
+
+```php
+'commands' => [
+    'events' => [
+        'emit_success' => env('REDIS_SENTINEL_EMIT_SUCCESS_EVENTS', false),
+    ],
+],
+```
+
+or by setting the environment variable:
+
+```env
+REDIS_SENTINEL_EMIT_SUCCESS_EVENTS=true
+```
+
+Failure events are always dispatched, regardless of this setting.
+
 ### Listening to Events
 
 ```php
@@ -750,6 +793,23 @@ class NotifyRedisFailure
 
         // Send to monitoring service
         // Sentry::captureException($event->exception);
+    }
+}
+
+// Horizon worker lifecycle example
+protected $listen = [
+    \Goopil\LaravelRedisSentinel\Events\HorizonWorkerNotAlive::class => [
+        \App\Listeners\AlertHorizonUnhealthy::class,
+    ],
+];
+
+class AlertHorizonUnhealthy
+{
+    public function handle(HorizonWorkerNotAlive $event): void
+    {
+        Log::error('Horizon worker failed liveness checks', [
+            'failed_checks' => $event->failedChecks,
+        ]);
     }
 }
 ```

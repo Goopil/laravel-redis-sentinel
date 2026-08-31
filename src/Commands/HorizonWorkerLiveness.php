@@ -3,13 +3,17 @@
 namespace Goopil\LaravelRedisSentinel\Commands;
 
 use Carbon\Carbon;
+use Goopil\LaravelRedisSentinel\Concerns\EmitsWorkerEvents;
 use Goopil\LaravelRedisSentinel\Concerns\Loggable;
+use Goopil\LaravelRedisSentinel\Events\HorizonWorkerAlive;
+use Goopil\LaravelRedisSentinel\Events\HorizonWorkerNotAlive;
 use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Console\Command;
 use Throwable;
 
 class HorizonWorkerLiveness extends Command
 {
+    use EmitsWorkerEvents;
     use Loggable;
 
     /**
@@ -32,18 +36,24 @@ class HorizonWorkerLiveness extends Command
     public function handle(): int
     {
         $checks = [
-            $this->laravel->call([$this, 'checkSentinel']),
-            $this->laravel->call([$this, 'checkConnection']),
-            $this->call('horizon:ready'),
+            'sentinel' => $this->laravel->call([$this, 'checkSentinel']),
+            'connection' => $this->laravel->call([$this, 'checkConnection']),
+            'ready' => $this->call('horizon:ready'),
         ];
 
-        foreach ($checks as $check) {
-            if ($check !== 0) {
-                return 1;
-            }
+        $failedChecks = array_filter($checks, fn (int $exitCode) => $exitCode !== 0);
+
+        if ($failedChecks === []) {
+            $this->emitSuccessEvent(new HorizonWorkerAlive);
+
+            return 0;
         }
 
-        return 0;
+        $this->emitFailureEvent(new HorizonWorkerNotAlive(
+            failedChecks: $failedChecks,
+        ));
+
+        return 1;
     }
 
     public function checkSentinel(RedisSentinelManager $manager): int
