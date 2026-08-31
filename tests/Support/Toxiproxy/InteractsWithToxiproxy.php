@@ -91,7 +91,10 @@ trait InteractsWithToxiproxy
             try {
                 $address = $this->sentinelMasterAddress();
 
-                if ($address !== $oldAddress) {
+                // An address change alone is not enough: around a promotion (notably
+                // inside the post-failover cool-down) Sentinel can still serve the
+                // disabled master, and reconnecting to it throws 'Connection refused'.
+                if ($address !== $oldAddress && $this->proxyCarriesTraffic($address['port'])) {
                     return $address;
                 }
             } catch (Throwable) {
@@ -295,24 +298,28 @@ trait InteractsWithToxiproxy
      */
     public function waitForHealthyReplicas(int $timeoutSeconds = 20): void
     {
-        $sentinel = new RedisSentinel([
-            'host' => '127.0.0.1',
-            'port' => (int) (getenv('REDIS_SENTINEL_PORT') ?: 26379),
-            'auth' => getenv('REDIS_SENTINEL_PASSWORD') ?: 'test',
-            'connectTimeout' => 0.2,
-        ]);
-
         $service = (string) config('database.redis.phpredis-sentinel.sentinel.service', 'master');
         $deadline = microtime(true) + $timeoutSeconds;
 
         while (microtime(true) < $deadline) {
-            $healthy = array_filter((array) $sentinel->slaves($service), static fn ($slave): bool => ! str_contains(
-                (string) ($slave['flags'] ?? ''),
-                'disconnected'
-            ) && ! str_contains((string) ($slave['flags'] ?? ''), 's_down'));
+            try {
+                $sentinel = new RedisSentinel([
+                    'host' => '127.0.0.1',
+                    'port' => (int) (getenv('REDIS_SENTINEL_PORT') ?: 26379),
+                    'auth' => getenv('REDIS_SENTINEL_PASSWORD') ?: 'test',
+                    'connectTimeout' => 0.2,
+                ]);
 
-            if (count($healthy) >= 2) {
-                return;
+                $healthy = array_filter((array) $sentinel->slaves($service), static fn ($slave): bool => ! str_contains(
+                    (string) ($slave['flags'] ?? ''),
+                    'disconnected'
+                ) && ! str_contains((string) ($slave['flags'] ?? ''), 's_down'));
+
+                if (count($healthy) >= 2) {
+                    return;
+                }
+            } catch (RedisException) {
+                // Sentinel busy or momentarily unreachable - keep polling
             }
 
             usleep(250_000);

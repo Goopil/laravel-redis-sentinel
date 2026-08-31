@@ -69,15 +69,6 @@ final class ToxiproxyManager
         }
     }
 
-    public function resetProxy(string $name): void
-    {
-        if (isset($this->specs[$name])) {
-            $spec = $this->specs[$name];
-
-            $this->ensureProxy($name, $spec['listenPort'], $spec['upstreamHost'], $spec['upstreamPort']);
-        }
-    }
-
     public function resetAll(): void
     {
         $defaults = [
@@ -108,11 +99,11 @@ final class ToxiproxyManager
         return $this->addToxic($name, 'timeout', 'downstream', $toxicity, ['timeout' => $timeoutMs]);
     }
 
-    public function addLatency(string $name, int $latencyMs, float $jitterMs = 0, float $toxicity = 1.0): string
+    public function addLatency(string $name, int $latencyMs, int $jitterMs = 0, float $toxicity = 1.0): string
     {
         return $this->addToxic($name, 'latency', 'downstream', $toxicity, [
             'latency' => $latencyMs,
-            'jitter' => (int) $jitterMs,
+            'jitter' => $jitterMs,
         ]);
     }
 
@@ -205,10 +196,18 @@ final class ToxiproxyManager
             curl_setopt($handle, CURLOPT_POSTFIELDS, json_encode($body, JSON_THROW_ON_ERROR));
         }
 
-        $raw = (string) curl_exec($handle);
+        $raw = curl_exec($handle);
+        $error = curl_error($handle);
         $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
         curl_close($handle);
 
-        return ['status' => $status, 'body' => $raw];
+        // ponytail: transport failures become a >=400 status so every guard fails
+        // fast instead of silently no-oping; revisit with a real HTTP client if
+        // toxiproxy ever exposes non-5xx semantics we must preserve.
+        if ($raw === false) {
+            return ['status' => 599, 'body' => $error !== '' ? $error : 'curl transport failure'];
+        }
+
+        return ['status' => $status, 'body' => (string) $raw];
     }
 }

@@ -20,8 +20,7 @@ uses(TestCase::class)->in(__DIR__);
 
 // Pest closure test files accept at most one test-case class (TestCaseAlreadyInUse), and
 // Pest's Testable trait shadows inherited setUp() hooks, so the chaos suite gets its
-// members via the InteractsWithToxiproxy trait plus beforeEach/afterEach hooks instead
-// of the ToxiproxyTestCase class binding (that class serves class-based chaos tests).
+// members via the InteractsWithToxiproxy trait plus beforeEach/afterEach hooks.
 uses(InteractsWithToxiproxy::class)
     ->group('toxiproxy')
     ->beforeEach(fn () => $this->bootToxiproxy())

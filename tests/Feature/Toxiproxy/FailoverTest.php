@@ -103,7 +103,16 @@ describe('Real Sentinel failover through toxiproxy', function () {
         // "read error on connection" for as long as replicas are still re-syncing
         // after the previous tests' failovers
         $deadline = microtime(true) + 20;
-        while (microtime(true) < $deadline && (int) $connection->wait(2, 500) < 2) {
+
+        while (microtime(true) < $deadline) {
+            try {
+                if ((int) $connection->wait(2, 500) >= 2) {
+                    break;
+                }
+            } catch (Throwable) {
+                // The connection can drop while replicas are still re-syncing - retry
+            }
+
             usleep(100_000);
         }
 

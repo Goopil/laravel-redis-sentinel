@@ -466,8 +466,10 @@ jobs:
           docker compose -f tests/ci/docker-compose.yml -f docker-compose.chaos.yml up -d
 
       - name: Wait for Sentinel and toxiproxy
+        env:
+          REDIS_VERSION: 7
         run: |
-          until docker run --network host --rm redis:7-alpine redis-cli -p 7654 -a test ping | grep -q PONG; do
+          until docker run --network host --rm redis:${REDIS_VERSION}-alpine redis-cli -p 7654 -a test ping | grep -q PONG; do
             echo "Sentinel not ready yet..."; sleep 2
           done
           until curl -sf http://127.0.0.1:7658/version > /dev/null; do
@@ -475,7 +477,8 @@ jobs:
           done
 
       - name: Execute tests
-        run: vendor/bin/pest --testdox
+        # Chaos-only: the full suite already runs in the matrix jobs
+        run: vendor/bin/pest --group=toxiproxy --testdox
         env:
           REDIS_PASSWORD: test
           REDIS_SENTINEL_PASSWORD: test
