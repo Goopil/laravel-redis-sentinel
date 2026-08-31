@@ -117,7 +117,7 @@ class HorizonWorkerPreStop extends Command
 
             $this->emitFailureEvent(new HorizonWorkerTerminateFailed(
                 startCommand: $startCommand,
-                pid: $pid ?: null,
+                pid: null,
                 reason: sprintf('failed to find command %s pid', $startCommand),
             ));
         }

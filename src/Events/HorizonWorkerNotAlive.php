@@ -10,6 +10,9 @@ class HorizonWorkerNotAlive
     use Dispatchable;
     use SerializesModels;
 
+    /**
+     * @param  array<string, int>  $failedChecks
+     */
     public function __construct(
         public readonly array $failedChecks,
     ) {}
