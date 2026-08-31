@@ -141,3 +141,14 @@ services:
       test: [ "CMD", "valkey-cli", "-p", "26380", "-a", "test", "ping" ]
       retries: 3
       timeout: 5s
+
+  valkey:
+    image: 'valkey/valkey:8-alpine'
+    network_mode: host
+    command: valkey-server --requirepass "test" --port 6388
+    ports:
+      - '6388:6388'
+    healthcheck:
+      test: [ "CMD", "valkey-cli", "-p", "6388", "-a", "test", "ping" ]
+      retries: 3
+      timeout: 5s

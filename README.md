@@ -899,13 +899,14 @@ The Docker environment also includes a Valkey 8 Sentinel cluster (wire-compatibl
 - 1 Valkey Master (port 6385)
 - 2 Valkey Replicas (ports 6386, 6387)
 - 1 Valkey Sentinel (port 26380)
+- 1 standalone Valkey (port 6388) used by the plain `redis` connection, kept out of the Sentinel topology
 
 Start the Valkey services and run the test suite against them:
 
 ```bash
-docker compose up -d valkey-main valkey-replica1 valkey-replica2 valkey-sentinel
+docker compose up -d valkey-main valkey-replica1 valkey-replica2 valkey-sentinel valkey
 
-REDIS_SENTINEL_PORT=26380 REDIS_STANDALONE_PORT=6385 vendor/bin/pest
+REDIS_SENTINEL_PORT=26380 REDIS_STANDALONE_PORT=6388 vendor/bin/pest
 ```
 
 ## Troubleshooting
