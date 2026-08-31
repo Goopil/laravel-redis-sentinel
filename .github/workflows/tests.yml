@@ -16,6 +16,7 @@ concurrency:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,6 +47,9 @@ jobs:
 
       - name: Execute lint
         run: composer run lint
+
+      - name: Execute static analysis
+        run: composer run stan
 
   security-audit:
     runs-on: ubuntu-latest
@@ -81,6 +85,7 @@ jobs:
   tests:
     needs: [lint, security-audit]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -220,6 +225,7 @@ jobs:
   tests-without-horizon:
     needs: [lint]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     name: PHP 8.4 - L12 - without Horizon
 

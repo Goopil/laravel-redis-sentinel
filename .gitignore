@@ -13,3 +13,4 @@ composer.lock
 .claude/
 .superpowers/
 docs/
+.output.txt

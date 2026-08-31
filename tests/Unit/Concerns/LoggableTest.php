@@ -3,6 +3,7 @@
 namespace Goopil\LaravelRedisSentinel\Tests\Unit\Concerns;
 
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 test('log method sends log to the configured channel', function () {
     config(['phpredis-sentinel.log.channel' => 'my-custom-channel']);
@@ -34,4 +35,14 @@ test('log method supports different levels', function () {
 
     $obj = new LoggableTestObject;
     $obj->testLog('error message', [], 'error');
+});
+
+test('logging failures never propagate to the caller', function () {
+    Log::shouldReceive('channel')->andThrow(new RuntimeException('log backend down'));
+
+    $obj = new LoggableTestObject;
+
+    $obj->testLog('anything');
+
+    expect(true)->toBeTrue();
 });

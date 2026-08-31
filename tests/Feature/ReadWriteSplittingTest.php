@@ -168,9 +168,7 @@ test('it resets stickiness after flushing databases', function (string $command,
     $replicaClient = Mockery::mock(Redis::class);
 
     $masterClient->expects('set')->with('foo', 'bar', Mockery::any())->once()->andReturn(true);
-    $expectedParameters = $command === 'flushdb'
-        ? array_filter($parameters, fn ($parameter) => $parameter !== null)
-        : $parameters;
+    $expectedParameters = array_filter($parameters, fn ($parameter) => $parameter !== null);
 
     $masterClient->expects($command)->with(...$expectedParameters)->once()->andReturn($result);
     $replicaClient->expects('get')->with('foo')->once()->andReturn('replica-bar');

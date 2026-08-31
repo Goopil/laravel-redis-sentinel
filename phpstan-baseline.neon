@@ -1,0 +1,379 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Call to an undefined method Illuminate\\Contracts\\Redis\\Connector\:\:createSentinel\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Commands/HorizonWorkerLiveness.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Commands\\HorizonWorkerLiveness\:\:log\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Commands/HorizonWorkerLiveness.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Commands\\HorizonWorkerPreStop\:\:log\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Commands/HorizonWorkerPreStop.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Commands\\HorizonWorkerReadiness\:\:log\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Commands/HorizonWorkerReadiness.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method del\(\) parameter \#1 \$key with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method exists\(\) parameter \#1 \$key with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method hGetAll\(\) return type with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method hKeys\(\) return type with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method hVals\(\) return type with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method lRange\(\) return type with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method mget\(\) parameter \#1 \$keys with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method mget\(\) return type with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method mset\(\) parameter \#1 \$array with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method sMembers\(\) return type with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method zRange\(\) return type with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection has PHPDoc tag @method for method zRevRange\(\) return type with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:__construct\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:command\(\) has parameter \$parameters with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:flushdb\(\) has parameter \$async with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:hscan\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:log\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:pipeline\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:psubscribe\(\) has parameter \$channels with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:retryOnFailure\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:scan\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:setRetryMessages\(\) has parameter \$retryMessages with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:sscan\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:subscribe\(\) has parameter \$channels with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:transaction\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:zscan\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Property Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:\$retryMessages type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between null and Redis will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
+			message: '#^Class RedisSentinel constructor invoked with 1 parameter, 2\-6 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:connect\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:connect\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:connectToCluster\(\) has parameter \$clusterOptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:connectToCluster\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:connectToCluster\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:connectToSentinel\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:createClient\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:createSentinelInstance\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:getMasterAddress\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:getMasterAddress\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:getReplicaAddress\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:getReplicaAddress\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:getSentinels\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:getSentinels\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:getService\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:log\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:mergeConnectionOptions\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:mergeConnectionOptions\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:mergeConnectionOptions\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:retryOnFailure\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:setRetryMessages\(\) has parameter \$retryMessages with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Parameter \#1 \$host of class RedisSentinel constructor expects string, array given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Property Goopil\\LaravelRedisSentinel\\Connectors\\RedisSentinelConnector\:\:\$retryMessages type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Connectors/RedisSentinelConnector.php
+
+		-
+			message: '#^Class Goopil\\LaravelRedisSentinel\\Horizon\\HorizonServiceBindings implements generic interface IteratorAggregate but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Horizon/HorizonServiceBindings.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\Horizon\\HorizonServiceBindings\:\:getIterator\(\) return type with generic class ArrayIterator does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Horizon/HorizonServiceBindings.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\RedisSentinelManager\:\:patchHorizonPrefix\(\) has parameter \$clientConfig with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/RedisSentinelManager.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\RedisSentinelManager\:\:patchHorizonPrefix\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/RedisSentinelManager.php
+
+		-
+			message: '#^Method Goopil\\LaravelRedisSentinel\\RedisSentinelManager\:\:resolveConnector\(\) has parameter \$name with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/RedisSentinelManager.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Contracts\\Foundation\\Application\:\:getDeferredServices\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/RedisSentinelServiceProvider.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Contracts\\Foundation\\Application\:\:setDeferredServices\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/RedisSentinelServiceProvider.php

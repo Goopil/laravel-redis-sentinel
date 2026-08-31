@@ -17,9 +17,11 @@ use Throwable;
  * The connection to Redis after connecting through a Sentinel using the PhpRedis extension.
  *
  * NOTE: Most Redis commands (get, set, mget, etc.) are NOT explicitly overridden here.
- * They are handled by the parent class calling command() or via __call(), both of which
- * are wrapped by our retry() method. This avoids "Nested Retries" where a method-level
- * retry would wrap a command-level retry, leading to an exponential number of attempts.
+ * The single retry layer lives in command() (explicit framework methods route through it
+ * via $this->command()) and in the wrappers below for methods that bypass command()
+ * (scan-family, pipeline, transaction, subscribe-family). __call is deliberately NOT
+ * overridden: the framework's __call routes dynamic commands through $this->command(),
+ * so overriding it here would create nested retries (up to (limit+1)^2 attempts).
  *
  * @method mixed get(string $key) Get the value of a key
  * @method bool set(string $key, mixed $value, mixed $expireResolution = null, mixed $expireTTL = null, mixed $flag = null) Set the string value of a key
@@ -136,26 +138,29 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function scan($cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::scan($cursor, $options),
-            __FUNCTION__
+            function () use (&$cursor, $options) {
+                return parent::scan($cursor, $options);
+            },
+            __FUNCTION__,
+            function () use (&$cursor) {
+                $cursor = null;
+            }
         );
     }
 
-    /**
-     * Scans the given set for all values based on options.
-     *
-     * @param  string  $key
-     * @param  mixed  $cursor
-     * @param  array  $options
-     */
     /**
      * @throws Throwable
      */
     public function zscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::zscan($key, $cursor, $options),
-            __FUNCTION__
+            function () use ($key, &$cursor, $options) {
+                return parent::zscan($key, $cursor, $options);
+            },
+            __FUNCTION__,
+            function () use (&$cursor) {
+                $cursor = null;
+            }
         );
     }
 
@@ -165,8 +170,13 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function hscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::hscan($key, $cursor, $options),
-            __FUNCTION__
+            function () use ($key, &$cursor, $options) {
+                return parent::hscan($key, $cursor, $options);
+            },
+            __FUNCTION__,
+            function () use (&$cursor) {
+                $cursor = null;
+            }
         );
     }
 
@@ -176,8 +186,13 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function sscan($key, $cursor, $options = []): mixed
     {
         return $this->retry(
-            fn () => parent::sscan($key, $cursor, $options),
-            __FUNCTION__
+            function () use ($key, &$cursor, $options) {
+                return parent::sscan($key, $cursor, $options);
+            },
+            __FUNCTION__,
+            function () use (&$cursor) {
+                $cursor = null;
+            }
         );
     }
 
@@ -189,10 +204,7 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function flushdb($async = null): mixed
     {
         try {
-            return $this->retry(
-                fn () => parent::flushdb($async),
-                __FUNCTION__
-            );
+            return parent::flushdb($async);
         } finally {
             // Reset stickiness after flushing since all data is gone
             $this->wroteToMaster = false;
@@ -207,10 +219,7 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function flushall(?bool $sync = null): bool|\Redis
     {
         try {
-            return $this->retry(
-                fn () => parent::flushall($sync),
-                __FUNCTION__
-            );
+            return $this->command('flushall', $sync ? ['ASYNC'] : []);
         } finally {
             // Reset stickiness after flushing since all data is gone
             $this->wroteToMaster = false;
@@ -292,6 +301,9 @@ class RedisSentinelConnection extends PhpRedisConnection
      * connection's retry() wrapper stays the single retry path.
      *
      * No-op on Laravel 10-12 where the method does not exist on the parent.
+     *
+     * @param  string  $method
+     * @param  array<int|string, mixed>  $parameters
      */
     protected function isRetryable($method, array $parameters): bool
     {
@@ -308,14 +320,17 @@ class RedisSentinelConnection extends PhpRedisConnection
      *
      * @throws Throwable
      */
-    private function retry(callable $callback, string $name): mixed
+    private function retry(callable $callback, string $name, ?Closure $onFailExtra = null): mixed
     {
         $isReadOnly = $this->isReadOnlyCommand($name);
 
+        $usedClient = null;
+
         $result = $this->retryOnFailure(
-            function () use ($callback, $name) {
+            function () use ($callback, $name, &$usedClient) {
                 // Determine which client to use for this command
                 $targetClient = $this->resolveClientForCommand($name);
+                $usedClient = $targetClient;
 
                 // CRITICAL: Temporarily swap $this->client to the target client
                 // This is necessary because parent class methods use $this->client
@@ -329,20 +344,21 @@ class RedisSentinelConnection extends PhpRedisConnection
                     $this->client = $this->masterClient;
                 }
             },
-            onFail: function ($exception, $attempts) use ($name, $isReadOnly) {
+            onFail: function ($exception, $attempts) use ($name, $isReadOnly, &$usedClient, $onFailExtra) {
                 RedisSentinelConnectionFailed::dispatch($this, $exception, $name, $attempts);
 
-                // Reconnect the appropriate client based on command type
-                if ($isReadOnly && $this->readConnector) {
-                    // Refresh read replica connection
+                $onFailExtra?->__invoke();
+
+                if ($usedClient !== $this->masterClient && $this->readConnector) {
+                    // The failing attempt ran on the read replica - refresh it
                     $this->readClient = call_user_func($this->readConnector, true);
                 } else {
-                    // Refresh master connection - this is critical for write commands
+                    // The failing attempt ran on the master (write or sticky/fallback read)
+                    // - refresh it
                     $newMasterClient = $this->masterConnector
                         ? call_user_func($this->masterConnector, true)
                         : $this->masterClient;
 
-                    // Update both references to guarantee consistency
                     $this->masterClient = $newMasterClient;
                     $this->client = $newMasterClient;
                 }
@@ -448,42 +464,5 @@ class RedisSentinelConnection extends PhpRedisConnection
     protected function isReadOnlyCommand(string $method): bool
     {
         return in_array(strtolower($method), static::READ_ONLY_COMMAND);
-    }
-
-    /**
-     * Dynamically pass method calls to the Redis client.
-     *
-     * This magic method handles all Redis commands that are not explicitly defined in this class.
-     * It provides automatic retry logic with exponential backoff and intelligent read/write splitting.
-     *
-     * Read/Write Splitting Behavior:
-     * - Read-only commands (get, hget, lrange, etc.) are routed to replica nodes when available
-     * - Write commands (set, hset, lpush, etc.) are always routed to the master node
-     * - After a write operation, subsequent reads use the master (sticky sessions) to avoid replication lag
-     * - During transactions/pipelines, all commands are routed to the master
-     *
-     * Retry Logic:
-     * - Automatically retries on connection failures (broken pipe, connection lost, etc.)
-     * - Uses exponential backoff with jitter to avoid thundering herd
-     * - Respects configured retry limits (default: 5 attempts)
-     * - Refreshes connections between retry attempts
-     *
-     * @param  string  $method  The Redis command name (case-insensitive)
-     * @param  array  $parameters  The command parameters
-     * @return mixed The result from Redis
-     *
-     * @throws RedisException If Redis operation fails after all retry attempts
-     * @throws Throwable If a non-retryable error occurs
-     *
-     * @see retry() For the retry logic implementation
-     * @see isReadOnlyCommand() For the list of read-only commands
-     * @see getClientForCommand() For read/write routing logic
-     */
-    public function __call($method, $parameters): mixed
-    {
-        return $this->retry(
-            fn () => parent::__call(strtolower($method), $parameters),
-            $method
-        );
     }
 }

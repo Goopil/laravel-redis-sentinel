@@ -37,3 +37,41 @@ test('it can flush cache', function () {
 
     expect($cache->get('mymaster'))->toBeNull();
 });
+
+test('entries expire after the configured ttl', function () {
+    $cache = new NodeAddressCache(0.01);
+
+    $cache->set('svc', '127.0.0.1', 6379);
+    $cache->setReplicas('svc', [['ip' => '127.0.0.1', 'port' => 6380]]);
+
+    expect($cache->get('svc'))->toBe(['ip' => '127.0.0.1', 'port' => 6379])
+        ->and($cache->getReplicas('svc'))->toBe([['ip' => '127.0.0.1', 'port' => 6380]]);
+
+    usleep(20000);
+
+    expect($cache->get('svc'))->toBeNull()
+        ->and($cache->getReplicas('svc'))->toBe([]);
+});
+
+test('ttl zero keeps entries forever (backwards compatible)', function () {
+    $cache = new NodeAddressCache(0.0);
+
+    $cache->set('svc', '127.0.0.1', 6379);
+    $cache->setReplicas('svc', [['ip' => '127.0.0.1', 'port' => 6380]]);
+
+    usleep(20000);
+
+    expect($cache->get('svc'))->toBe(['ip' => '127.0.0.1', 'port' => 6379])
+        ->and($cache->getReplicas('svc'))->toBe([['ip' => '127.0.0.1', 'port' => 6380]]);
+});
+
+test('expiring one entry type keeps the other', function () {
+    $cache = new NodeAddressCache(0.01);
+
+    $cache->set('svc', '127.0.0.1', 6379);
+    usleep(20000);
+    $cache->setReplicas('svc', [['ip' => '127.0.0.2', 'port' => 6380]]);
+
+    expect($cache->get('svc'))->toBeNull()
+        ->and($cache->getReplicas('svc'))->toBe([['ip' => '127.0.0.2', 'port' => 6380]]);
+});

@@ -76,6 +76,41 @@ describe('Reconnect', function () {
         Event::assertDispatched(RedisSentinelConnectionReconnected::class);
     });
 
+    test('flushdb is retried exactly retryLimit + 1 times and resets stickiness', function () {
+        Event::fake();
+
+        $client1 = Mockery::mock(Redis::class);
+        $client2 = Mockery::mock(Redis::class);
+        $client1->expects('flushdb')->once()->andThrow(new RedisException('broken pipe'));
+        $client2->expects('flushdb')->once()->andThrow(new RedisException('broken pipe'));
+
+        $connection = new RedisSentinelConnection($client1, fn () => $client2, []);
+        $connection->setRetryLimit(1);
+        $connection->setRetryDelay(1);
+        $connection->setRetryMessages(['broken pipe']);
+
+        $property = (new ReflectionClass($connection))->getProperty('wroteToMaster');
+        $property->setValue($connection, true);
+
+        expect(fn () => $connection->flushdb())->toThrow(RedisException::class)
+            ->and($property->getValue($connection))->toBeFalse();
+    });
+
+    test('flushall routes once through the client and resets stickiness', function () {
+        Event::fake();
+
+        $client = Mockery::mock(Redis::class);
+        $client->expects('flushall')->withNoArgs()->once()->andReturn(true);
+
+        $connection = new RedisSentinelConnection($client, fn () => $client, []);
+
+        $property = (new ReflectionClass($connection))->getProperty('wroteToMaster');
+        $property->setValue($connection, true);
+
+        expect($connection->flushall())->toBeTrue()
+            ->and($property->getValue($connection))->toBeFalse();
+    });
+
     test('Reconnecting after a manual fail over', function () {
         Event::fake();
 
