@@ -301,6 +301,9 @@ class RedisSentinelConnection extends PhpRedisConnection
      * connection's retry() wrapper stays the single retry path.
      *
      * No-op on Laravel 10-12 where the method does not exist on the parent.
+     *
+     * @param  string  $method
+     * @param  array<int|string, mixed>  $parameters
      */
     protected function isRetryable($method, array $parameters): bool
     {
