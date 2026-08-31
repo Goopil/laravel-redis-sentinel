@@ -248,6 +248,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         }
 
         // Verify persistence
+        waitFor(fn () => $connection->zcard($delayedKey) === 15, timeoutMs: 5000);
         expect($connection->zcard($delayedKey))->toBe(15);
 
         $jobs = $connection->zrange($delayedKey, 0, -1);

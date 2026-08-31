@@ -130,6 +130,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         }
 
         // Verify persistence
+        waitFor(fn () => Cache::get("{$testId}:before:1") !== null, timeoutMs: 5000);
         for ($i = 1; $i <= 20; $i++) {
             expect(Cache::get("{$testId}:before:{$i}"))->toBe("value_{$i}");
         }
@@ -213,6 +214,8 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             // Expected
         }
 
+        waitFor(fn () => Cache::get($key) !== null, timeoutMs: 5000);
+
         // Third call - should still use cache
         $result3 = Cache::remember($key, 3600, function () use (&$execCount) {
             $execCount++;
@@ -244,6 +247,8 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         } catch (Exception $e) {
             // Expected
         }
+
+        waitFor(fn () => Cache::tags(['users'])->get("{$testId}:user:1") !== null, timeoutMs: 5000);
 
         // Verify after failover
         expect(Cache::tags(['users'])->get("{$testId}:user:1"))->toBe(['name' => 'Alice']);
@@ -340,6 +345,8 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         } catch (Exception $e) {
             // Expected
         }
+
+        waitFor(fn () => Cache::get("{$testId}:a") !== null, timeoutMs: 5000);
 
         // Retrieve many
         $retrieved = Cache::many(array_keys($data));
