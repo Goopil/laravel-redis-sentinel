@@ -331,3 +331,82 @@ jobs:
           COMPOSE_PROJECT_NAME: redis_without_horizon
         run: |
           docker compose -f tests/ci/docker-compose.yml down -v --remove-orphans || true
+
+  tests-valkey:
+    needs: [lint]
+    runs-on: ubuntu-latest
+
+    name: PHP 8.4 - L12 - Valkey
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, readline, ldap, msgpack, igbinary, redis, sodium
+          tools: composer:v2
+          coverage: none
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-8.4-laravel-12-valkey-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-8.4-laravel-12-valkey-
+            ${{ runner.os }}-php-8.4-
+
+      - name: Install dependencies
+        run: |
+          composer config policy.advisories.block false
+          composer require "laravel/framework:12.*" "orchestra/testbench:^10.0" --dev --no-interaction --no-update
+          composer update --prefer-dist --no-interaction
+
+      - name: Start Valkey Sentinel Cluster
+        env:
+          VALKEY_VERSION: 8
+          VALKEY_MAIN_PORT: 7700
+          VALKEY_REPLICA1_PORT: 7701
+          VALKEY_REPLICA2_PORT: 7702
+          VALKEY_SENTINEL_PORT: 7703
+          VALKEY_STANDALONE_PORT: 7704
+          COMPOSE_PROJECT_NAME: redis_valkey
+          SENTINEL_EXTRA_CONFIG: "echo 'sentinel resolve-hostnames yes' >> /tmp/sentinel.conf && echo 'sentinel announce-hostnames yes' >> /tmp/sentinel.conf &&"
+        run: |
+          echo "Starting Valkey cluster on ports: Main=$VALKEY_MAIN_PORT, Replica1=$VALKEY_REPLICA1_PORT, Replica2=$VALKEY_REPLICA2_PORT, Sentinel=$VALKEY_SENTINEL_PORT, Standalone=$VALKEY_STANDALONE_PORT"
+          SENTINEL_EXTRA_CONFIG="$SENTINEL_EXTRA_CONFIG" docker compose -f tests/ci/docker-compose.yml up -d valkey-main valkey-replica1 valkey-replica2 valkey-sentinel valkey
+
+      - name: Wait for Valkey Cluster to be ready
+        run: |
+          echo "Waiting for Valkey cluster on sentinel port 7703..."
+          until docker run --network host --rm valkey/valkey:8-alpine valkey-cli -p 7703 -a test ping | grep -q PONG; do
+            echo "Valkey Sentinel not ready yet..."
+            sleep 2
+          done
+          echo "Valkey Sentinel is ready!"
+
+      - name: Execute tests
+        run: vendor/bin/pest --testdox
+        env:
+          REDIS_PASSWORD: test
+          REDIS_SENTINEL_PASSWORD: test
+          REDIS_PREFIX: gh_${{ github.run_id }}_valkey_
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 7700
+          REDIS_STANDALONE_PORT: 7704
+          REDIS_SENTINEL_PORT: 7703
+          REDIS_SENTINEL_HOST: 127.0.0.1
+
+      - name: Cleanup Valkey Cluster
+        if: always()
+        env:
+          COMPOSE_PROJECT_NAME: redis_valkey
+        run: |
+          docker compose -f tests/ci/docker-compose.yml down -v --remove-orphans || true

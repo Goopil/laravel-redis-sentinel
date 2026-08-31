@@ -10,6 +10,10 @@ class HorizonWorkerNotReady
     use Dispatchable;
     use SerializesModels;
 
+    /**
+     * @param  array<int, object>  $masters
+     * @param  array<int, object>  $running
+     */
     public function __construct(
         public readonly array $masters,
         public readonly array $running,
