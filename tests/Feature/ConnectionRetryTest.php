@@ -125,15 +125,16 @@ describe('Reconnect', function () {
         $host = implode('', $sentinel->getMasterAddrByName('master'));
 
         // Attempt failover - it may fail if a failover is already in progress or replicas aren't ready
-        // In CI environments, this can sometimes return false, so we retry a few times
+        // In CI environments (cold runners), replicas may take a while to become "suitable",
+        // so we retry generously before giving up.
         $failoverTriggered = false;
-        $maxFailoverAttempts = 5;
+        $maxFailoverAttempts = 20;
         for ($attempt = 0; $attempt < $maxFailoverAttempts; $attempt++) {
             if ($sentinel->failover('master')) {
                 $failoverTriggered = true;
                 break;
             }
-            usleep(500000); // 500ms between attempts
+            usleep(1000000); // 1s between attempts
         }
 
         expect($failoverTriggered)->toBeTrue('Failover command should succeed after retries');
@@ -141,11 +142,13 @@ describe('Reconnect', function () {
         // Invalidate the cache after failover to ensure the package will fetch the new master
         app(NodeAddressCache::class)->forget('master');
 
+        // Wait for Sentinel to converge on the new master (failover can take
+        // up to ~30s on a fresh CI setup, so poll up to 30s).
         $failoverOk = false;
         $attempts = 0;
         $host2 = $host;
 
-        while (! $failoverOk && $attempts < 100) {
+        while (! $failoverOk && $attempts < 300) {
             $currentMaster = $sentinel->getMasterAddrByName('master');
             $host2 = $currentMaster ? implode('', $currentMaster) : '';
 
