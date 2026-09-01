@@ -108,6 +108,13 @@ test('it classifies exposed read-only commands as replica-safe', function (strin
     expect($connection->command($command, $parameters))->toBe($result);
 })->with(readOnlyCommandDataset());
 
+test('getReadClient falls back to the master client when no replica is configured', function () {
+    $masterClient = Mockery::mock(Redis::class);
+    $connection = redisSentinelConnection($masterClient);
+
+    expect($connection->getReadClient())->toBe($masterClient);
+});
+
 test('it has a dataset entry for every exposed read-only command', function () {
     $reflection = new ReflectionClass(RedisSentinelConnection::class);
     $datasetCommands = array_keys(readOnlyCommandDataset());

@@ -341,9 +341,12 @@ class RedisSentinelConnector extends PhpRedisConnector
         if ($this->phpredisVersion === null) {
             $version = phpversion('redis');
 
+            // @codeCoverageIgnoreStart
+            // The test suite cannot run with the extension unloaded.
             if ($version === false) {
                 throw new ConfigurationException('PhpRedis extension is not loaded');
             }
+            // @codeCoverageIgnoreEnd
 
             $this->phpredisVersion = $version;
         }
