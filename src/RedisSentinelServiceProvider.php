@@ -54,21 +54,25 @@ class RedisSentinelServiceProvider extends ServiceProvider
             return;
         }
 
-        $resetCallback = function () {
-            $app = Facade::getFacadeApplication() ?: Container::getInstance();
-            if ($app->bound(RedisSentinelManager::class)) {
-                $manager = $app->make(RedisSentinelManager::class);
-
-                foreach ($manager->connections() as $connection) {
-                    if ($connection instanceof RedisSentinelConnection) {
-                        $connection->resetStickiness();
-                    }
-                }
-            }
-        };
+        $resetCallback = fn () => $this->resetAllStickiness();
 
         foreach (['RequestReceived', 'TickReceived', 'TaskReceived', 'OperationTerminated'] as $event) {
             $this->app['events']->listen("Laravel\\Octane\\Events\\{$event}", $resetCallback);
+        }
+    }
+
+    private function resetAllStickiness(): void
+    {
+        $app = Facade::getFacadeApplication() ?: Container::getInstance();
+
+        if (! $app->bound(RedisSentinelManager::class)) {
+            return;
+        }
+
+        foreach ($app->make(RedisSentinelManager::class)->connections() as $connection) {
+            if ($connection instanceof RedisSentinelConnection) {
+                $connection->resetStickiness();
+            }
         }
     }
 
@@ -236,13 +240,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
                 return;
             }
 
-            $manager = $this->app->make(RedisSentinelManager::class);
-
-            foreach ($manager->connections() as $connection) {
-                if ($connection instanceof RedisSentinelConnection) {
-                    $connection->resetStickiness();
-                }
-            }
+            $this->resetAllStickiness();
         });
     }
 

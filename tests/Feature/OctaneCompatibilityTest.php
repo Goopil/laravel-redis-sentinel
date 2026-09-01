@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Goopil\LaravelRedisSentinel\RedisSentinelServiceProvider;
 use Illuminate\Contracts\Events\Dispatcher;
 
@@ -70,4 +71,37 @@ test('bootOctane listens to all Octane lifecycle events', function () {
     foreach ($expectedEvents as $event) {
         expect($listenedEvents)->toContain($event);
     }
+});
+
+test('octane lifecycle callback resets stickiness on all sentinel connections', function () {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+    $connection = new RedisSentinelConnection($masterClient, fn () => $masterClient, [], fn () => $replicaClient);
+
+    $masterClient->expects('set')->once()->andReturn(true);
+    $connection->set('foo', 'bar');
+
+    $manager = app(RedisSentinelManager::class);
+    $connectionsProp = new ReflectionProperty(RedisSentinelManager::class, 'connections');
+    $connectionsProp->setAccessible(true);
+    $connectionsProp->setValue($manager, ['phpredis-sentinel' => $connection]);
+
+    $captured = [];
+    $events = Mockery::mock(Dispatcher::class);
+    $events->shouldReceive('listen')->andReturnUsing(function ($event, $callback) use (&$captured) {
+        $captured[$event] = $callback;
+    });
+
+    app()->instance('octane', new stdClass);
+    app()->instance('events', $events);
+
+    $provider = new RedisSentinelServiceProvider(app());
+    $method = new ReflectionMethod($provider, 'bootOctane');
+    $method->invoke($provider);
+
+    ($captured['Laravel\Octane\Events\TaskReceived'])();
+
+    $wroteProp = (new ReflectionClass($connection))->getProperty('wroteToMaster');
+
+    expect($wroteProp->getValue($connection))->toBeFalse();
 });
