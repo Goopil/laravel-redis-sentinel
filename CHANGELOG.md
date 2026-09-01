@@ -1,3 +1,48 @@
+# [1.5.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.4.0...1.5.0) (2026-09-01)
+
+
+### Bug Fixes
+
+* add cancellation mechanism to blocking subscribe calls ([b45ce26](https://github.com/Goopil/laravel-redis-sentinel/commit/b45ce26b44835c5d80f80f0e0128cebd2db525ea))
+* add iterable value type for readOnlyCommands (phpstan) ([6b4e538](https://github.com/Goopil/laravel-redis-sentinel/commit/6b4e5383490f7792e5d3cc74ad5c70796595da4c))
+* add TTL to liveness check key to prevent Redis key leak ([8cd6fb6](https://github.com/Goopil/laravel-redis-sentinel/commit/8cd6fb6d0e8931caea6820b0823401e677abafce))
+* add TTL to NodeAddressCache to prevent stale entries ([f1f2096](https://github.com/Goopil/laravel-redis-sentinel/commit/f1f20964c39ac31df661f5efc0fbab5e344f5633))
+* address code review findings (crash, mutations, events, config injection) ([5d9e775](https://github.com/Goopil/laravel-redis-sentinel/commit/5d9e775a2c97bb35143cafc380e9764b7677d941))
+* avoid thread-unsafe client mutation in Octane coroutine context ([55e21fd](https://github.com/Goopil/laravel-redis-sentinel/commit/55e21fd5cf758c575529328c73a7d8c422a33a89))
+* correct cluster detection check in RedisSentinelManager ([0a540f7](https://github.com/Goopil/laravel-redis-sentinel/commit/0a540f78e1522d47c51d686e18ab8bedc95d2986))
+* correct off-by-one error in retry attempt counting ([bae594a](https://github.com/Goopil/laravel-redis-sentinel/commit/bae594a7c65fe9e1f3618982953aac073a4fae1f))
+* create RedisStore before passing it to repository in session handler ([55c5cf3](https://github.com/Goopil/laravel-redis-sentinel/commit/55c5cf3b8cf16f1fe8981bb84f42b0574dcf2fd8))
+* define $resetCallback before using it in bootOctane foreach loop ([86ed0fa](https://github.com/Goopil/laravel-redis-sentinel/commit/86ed0faddb3dbd8e41388645e6147ac5b3a803f2))
+* flush resolved redis instances on boot override ([1b84d46](https://github.com/Goopil/laravel-redis-sentinel/commit/1b84d46e87217b4f5aca7f9176c604965c65b31b))
+* guard against unloaded phpredis extension in version detection ([3b34cc7](https://github.com/Goopil/laravel-redis-sentinel/commit/3b34cc780cda2c489de4e712e95bde95c54caa1a))
+* handle associative array from phpredis 6.0+ in liveness probe ([99d3971](https://github.com/Goopil/laravel-redis-sentinel/commit/99d3971387656f12d2c61a1cedc9f22a90d2db45))
+* handle multi-line pgrep output in preStop PID extraction ([268a3dd](https://github.com/Goopil/laravel-redis-sentinel/commit/268a3dd5319ff0f78f1ca49ec58378644496eb73))
+* increase default sentinel connect timeout to 1.0s ([f7fc6e2](https://github.com/Goopil/laravel-redis-sentinel/commit/f7fc6e237939a158ab4a47fd2b37bc79746c2b3c))
+* inject config instead of using global helper in connector ([eff89d1](https://github.com/Goopil/laravel-redis-sentinel/commit/eff89d144661a8564b18335dca307f597895766d))
+* listen to all Octane events for stickiness reset ([99352f2](https://github.com/Goopil/laravel-redis-sentinel/commit/99352f2587441f288ef64043324ba00117daa67b))
+* missing ) ([4652f85](https://github.com/Goopil/laravel-redis-sentinel/commit/4652f8552278319fd63d447a4cb5abf11132b78a))
+* pass driver explicitly to connector to avoid singleton mutation ([9e09346](https://github.com/Goopil/laravel-redis-sentinel/commit/9e0934665bbb723c3fe6847317e8fa1e4f46fb33))
+* pass normalized name to parent::resolve ([f8ee46d](https://github.com/Goopil/laravel-redis-sentinel/commit/f8ee46da327f7ae8255da221edcc68ae18597787))
+* prevent cache store corruption from shallow clone ([19beb1a](https://github.com/Goopil/laravel-redis-sentinel/commit/19beb1acfed4deb54add1bb0abeace1e6baa217f))
+* prevent retry on all exceptions when retryMessages is empty ([e42e49b](https://github.com/Goopil/laravel-redis-sentinel/commit/e42e49bc00c701e8122bf9e1f63e99ee516ac36d))
+* prevent retry on application exceptions in pipeline/transaction ([88bb524](https://github.com/Goopil/laravel-redis-sentinel/commit/88bb524c8a390b469341ced69fb22f2da6174e2b))
+* relax pgrep pattern matching in preStop command ([3cf760d](https://github.com/Goopil/laravel-redis-sentinel/commit/3cf760d3f2d421c853204d56655b5ca0c0fc91de))
+* reset transaction level in resetStickiness to prevent master-only reads ([8c040e2](https://github.com/Goopil/laravel-redis-sentinel/commit/8c040e2ddeecfe1453561361890ed5f1df428614))
+* resolve merge fallout with main (retry semantics, octane events, probe stubs) ([18c127f](https://github.com/Goopil/laravel-redis-sentinel/commit/18c127f3ff26dc12bd7a68f8a6902195717626db)), closes [#30](https://github.com/Goopil/laravel-redis-sentinel/issues/30)
+* return masterClient explicitly in getReadClient fallback ([7a0f8b0](https://github.com/Goopil/laravel-redis-sentinel/commit/7a0f8b08c518f16f503572ced9b088460962fbb3))
+* return non-zero exit code on preStop failure ([0067018](https://github.com/Goopil/laravel-redis-sentinel/commit/006701873caa00e5d25e3e4b0ba73ab30a7bbe05))
+* run horizon-context manager tests only when Horizon is installed ([b8e31de](https://github.com/Goopil/laravel-redis-sentinel/commit/b8e31de0a9a8e41e85b5cc323e645f40d59de2c3))
+* skip HorizonServiceBindingsTest when Horizon is not installed ([36cc521](https://github.com/Goopil/laravel-redis-sentinel/commit/36cc521239be4a6d05e8ca5048fca893ff4dfd60))
+* use cryptographically safe random_int for replica selection ([4d6e812](https://github.com/Goopil/laravel-redis-sentinel/commit/4d6e8124732e2b8ae8af60bfc0739645abd84ecf))
+* use str_starts_with to avoid false hostname matches in preStop ([fcbbff7](https://github.com/Goopil/laravel-redis-sentinel/commit/fcbbff710783799b80eff2dd234a5b49e257779b))
+* use str_starts_with to avoid false hostname matches in readiness ([a0c85d4](https://github.com/Goopil/laravel-redis-sentinel/commit/a0c85d4df5a3e620482bc5a0a47ccb2df9696f2e))
+* validate horizon.use config when in horizon context ([655dce9](https://github.com/Goopil/laravel-redis-sentinel/commit/655dce92048bc6cbc2b0895ad534c507a7925b89))
+
+
+### Features
+
+* make read-only command list configurable ([367350a](https://github.com/Goopil/laravel-redis-sentinel/commit/367350a376d34f32449aec08d2a5e58201a22f8a))
+
 # [1.4.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.3.0...1.4.0) (2026-08-31)
 
 
