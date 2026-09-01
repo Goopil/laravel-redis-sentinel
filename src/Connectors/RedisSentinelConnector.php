@@ -212,7 +212,8 @@ class RedisSentinelConnector extends PhpRedisConnector
 
                 return ! str_contains($flags, 's_down') &&
                        ! str_contains($flags, 'o_down') &&
-                       ! str_contains($flags, 'disconnected');
+                       ! str_contains($flags, 'disconnected') &&
+                       ($s['master-link-status'] ?? 'ok') !== 'disconnect';
             }));
 
             if (empty($replicas)) {
