@@ -249,7 +249,8 @@ return [
 - `timeout` for the data connection defaults to **5 seconds** and is no longer derived from `sentinel.timeout`.
 - The data client uses strictly `password`; `sentinel.password` only authenticates against Sentinel nodes.
 - `retry.redis.messages` can be overridden **per connection** (`retry.redis.messages` inside the connection config), like `attempts`/`delay`.
-- Resolved master/replica addresses can be cached with a TTL: `phpredis-sentinel.node_cache.ttl` (seconds, `0` = disabled).
+- Resolved master/replica addresses are cached with a TTL: `phpredis-sentinel.node_cache.ttl` (seconds, default `15`; `0`
+  disables expiry — discouraged, it delays failover detection in long-lived workers).
 
 > If you previously published the config file, add `'No reachable Redis Sentinel host found'` to `retry.sentinel.messages` to retry total Sentinel outages.
 

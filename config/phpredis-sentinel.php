@@ -5,8 +5,8 @@ return [
 
     'node_cache' => [
         // Seconds a resolved master/replica address may stay cached in this process.
-        // 0 disables expiry (legacy behaviour). Stale entries delay failover detection.
-        'ttl' => env('REDIS_SENTINEL_NODE_CACHE_TTL', 0),
+        // 0 disables expiry (discouraged: stale topology delays failover detection in long-lived workers).
+        'ttl' => env('REDIS_SENTINEL_NODE_CACHE_TTL', 15),
     ],
 
     'log' => [
