@@ -664,8 +664,8 @@ your own Redis topology, workload, and deployment model.
 - **Scan-family commands reset their cursor** on retry after a reconnection, so iteration restarts on the new node (SCAN
   semantics allow duplicates).
 - **`read_timeout` defaults to 60 seconds** (both the Redis client and the Sentinel client): a blocking command on a half-open
-  socket now fails after 60s instead of hanging the worker forever. Set an explicit `read_timeout` if you need unbounded
-  blocking reads, and keep it above your longest blocking command (`BLPOP`, `WAIT`, ...).
+  socket now fails after 60s instead of hanging the worker forever. Set `read_timeout: 0` for unbounded blocking reads, and
+  always keep it above your longest blocking command (`BLPOP`, `WAIT`, ...).
 - **`flushdb($async)` / `flushall($sync)` flags are not reliably forwarded**: on phpredis 6.x the flag is ignored (commands
   run synchronously); on older 5.x releases a truthy argument may be sent as `ASYNC`. Do not rely on the parameter for
   predictable background flushing.
