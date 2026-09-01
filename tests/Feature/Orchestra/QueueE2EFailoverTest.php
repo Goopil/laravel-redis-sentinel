@@ -152,8 +152,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Continue processing after reconnection
         $remainingJobs = [];
         while ($connection->llen($queueKey) > 0) {
@@ -200,7 +198,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(2); // Failover window
                 }
 
                 $payload = $connection->lpop($queueKey);
@@ -250,8 +247,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Process remaining jobs
         $secondBatch = [];
         while ($connection->llen($queueKey) > 0) {
@@ -287,9 +282,8 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Verify delayed jobs persisted
+        waitFor(fn () => $connection->zcard($delayedKey) === 10, timeoutMs: 5000);
         $persistedCount = $connection->zcard($delayedKey);
         expect($persistedCount)->toBe(10, 'Delayed jobs should persist through failover');
 
@@ -326,7 +320,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    usleep(500000); // 500ms recovery
                 }
 
                 $payload = $connection->lpop($queueKey);
@@ -335,7 +328,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
                 }
             } catch (Exception $e) {
                 // Retry on failure
-                usleep(100000); // 100ms
             }
         }
 
@@ -365,7 +357,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
                 } catch (Exception $e) {
                     // Expected
                 }
-                sleep(1);
             }
         }
 
@@ -407,8 +398,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(1);
 
         // Process normal priority after failover
         while ($connection->llen($normalPriorityQueue) > 0) {
@@ -461,7 +450,6 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
                 } catch (Exception $e) {
                     // Expected
                 }
-                sleep(1);
             }
         }
 

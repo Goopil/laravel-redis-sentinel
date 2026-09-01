@@ -41,7 +41,7 @@ describe('Cache Integration with Orchestra', function () {
             ->and($this->cacheService->getValue($key))->toBe($value);
 
         // Wait for expiration
-        sleep(2);
+        waitFor(fn () => $this->cacheService->getValue($key) === null, timeoutMs: 10000);
 
         expect($this->cacheService->getValue($key))->toBeNull();
     });
@@ -52,7 +52,7 @@ describe('Cache Integration with Orchestra', function () {
         $firstResult = $this->cacheService->rememberExpensiveOperation($key);
         $firstTimestamp = $firstResult['timestamp'];
 
-        sleep(1);
+        sleep(1); // retained: no observable condition (widens the timestamp delta so a re-executed callback would be detectable)
 
         $secondResult = $this->cacheService->rememberExpensiveOperation($key);
         $secondTimestamp = $secondResult['timestamp'];
@@ -137,7 +137,7 @@ describe('Cache Integration with Orchestra', function () {
             ->and($this->cacheService->getValue($key))->toBe($value);
 
         // Even after waiting, value should persist
-        sleep(2);
+        sleep(2); // retained: no observable condition (elapsed time without expiry is the property under test)
         expect($this->cacheService->getValue($key))->toBe($value);
     });
 

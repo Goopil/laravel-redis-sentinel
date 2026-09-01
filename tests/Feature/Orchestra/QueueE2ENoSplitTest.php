@@ -146,8 +146,6 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             // Expected
         }
 
-        sleep(1);
-
         // Process remaining
         $remaining = [];
         while ($connection->llen($queueKey) > 0) {
@@ -184,7 +182,6 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(2);
                 }
 
                 $payload = $connection->lpop($queueKey);
@@ -250,9 +247,8 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             // Expected
         }
 
-        sleep(1);
-
         // Verify persistence
+        waitFor(fn () => $connection->zcard($delayedKey) === 15, timeoutMs: 5000);
         expect($connection->zcard($delayedKey))->toBe(15);
 
         $jobs = $connection->zrange($delayedKey, 0, -1);
@@ -287,7 +283,6 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                     } catch (Exception $e) {
                         // Expected
                     }
-                    usleep(500000);
                 }
 
                 $payload = $connection->lpop($queueKey);
@@ -295,7 +290,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                     $processed[] = $payload;
                 }
             } catch (Exception $e) {
-                usleep(100000);
+                // Retry on failure
             }
         }
 
@@ -323,7 +318,6 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 } catch (Exception $e) {
                     // Expected
                 }
-                sleep(1);
             }
         }
 
@@ -360,8 +354,6 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(1);
 
         // Process low priority
         while ($connection->llen($lowQueue) > 0) {
@@ -413,7 +405,6 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 } catch (Exception $e) {
                     // Expected
                 }
-                sleep(1);
             }
         }
 

@@ -141,7 +141,7 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
             expect($pingResult)->toBeTrue('Connection should remain healthy');
 
             // Small delay between rounds
-            usleep(200000); // 200ms
+            usleep(200000); // retained: no observable condition (round pacing)
         }
 
         // Verify total job count
@@ -216,8 +216,8 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
             // Ignore disconnect errors
         }
 
-        // Wait a moment
-        usleep(500000); // 500ms
+        // Wait for reconnection: the next command triggers the retry path
+        waitFor(fn () => $connection->ping(), timeoutMs: 5000);
 
         // Connection should automatically reconnect
         // Execute jobs after reset
@@ -261,7 +261,7 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
             $timestamps[] = $timestamp;
 
             // Small delay to ensure different timestamps
-            usleep(50000); // 50ms
+            usleep(50000); // retained: no observable condition (timestamp spacing)
         }
 
         // Verify timestamps are in ascending order

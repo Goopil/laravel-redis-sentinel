@@ -47,7 +47,7 @@ class TestCase extends Orchestra
                 'password' => env('REDIS_PASSWORD', 'test'),
                 'timeout' => 1,
                 'read_timeout' => 1,
-                'retry_interval' => 200,
+                'retry_interval' => 50, // config test only
                 'persistent' => false,
                 'database' => env('REDIS_SENTINEL_DATABASE', '0'),
                 'options' => [

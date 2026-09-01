@@ -106,9 +106,8 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Data should persist after reconnection
+        waitFor(fn () => Session::get('user_id') !== null, timeoutMs: 5000);
         expect(Session::get('user_id'))->toBe(99999)
             ->and(Session::get('cart_items'))->toBe(['item1', 'item2', 'item3']);
     });
@@ -135,8 +134,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(2); // Failover window
 
         // Continue user activity after failover
         Session::put('step', 'checkout');
@@ -169,9 +166,8 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Flash data should still be available (this is the "next" request)
+        waitFor(fn () => Session::get('success') === SESSION_SUCCESS_MSG, timeoutMs: 5000);
         expect(Session::get('success'))->toBe(SESSION_SUCCESS_MSG)
             ->and(Session::get('notification'))->toBe(SESSION_MESSAGES_MSG);
 
@@ -196,7 +192,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(2);
                 }
 
                 // Update session with new data
@@ -244,8 +239,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Regenerate session after failover
         Session::regenerate();
         $secondSessionId = Session::getId();
@@ -277,8 +270,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(1);
 
         // Forget one key
         Session::forget('temp_data_1');
@@ -313,7 +304,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(1);
                 }
 
                 Session::increment('page_views');
@@ -353,8 +343,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Continue adding items after failover
         Session::push('shopping_cart', ['id' => 3, 'name' => 'Product 3']);
         Session::save();
@@ -384,9 +372,8 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Token should persist
+        waitFor(fn () => Session::get('_token') === $token, timeoutMs: 5000);
         $retrievedToken = Session::token();
         expect($retrievedToken)->toBe($token, 'Token should persist through failover');
     });
@@ -405,7 +392,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    usleep(500000); // 500ms
                 }
 
                 // Mix of operations
@@ -453,9 +439,8 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Input data should persist
+        waitFor(fn () => Session::get('_old_input.email') === FAILOVER_TEST_EMAIL, timeoutMs: 5000);
         $oldInput = Session::get('_old_input');
         expect($oldInput['username'])->toBe('testuser')
             ->and($oldInput['email'])->toBe(FAILOVER_TEST_EMAIL)
@@ -482,8 +467,6 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
             } catch (Exception $e) {
                 // Expected
             }
-
-            sleep(1);
 
             // Update data after failover
             Session::put("failover_round_{$round}", now()->timestamp);
@@ -528,9 +511,8 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Sessions should remain isolated after failover
+        waitFor(fn () => Session::get('user_id') === 2000, timeoutMs: 5000);
         expect(Session::get('user_id'))->toBe(2000)
             ->and(Session::get('session_type'))->toBe('session_2');
     });

@@ -126,16 +126,12 @@ describe('Reconnect', function () {
 
         // Attempt failover - it may fail if a failover is already in progress or replicas aren't ready
         // In CI environments (cold runners), replicas may take a while to become "suitable",
-        // so we retry generously before giving up.
-        $failoverTriggered = false;
-        $maxFailoverAttempts = 20;
-        for ($attempt = 0; $attempt < $maxFailoverAttempts; $attempt++) {
-            if ($sentinel->failover('master')) {
-                $failoverTriggered = true;
-                break;
-            }
-            usleep(1000000); // 1s between attempts
-        }
+        // so we retry generously before giving up (1s between attempts, 20s deadline).
+        $failoverTriggered = (bool) waitFor(
+            fn () => $sentinel->failover('master'),
+            timeoutMs: 20000,
+            intervalMs: 1000,
+        );
 
         expect($failoverTriggered)->toBeTrue('Failover command should succeed after retries');
 
@@ -144,21 +140,12 @@ describe('Reconnect', function () {
 
         // Wait for Sentinel to converge on the new master (failover can take
         // up to ~30s on a fresh CI setup, so poll up to 30s).
-        $failoverOk = false;
-        $attempts = 0;
-        $host2 = $host;
-
-        while (! $failoverOk && $attempts < 300) {
+        $host2 = waitFor(function () use ($sentinel, $host) {
             $currentMaster = $sentinel->getMasterAddrByName('master');
-            $host2 = $currentMaster ? implode('', $currentMaster) : '';
+            $newHost = $currentMaster ? implode('', $currentMaster) : '';
 
-            if ($host2 !== $host && ! empty($host2)) {
-                $failoverOk = true;
-            } else {
-                usleep(100000); // 100ms
-                $attempts++;
-            }
-        }
+            return $newHost !== $host && $newHost !== '' ? $newHost : null;
+        }, timeoutMs: 30000, intervalMs: 100);
 
         expect($host2)->not()->toEqual($host);
 
@@ -169,7 +156,7 @@ describe('Reconnect', function () {
 
             Event::assertNotDispatched(RedisSentinelConnectionFailed::class);
 
-            usleep(500);
+            usleep(500); // retained: no observable condition (soak pacing)
         }
     });
 });
