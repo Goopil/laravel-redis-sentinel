@@ -128,7 +128,8 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
             // Expected
         }
 
-        sleep(1);
+        // Wait for reconnection: the next command triggers the retry path
+        waitFor(fn () => $connection->ping(), timeoutMs: 5000);
 
         // Process jobs after reset
         for ($i = 1; $i <= 10; $i++) {
@@ -154,7 +155,6 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(2);
                 }
 
                 $jobId = "{$testId}_{$i}";
@@ -223,9 +223,8 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
             // Expected
         }
 
-        sleep(1);
-
-        // Verify data consistency
+        // Verify data consistency after reconnection
+        waitFor(fn () => $connection->get("consistency:{$testId}:1") === 'data_1', timeoutMs: 5000);
         for ($i = 1; $i <= 20; $i++) {
             $value = $connection->get("consistency:{$testId}:{$i}");
             expect($value)->toBe("data_{$i}", 'Data should be consistent after failover');
@@ -284,7 +283,7 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
             expect($connection->ping())->toBeTrue('Connection should remain healthy');
 
             // Small delay between rounds
-            usleep(100000); // 100ms
+            usleep(100000); // retained: no observable condition (round pacing)
         }
 
         // Verify all jobs completed
@@ -318,7 +317,6 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
                     } catch (Exception $e) {
                         // Expected
                     }
-                    usleep(500000); // 500ms recovery
                 }
 
                 $jobId = "{$testId}_{$i}";

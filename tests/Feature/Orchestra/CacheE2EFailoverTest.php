@@ -126,9 +126,8 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Verify data persisted after reconnection
+        waitFor(fn () => Cache::get("{$testId}:before:1") !== null, timeoutMs: 5000);
         for ($i = 1; $i <= 10; $i++) {
             expect(Cache::get("{$testId}:before:{$i}"))->toBe("value_{$i}", 'Data should persist after reset');
         }
@@ -161,7 +160,6 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(2); // Failover window
                 }
 
                 Cache::put("{$testId}:{$i}", [
@@ -176,8 +174,6 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         }
 
         // Phase 2: Read all data after failover
-        sleep(1);
-
         for ($i = 1; $i <= $totalItems; $i++) {
             $value = Cache::get("{$testId}:{$i}");
             if ($value !== null) {
@@ -223,7 +219,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
+        waitFor(fn () => Cache::get($key) !== null, timeoutMs: 5000);
 
         // Third call after failover - should still use cached value
         $result3 = Cache::remember($key, 3600, function () use (&$callCount) {
@@ -257,7 +253,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
+        waitFor(fn () => Cache::tags(['users', 'premium'])->get("{$testId}:user:1") !== null, timeoutMs: 5000);
 
         // Verify tagged data persisted
         expect(Cache::tags(['users', 'premium'])->get("{$testId}:user:1"))->toBe(['name' => 'John'])
@@ -290,14 +286,12 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(1);
                 }
 
                 Cache::increment($counterKey);
                 $expectedValue++;
             } catch (Exception $e) {
                 // Retry on failure
-                usleep(100000); // 100ms
                 try {
                     Cache::increment($counterKey);
                     $expectedValue++;
@@ -333,8 +327,6 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Release lock after failover
         $lock->release();
 
@@ -368,7 +360,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
+        waitFor(fn () => Cache::get("{$testId}:key1") !== null, timeoutMs: 5000);
 
         // Retrieve many after failover
         $retrieved = Cache::many(array_keys($data));
@@ -380,7 +372,7 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         $testId = 'cache_ttl_'.time();
 
         // Store with short TTL
-        Cache::put("{$testId}:short", 'expires_soon', 2);
+        Cache::put("{$testId}:short", 'expires_soon', 1);
         Cache::put("{$testId}:long", 'expires_later', 3600);
 
         // Verify both exist
@@ -395,10 +387,8 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
             // Expected
         }
 
-        sleep(1);
-
         // Wait for short TTL to expire
-        sleep(2);
+        waitFor(fn () => Cache::get("{$testId}:short") === null, timeoutMs: 10000);
 
         // Verify expiration
         expect(Cache::has("{$testId}:short"))->toBeFalse('Short TTL item should expire')
@@ -420,7 +410,6 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
                     } catch (Exception $e) {
                         // Expected
                     }
-                    usleep(500000); // 500ms
                 }
 
                 // Mixed operations
@@ -463,8 +452,6 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
             } catch (Exception $e) {
                 // Expected
             }
-            sleep(1);
-
             // Verify data still exists
             expect(Cache::get("{$testId}:persistent"))->toBe(['important' => 'data'], "Data should persist after failover {$i}");
         }
@@ -486,8 +473,6 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(1);
 
         // Pull (get and delete)
         $value = Cache::pull("{$testId}:pull_test");

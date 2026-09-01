@@ -129,9 +129,8 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             // Expected
         }
 
-        sleep(1);
-
         // Verify persistence
+        waitFor(fn () => Cache::get("{$testId}:before:1") !== null, timeoutMs: 5000);
         for ($i = 1; $i <= 20; $i++) {
             expect(Cache::get("{$testId}:before:{$i}"))->toBe("value_{$i}");
         }
@@ -163,7 +162,6 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(2);
                 }
 
                 Cache::put("{$testId}:{$i}", ['value' => "data_{$i}"], 3600);
@@ -172,8 +170,6 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                 // Expected during failover
             }
         }
-
-        sleep(1);
 
         // Read after failover
         for ($i = 1; $i <= $totalItems; $i++) {
@@ -218,7 +214,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             // Expected
         }
 
-        sleep(1);
+        waitFor(fn () => Cache::get($key) !== null, timeoutMs: 5000);
 
         // Third call - should still use cache
         $result3 = Cache::remember($key, 3600, function () use (&$execCount) {
@@ -252,7 +248,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             // Expected
         }
 
-        sleep(1);
+        waitFor(fn () => Cache::tags(['users'])->get("{$testId}:user:1") !== null, timeoutMs: 5000);
 
         // Verify after failover
         expect(Cache::tags(['users'])->get("{$testId}:user:1"))->toBe(['name' => 'Alice']);
@@ -281,13 +277,11 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                     } catch (Exception $e) {
                         // Expected
                     }
-                    sleep(1);
                 }
 
                 Cache::increment($counterKey);
                 $expected++;
             } catch (Exception $e) {
-                usleep(100000);
                 try {
                     Cache::increment($counterKey);
                     $expected++;
@@ -319,8 +313,6 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(1);
 
         // Release after failover
         $lock->release();
@@ -354,7 +346,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             // Expected
         }
 
-        sleep(1);
+        waitFor(fn () => Cache::get("{$testId}:a") !== null, timeoutMs: 5000);
 
         // Retrieve many
         $retrieved = Cache::many(array_keys($data));
@@ -364,7 +356,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
     test('cache TTL in master-only mode', function () {
         $testId = 'cache_ttl_'.time();
 
-        Cache::put("{$testId}:short", 'expires', 2);
+        Cache::put("{$testId}:short", 'expires', 1);
         Cache::put("{$testId}:long", 'persists', 3600);
 
         expect(Cache::has("{$testId}:short"))->toBeTrue()
@@ -378,8 +370,8 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             // Expected
         }
 
-        sleep(1);
-        sleep(2);
+        // Wait for short TTL to expire
+        waitFor(fn () => Cache::get("{$testId}:short") === null, timeoutMs: 10000);
 
         expect(Cache::has("{$testId}:short"))->toBeFalse()
             ->and(Cache::has("{$testId}:long"))->toBeTrue();
@@ -398,7 +390,6 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
                     } catch (Exception $e) {
                         // Expected
                     }
-                    usleep(500000);
                 }
 
                 // Mixed operations
@@ -433,8 +424,6 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
             } catch (Exception $e) {
                 // Expected
             }
-            sleep(1);
-
             expect(Cache::get("{$testId}:persistent"))->toBe(['critical' => 'data']);
         }
     });
@@ -452,8 +441,6 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         } catch (Exception $e) {
             // Expected
         }
-
-        sleep(1);
 
         // Pull
         $value = Cache::pull("{$testId}:pulltest");

@@ -38,36 +38,6 @@ test('it can flush cache', function () {
     expect($cache->get('mymaster'))->toBeNull();
 });
 
-test('master cache expires after TTL', function () {
-    $cache = new NodeAddressCache(ttl: 1);
-    $cache->set('mymaster', '127.0.0.1', 6379);
-
-    expect($cache->get('mymaster'))->toBe(['ip' => '127.0.0.1', 'port' => 6379]);
-
-    $ref = new ReflectionProperty($cache, 'nodes');
-    $ref->setAccessible(true);
-    $nodes = $ref->getValue($cache);
-    $nodes['mymaster']['master']['cached_at'] = time() - 10;
-    $ref->setValue($cache, $nodes);
-
-    expect($cache->get('mymaster'))->toBeNull();
-});
-
-test('replicas cache expires after TTL', function () {
-    $cache = new NodeAddressCache(ttl: 1);
-    $cache->setReplicas('mymaster', [['ip' => '127.0.0.2', 'port' => 6379]]);
-
-    expect($cache->getReplicas('mymaster'))->toHaveCount(1);
-
-    $ref = new ReflectionProperty($cache, 'nodes');
-    $ref->setAccessible(true);
-    $nodes = $ref->getValue($cache);
-    $nodes['mymaster']['replicas_cached_at'] = time() - 10;
-    $ref->setValue($cache, $nodes);
-
-    expect($cache->getReplicas('mymaster'))->toBeEmpty();
-});
-
 test('forgetMaster on non-existent service does not error', function () {
     $cache = new NodeAddressCache;
 
@@ -104,4 +74,42 @@ test('forgetMaster removes service entry when no replicas remain', function () {
     $ref->setAccessible(true);
 
     expect($ref->getValue($cache))->not->toHaveKey('mymaster');
+});
+
+test('entries expire after the configured ttl', function () {
+    $cache = new NodeAddressCache(0.01);
+
+    $cache->set('svc', '127.0.0.1', 6379);
+    $cache->setReplicas('svc', [['ip' => '127.0.0.1', 'port' => 6380]]);
+
+    expect($cache->get('svc'))->toBe(['ip' => '127.0.0.1', 'port' => 6379])
+        ->and($cache->getReplicas('svc'))->toBe([['ip' => '127.0.0.1', 'port' => 6380]]);
+
+    usleep(20000);
+
+    expect($cache->get('svc'))->toBeNull()
+        ->and($cache->getReplicas('svc'))->toBe([]);
+});
+
+test('ttl zero keeps entries forever (backwards compatible)', function () {
+    $cache = new NodeAddressCache(0.0);
+
+    $cache->set('svc', '127.0.0.1', 6379);
+    $cache->setReplicas('svc', [['ip' => '127.0.0.1', 'port' => 6380]]);
+
+    usleep(20000);
+
+    expect($cache->get('svc'))->toBe(['ip' => '127.0.0.1', 'port' => 6379])
+        ->and($cache->getReplicas('svc'))->toBe([['ip' => '127.0.0.1', 'port' => 6380]]);
+});
+
+test('expiring one entry type keeps the other', function () {
+    $cache = new NodeAddressCache(0.01);
+
+    $cache->set('svc', '127.0.0.1', 6379);
+    usleep(20000);
+    $cache->setReplicas('svc', [['ip' => '127.0.0.2', 'port' => 6380]]);
+
+    expect($cache->get('svc'))->toBeNull()
+        ->and($cache->getReplicas('svc'))->toBe([['ip' => '127.0.0.2', 'port' => 6380]]);
 });

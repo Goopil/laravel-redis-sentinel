@@ -30,6 +30,15 @@ All Redis services use password `test`. Two compose files exist:
 - `docker-compose.yml` — local dev, hardcoded ports (use this for local testing)
 - `tests/ci/docker-compose.yml` — CI only, ports via env vars, do not call directly
 
+## Chaos tests (toxiproxy)
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.chaos.yml up -d   # overlay: toxiproxy API :8474, proxies 16380/16381/16382
+vendor/bin/pest --group=toxiproxy                                        # run only the chaos tests
+```
+
+The overlay gives Sentinel a quorum of 1, a 5000 ms down-after and a 5000 ms failover-timeout, so cutting the master proxy triggers a real promotion and the post-failover cool-down is only ~10 s (tests may trigger promotions back-to-back). The 5000 ms down-after gives 5x headroom over the worst Sentinel ping-reply jitter observed on Docker Desktop (~1 s); a lower value self-sustains sdown/odown flapping even when idle. Chaos tests skip automatically when the overlay is not running.
+
 ## Test wiring
 
 `tests/TestCase.php` defines two connections for comparison testing:

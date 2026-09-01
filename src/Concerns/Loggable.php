@@ -3,6 +3,7 @@
 namespace Goopil\LaravelRedisSentinel\Concerns;
 
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 trait Loggable
 {
@@ -17,16 +18,21 @@ trait Loggable
      */
     protected function log(string $message, array $context = [], string $level = 'info'): void
     {
-        $channel = config('phpredis-sentinel.log.channel');
+        try {
+            $channel = config('phpredis-sentinel.log.channel');
 
-        $logger = $channel !== null
-            ? Log::channel($channel)
-            : Log::getLogger();
+            $logger = $channel !== null
+                ? Log::channel($channel)
+                : Log::getLogger();
 
-        $logger->{$level}(sprintf('[%s] %s',
-            $this->getLogPrefix(),
-            $message
-        ), $context);
+            $logger->{$level}(sprintf('[%s] %s',
+                $this->getLogPrefix(),
+                $message
+            ), $context);
+        } catch (Throwable) {
+            // Logging must never break the retry path (e.g. a Redis-backed log
+            // channel failing while Redis itself is down).
+        }
     }
 
     protected function getLogPrefix(): string

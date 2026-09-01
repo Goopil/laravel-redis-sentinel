@@ -54,7 +54,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
             return;
         }
 
-        $resetCallback = function () {
+        $this->app['events']->listen('Laravel\Octane\Events\RequestReceived', function () {
             $app = Facade::getFacadeApplication() ?: Container::getInstance();
             if ($app->bound(RedisSentinelManager::class)) {
                 $manager = $app->make(RedisSentinelManager::class);
@@ -65,11 +65,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
                     }
                 }
             }
-        };
-
-        foreach (['RequestReceived', 'TickReceived', 'TaskReceived', 'OperationTerminated'] as $event) {
-            $this->app['events']->listen("Laravel\\Octane\\Events\\{$event}", $resetCallback);
-        }
+        });
     }
 
     public function isHorizonContext(): bool
@@ -91,10 +87,6 @@ class RedisSentinelServiceProvider extends ServiceProvider
     {
         $this->app->alias(RedisSentinelManager::class, $this->name);
 
-        // Note: The singleton captures database.redis config at first resolve.
-        // Runtime config changes after the first resolve will be ignored.
-        // For multi-tenant setups, call app()->forgetInstance(RedisSentinelManager::class)
-        // after changing config to force re-resolution with the new values.
         $this->app->singleton(
             RedisSentinelManager::class,
             fn ($app) => new RedisSentinelManager(
@@ -104,7 +96,9 @@ class RedisSentinelServiceProvider extends ServiceProvider
             )
         );
 
-        $this->app->singleton(NodeAddressCache::class);
+        $this->app->singleton(NodeAddressCache::class, fn ($app) => new NodeAddressCache(
+            (float) $app['config']->get('phpredis-sentinel.node_cache.ttl', 0)
+        ));
         $this->app->bind('redis.sentinel', RedisSentinelConnector::class);
     }
 
@@ -139,9 +133,6 @@ class RedisSentinelServiceProvider extends ServiceProvider
             'redis.connection',
             fn () => $this->app->make($this->name)->connection()
         );
-
-        $this->app->forgetInstance('redis');
-        $this->app->forgetInstance('redis.connection');
     }
 
     protected function bootConnector(): void
@@ -159,51 +150,48 @@ class RedisSentinelServiceProvider extends ServiceProvider
     {
         $sentinelName = $this->name;
 
-        $this->app->make(BroadcastFactory::class)->extend(
-            $sentinelName,
-            fn ($app, $conf) => new RedisBroadcaster(
-                $app->make($sentinelName),
-                Arr::get($conf, 'connection', 'default')
-            )
-        );
+        $this->callAfterResolving(BroadcastFactory::class, function ($factory, $app) use ($sentinelName) {
+            $factory->extend(
+                $sentinelName,
+                fn ($app, $conf) => new RedisBroadcaster(
+                    $app->make($sentinelName),
+                    Arr::get($conf, 'connection', 'default')
+                )
+            );
+        });
     }
 
     protected function bootCacheStore(): void
     {
-        $this->app->make('cache')->extend(
-            $this->name,
-            fn ($app, $conf) => $app->make('cache')->repository(
-                new RedisStore(
-                    $app->make(RedisSentinelManager::class),
-                    $app->make('config')->get('cache.prefix'),
-                    Arr::get($conf, 'connection', 'default'))
-            )
-        );
+        $this->callAfterResolving('cache', function ($cache, $app) {
+            $cache->extend(
+                $this->name,
+                fn ($app, $conf) => $app->make('cache')->repository(
+                    new RedisStore(
+                        $app->make(RedisSentinelManager::class),
+                        $app->make('config')->get('cache.prefix'),
+                        Arr::get($conf, 'connection', 'default'))
+                )
+            );
+        });
     }
 
     protected function bootSessionHandler(): void
     {
-        $app = $this->app;
-        $name = $this->name;
+        $this->callAfterResolving('session', function ($session, $app) {
+            $name = $this->name;
+            $config = $app->make('config');
 
-        $this->app->make('session')->extend(
-            $name,
-            function () use ($app) {
-                $config = $app->make('config');
-                $manager = $app->make(RedisSentinelManager::class);
-                $store = new RedisStore(
-                    $manager,
-                    $config->get('cache.prefix'),
-                    $config->get('session.connection')
-                );
-                $driver = $app->make('cache')->repository($store);
+            $session->extend($name, function () use ($app, $name, $config) {
+                $cacheDriver = clone $app->make('cache')->driver($name);
+                $cacheDriver->getStore()->setConnection($config->get('session.connection'));
 
                 return new CacheBasedSessionHandler(
-                    $driver,
+                    $cacheDriver,
                     $config->get('session.lifetime')
                 );
-            }
-        );
+            });
+        });
     }
 
     protected function registerHorizonBindings(): void
@@ -228,10 +216,9 @@ class RedisSentinelServiceProvider extends ServiceProvider
             ? self::HORIZON_REDIS_CONNECTOR
             : RedisConnector::class;
 
-        $this->app->make('queue')->extend(
-            $name,
-            fn () => new $connector($app->make($name))
-        );
+        $this->callAfterResolving('queue', function ($queue) use ($app, $name, $connector) {
+            $queue->extend($name, fn () => new $connector($app->make($name)));
+        });
     }
 
     protected function bootQueueEvents(): void

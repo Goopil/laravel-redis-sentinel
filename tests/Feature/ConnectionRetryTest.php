@@ -76,6 +76,41 @@ describe('Reconnect', function () {
         Event::assertDispatched(RedisSentinelConnectionReconnected::class);
     });
 
+    test('flushdb is retried exactly retryLimit + 1 times and resets stickiness', function () {
+        Event::fake();
+
+        $client1 = Mockery::mock(Redis::class);
+        $client2 = Mockery::mock(Redis::class);
+        $client1->expects('flushdb')->once()->andThrow(new RedisException('broken pipe'));
+        $client2->expects('flushdb')->once()->andThrow(new RedisException('broken pipe'));
+
+        $connection = new RedisSentinelConnection($client1, fn () => $client2, []);
+        $connection->setRetryLimit(1);
+        $connection->setRetryDelay(1);
+        $connection->setRetryMessages(['broken pipe']);
+
+        $property = (new ReflectionClass($connection))->getProperty('wroteToMaster');
+        $property->setValue($connection, true);
+
+        expect(fn () => $connection->flushdb())->toThrow(RedisException::class)
+            ->and($property->getValue($connection))->toBeFalse();
+    });
+
+    test('flushall routes once through the client and resets stickiness', function () {
+        Event::fake();
+
+        $client = Mockery::mock(Redis::class);
+        $client->expects('flushall')->withNoArgs()->once()->andReturn(true);
+
+        $connection = new RedisSentinelConnection($client, fn () => $client, []);
+
+        $property = (new ReflectionClass($connection))->getProperty('wroteToMaster');
+        $property->setValue($connection, true);
+
+        expect($connection->flushall())->toBeTrue()
+            ->and($property->getValue($connection))->toBeFalse();
+    });
+
     test('Reconnecting after a manual fail over', function () {
         Event::fake();
 
@@ -90,37 +125,27 @@ describe('Reconnect', function () {
         $host = implode('', $sentinel->getMasterAddrByName('master'));
 
         // Attempt failover - it may fail if a failover is already in progress or replicas aren't ready
-        // In CI environments, this can sometimes return false, so we retry a few times
-        $failoverTriggered = false;
-        $maxFailoverAttempts = 5;
-        for ($attempt = 0; $attempt < $maxFailoverAttempts; $attempt++) {
-            if ($sentinel->failover('master')) {
-                $failoverTriggered = true;
-                break;
-            }
-            usleep(500000); // 500ms between attempts
-        }
+        // In CI environments (cold runners), replicas may take a while to become "suitable",
+        // so we retry generously before giving up (1s between attempts, 20s deadline).
+        $failoverTriggered = (bool) waitFor(
+            fn () => $sentinel->failover('master'),
+            timeoutMs: 20000,
+            intervalMs: 1000,
+        );
 
         expect($failoverTriggered)->toBeTrue('Failover command should succeed after retries');
 
         // Invalidate the cache after failover to ensure the package will fetch the new master
         app(NodeAddressCache::class)->forget('master');
 
-        $failoverOk = false;
-        $attempts = 0;
-        $host2 = $host;
-
-        while (! $failoverOk && $attempts < 100) {
+        // Wait for Sentinel to converge on the new master (failover can take
+        // up to ~30s on a fresh CI setup, so poll up to 30s).
+        $host2 = waitFor(function () use ($sentinel, $host) {
             $currentMaster = $sentinel->getMasterAddrByName('master');
-            $host2 = $currentMaster ? implode('', $currentMaster) : '';
+            $newHost = $currentMaster ? implode('', $currentMaster) : '';
 
-            if ($host2 !== $host && ! empty($host2)) {
-                $failoverOk = true;
-            } else {
-                usleep(100000); // 100ms
-                $attempts++;
-            }
-        }
+            return $newHost !== $host && $newHost !== '' ? $newHost : null;
+        }, timeoutMs: 30000, intervalMs: 100);
 
         expect($host2)->not()->toEqual($host);
 
@@ -131,7 +156,7 @@ describe('Reconnect', function () {
 
             Event::assertNotDispatched(RedisSentinelConnectionFailed::class);
 
-            usleep(500);
+            usleep(500); // retained: no observable condition (soak pacing)
         }
     });
 });

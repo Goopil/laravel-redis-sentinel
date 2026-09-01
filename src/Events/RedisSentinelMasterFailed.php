@@ -13,6 +13,6 @@ class RedisSentinelMasterFailed
         public readonly string $service,
         public readonly Throwable $exception,
         public readonly string $context,
-        public readonly ?int $attempts = 0,
+        public readonly int $attempts = 0,
     ) {}
 }

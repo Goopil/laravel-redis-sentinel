@@ -12,10 +12,20 @@
 */
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\Tests\Support\Toxiproxy\InteractsWithToxiproxy;
 use Goopil\LaravelRedisSentinel\Tests\TestCase;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 
 uses(TestCase::class)->in(__DIR__);
+
+// Pest closure test files accept at most one test-case class (TestCaseAlreadyInUse), and
+// Pest's Testable trait shadows inherited setUp() hooks, so the chaos suite gets its
+// members via the InteractsWithToxiproxy trait plus beforeEach/afterEach hooks.
+uses(InteractsWithToxiproxy::class)
+    ->group('toxiproxy')
+    ->beforeEach(fn () => $this->bootToxiproxy())
+    ->afterEach(fn () => $this->cleanupToxiproxy())
+    ->in(__DIR__.'/Feature/Toxiproxy');
 
 /*
 |--------------------------------------------------------------------------
@@ -68,4 +78,21 @@ function getRedisSentinelConnection()
 function getRedisConnection()
 {
     return app()->get('redis')->connection('redis');
+}
+
+function waitFor(callable $condition, int $timeoutMs = 5000, int $intervalMs = 50): mixed
+{
+    $deadline = microtime(true) + $timeoutMs / 1000;
+
+    while (microtime(true) < $deadline) {
+        $result = $condition();
+
+        if ($result) {
+            return $result;
+        }
+
+        usleep($intervalMs * 1000);
+    }
+
+    throw new RuntimeException("Condition not met within {$timeoutMs}ms");
 }

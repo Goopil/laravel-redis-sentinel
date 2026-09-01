@@ -1,3 +1,25 @@
+# [1.4.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.3.0...1.4.0) (2026-08-31)
+
+
+### Features
+
+* add valkey test bench for wire compatibility ([#44](https://github.com/Goopil/laravel-redis-sentinel/issues/44)) ([12225d8](https://github.com/Goopil/laravel-redis-sentinel/commit/12225d87d20527dab70a9992815628266f6bc6e4)), closes [#5](https://github.com/Goopil/laravel-redis-sentinel/issues/5) [#5](https://github.com/Goopil/laravel-redis-sentinel/issues/5) [#5](https://github.com/Goopil/laravel-redis-sentinel/issues/5) [#5](https://github.com/Goopil/laravel-redis-sentinel/issues/5) [#4](https://github.com/Goopil/laravel-redis-sentinel/issues/4)
+* emit worker lifecycle events in Horizon probe commands ([#43](https://github.com/Goopil/laravel-redis-sentinel/issues/43)) ([bb48f21](https://github.com/Goopil/laravel-redis-sentinel/commit/bb48f21ca27c96d13276cd0dc4bde6bd22d72ffe)), closes [#4](https://github.com/Goopil/laravel-redis-sentinel/issues/4) [#4](https://github.com/Goopil/laravel-redis-sentinel/issues/4) [#4](https://github.com/Goopil/laravel-redis-sentinel/issues/4) [#4](https://github.com/Goopil/laravel-redis-sentinel/issues/4)
+
+# [1.3.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.5...1.3.0) (2026-08-31)
+
+
+### Features
+
+* production-readiness remediation (single retry path, sentinel auth decoupling, node cache ttl, lazy boot) ([#35](https://github.com/Goopil/laravel-redis-sentinel/issues/35)) ([27211be](https://github.com/Goopil/laravel-redis-sentinel/commit/27211be1fccb615f05095f2bd1654f7c0d31ca50))
+
+## [1.2.5](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.4...1.2.5) (2026-08-30)
+
+
+### Bug Fixes
+
+* patch dependency vulnerabilities and add blocking security audit gate ([#31](https://github.com/Goopil/laravel-redis-sentinel/issues/31)) ([c144f9b](https://github.com/Goopil/laravel-redis-sentinel/commit/c144f9bd7d4e2f148df6d327979b239a829ebdfd))
+
 ## [1.2.4](https://github.com/Goopil/laravel-redis-sentinel/compare/1.2.3...1.2.4) (2026-08-16)
 
 

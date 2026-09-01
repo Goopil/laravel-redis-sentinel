@@ -1,0 +1,48 @@
+name: Dependabot auto-merge
+
+permissions:
+  contents: write
+  pull-requests: write
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Merge patch/minor dependabot PRs older than 7 days with green CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr list --label dependencies --state open --limit 50 \
+            --json number,author,createdAt,title \
+            --jq '.[] | select(.author.login=="dependabot[bot]" and ((now - (.createdAt|fromdateiso8601)) > 604800)) | "\(.number)\t\(.title)"' > /tmp/prs.txt
+          if [ ! -s /tmp/prs.txt ]; then
+            echo "No dependabot PRs older than 7 days."
+            exit 0
+          fi
+          while IFS=$'\t' read -r pr title; do
+            [ -z "$pr" ] && continue
+            from=$(echo "$title" | grep -oE 'from [0-9][^ ]*' | awk '{print $2}')
+            to=$(echo "$title" | grep -oE ' to [0-9][^ ]*' | awk '{print $2}')
+            if [[ "$title" == *"minor-and-patch group"* ]]; then
+              bump=patch-or-minor
+            elif [ -n "$from" ] && [ -n "$to" ] && [ "${from%%.*}" = "${to%%.*}" ]; then
+              bump=patch-or-minor
+            else
+              bump=major-or-unknown
+            fi
+            if [ "$bump" != "patch-or-minor" ]; then
+              echo "Skipping PR #$pr (major or unrecognized bump, manual review required): $title"
+              continue
+            fi
+            echo "Auto-merging PR #$pr"
+            gh pr merge "$pr" --squash --auto || gh pr merge "$pr" --squash || echo "Could not merge PR #$pr, skipping"
+          done < /tmp/prs.txt

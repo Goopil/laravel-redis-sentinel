@@ -129,6 +129,12 @@ required.
 - Redis Sentinel cluster (minimum 3 nodes recommended)
 - Redis version 6.0 or higher recommended
 
+### Valkey Compatibility
+
+[Valkey](https://valkey.io/) is wire-compatible with Redis and is supported out of the box. Compatibility is validated by
+the automated test bench: a Valkey 8 Sentinel cluster runs the full test suite in CI (the `tests-valkey` job) and can be
+run locally through the Docker environment (see [Local Development](#local-development)).
+
 ## Installation
 
 ### 1. Install via Composer
@@ -173,7 +179,7 @@ Add to your `config/database.php`:
         'database' => env('REDIS_DATABASE', 0),
 
         // Enable read/write splitting (optional)
-        'read_only_replicas' => env('REDIS_READ_REPLICAS', true),
+        'read_only_replicas' => env('REDIS_READ_REPLICAS', false),
 
         // Connection options
         'options' => [
@@ -237,6 +243,15 @@ return [
     ],
 ];
 ```
+
+### Data connection defaults (v1.3+)
+
+- `timeout` for the data connection defaults to **5 seconds** and is no longer derived from `sentinel.timeout`.
+- The data client uses strictly `password`; `sentinel.password` only authenticates against Sentinel nodes.
+- `retry.redis.messages` can be overridden **per connection** (`retry.redis.messages` inside the connection config), like `attempts`/`delay`.
+- Resolved master/replica addresses can be cached with a TTL: `phpredis-sentinel.node_cache.ttl` (seconds, `0` = disabled).
+
+> If you previously published the config file, add `'No reachable Redis Sentinel host found'` to `retry.sentinel.messages` to retry total Sentinel outages.
 
 ### Laravel Redis Binding Override
 
@@ -395,7 +410,6 @@ QUEUE_CONNECTION="redis-sentinel"
 // Configure in config/session.php
 'driver' => 'phpredis-sentinel',
 'connection' => 'default',
-'store' => 'redis-sentinel',
 
 // Sessions work automatically
 session(['user_id' => 123]);
@@ -408,7 +422,7 @@ $userId = session('user_id');
 // Configure in config/broadcasting.php
 'connections' => [
     'redis-sentinel' => [
-        'driver' => 'redis',
+        'driver' => 'phpredis-sentinel',
         'connection' => 'default',
     ],
 ],
@@ -640,9 +654,24 @@ your own Redis topology, workload, and deployment model.
   connection error, read-only error, or failover-related error is detected, the connection is refreshed and Sentinel is
   queried again.
 - **Read/write splitting is eventually consistent**: reads can be sent to replicas. If your workload requires read-after-write
-  consistency, keep sticky reads enabled and validate the configured sticky duration with your replication lag.
+  consistency, keep sticky reads enabled — sticky reads stay on the master until the next request/job boundary (Octane
+  `RequestReceived`, queue `JobProcessing`) — there is no time-based sticky TTL; re-reads in a long-running process without
+  those events remain on the master.
 - **Commands classified as read-only still run on Redis**: avoid expensive production commands such as `KEYS`; prefer
   cursor-based alternatives like `SCAN` when possible.
+- **Pipeline/transaction retries are at-least-once**: if a `pipeline()` or `transaction()` fails mid-flight, the whole callback
+  is re-executed after reconnection. Only use idempotent operations inside, or handle duplicates in your callback.
+- **Scan-family commands reset their cursor** on retry after a reconnection, so iteration restarts on the new node (SCAN
+  semantics allow duplicates).
+- **`read_timeout` defaults to 0** (no timeout, like Laravel's PhpRedis driver): blocking commands can hang indefinitely if the
+  server disappears without closing the socket. Set an explicit `read_timeout` for latency-sensitive paths.
+- **`flushdb($async)` / `flushall($sync)` flags are not reliably forwarded**: on phpredis 6.x the flag is ignored (commands
+  run synchronously); on older 5.x releases a truthy argument may be sent as `ASYNC`. Do not rely on the parameter for
+  predictable background flushing.
+- **Laravel's built-in command retry is disabled for this connection**: Laravel 13+ wraps `command()` with an internal single
+  retry whose connector is not Sentinel-aware and dispatches no events. This connection overrides `isRetryable()` to turn it
+  off, so the package's `retry()` layer stays the single retry path and `RedisSentinelConnectionFailed` /
+  `RedisSentinelConnectionReconnected` fire on the first failure.
 
 ### Long-Running Workers
 
@@ -703,6 +732,49 @@ Events\RedisSentinelConnectionReconnected::class
 Events\RedisSentinelConnectionMaxRetryFailed::class
 ```
 
+### Horizon Worker Events
+
+The Kubernetes probe commands also dispatch worker lifecycle events:
+
+```php
+use Goopil\LaravelRedisSentinel\Events;
+
+// horizon:ready
+Events\HorizonWorkerReady::class;           // worker is ready (opt-in, see emit_success below)
+Events\HorizonWorkerNotReady::class;        // no running master supervisor found (always emitted)
+                                            // properties: $masters, $running
+
+// horizon:alive
+Events\HorizonWorkerAlive::class;           // all liveness checks pass (opt-in, see emit_success below)
+Events\HorizonWorkerNotAlive::class;        // one or more checks failed (always emitted)
+                                            // property: $failedChecks (check name => exit code)
+
+// horizon:pre-stop
+Events\HorizonWorkerTerminating::class;     // TERM signal sent to the master supervisor (opt-in, see emit_success below)
+                                            // properties: $pid, $startCommand
+Events\HorizonWorkerTerminateFailed::class; // TERM signal failed or PID not found (always emitted)
+                                            // properties: $startCommand, $pid (null when not found), $reason
+```
+
+Success events are disabled by default so probes stay quiet during normal operation. Enable them in
+`config/phpredis-sentinel.php`:
+
+```php
+'commands' => [
+    'events' => [
+        'emit_success' => env('REDIS_SENTINEL_EMIT_SUCCESS_EVENTS', false),
+    ],
+],
+```
+
+or by setting the environment variable:
+
+```env
+REDIS_SENTINEL_EMIT_SUCCESS_EVENTS=true
+```
+
+Failure events are always dispatched, regardless of this setting.
+
 ### Listening to Events
 
 ```php
@@ -720,13 +792,30 @@ class NotifyRedisFailure
     {
         Log::error('Redis connection failed', [
             'connection' => $event->connection->getName(),
-            'command' => $event->command,
+            'context' => $event->context,
             'attempts' => $event->attempts,
             'error' => $event->exception->getMessage(),
         ]);
 
         // Send to monitoring service
         // Sentry::captureException($event->exception);
+    }
+}
+
+// Horizon worker lifecycle example
+protected $listen = [
+    \Goopil\LaravelRedisSentinel\Events\HorizonWorkerNotAlive::class => [
+        \App\Listeners\AlertHorizonUnhealthy::class,
+    ],
+];
+
+class AlertHorizonUnhealthy
+{
+    public function handle(HorizonWorkerNotAlive $event): void
+    {
+        Log::error('Horizon worker failed liveness checks', [
+            'failed_checks' => $event->failedChecks,
+        ]);
     }
 }
 ```
@@ -767,10 +856,24 @@ The package includes a comprehensive GitHub Actions workflow that tests:
 - ✅ PHP 8.2, 8.3, 8.4, 8.5
 - ✅ Laravel 10, 11, 12, 13
 - ✅ Redis 6, 7
+- ✅ Valkey 8 (dedicated `tests-valkey` job)
 - ✅ Linting before the test matrix
-- ✅ **26 matrix test jobs** with isolated Redis Sentinel clusters
+- ✅ **Matrix test jobs** across isolated Redis Sentinel clusters
 - ✅ A dedicated PHP 8.4 / Laravel 12 job without Horizon installed
 - ✅ Coverage reporting with a minimum coverage threshold
+
+### Resilience Testing
+
+An optional chaos suite in `tests/Feature/Toxiproxy/` exercises real-world failure scenarios over a toxified network
+using [Toxiproxy](https://github.com/Shopify/toxiproxy): actual Sentinel-driven master promotion, `READONLY` retries
+caused by a stale cached master address, and network toxics such as timeouts, latency, and connection cuts. Run it with:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.chaos.yml up -d
+vendor/bin/pest --group=toxiproxy
+```
+
+The chaos tests are skipped automatically when the chaos stack is not running.
 
 ## Local Development
 
@@ -800,6 +903,23 @@ redis-cli -h 127.0.0.1 -p 26379 -a test
 
 # Check sentinel status
 redis-cli -h 127.0.0.1 -p 26379 -a test sentinel masters
+```
+
+### Running Tests Against Valkey
+
+The Docker environment also includes a Valkey 8 Sentinel cluster (wire-compatible with Redis) on dedicated ports:
+
+- 1 Valkey Master (port 6385)
+- 2 Valkey Replicas (ports 6386, 6387)
+- 1 Valkey Sentinel (port 26380)
+- 1 standalone Valkey (port 6388) used by the plain `redis` connection, kept out of the Sentinel topology
+
+Start the Valkey services and run the test suite against them:
+
+```bash
+docker compose up -d valkey-main valkey-replica1 valkey-replica2 valkey-sentinel valkey
+
+REDIS_SENTINEL_PORT=26380 REDIS_STANDALONE_PORT=6388 vendor/bin/pest
 ```
 
 ## Troubleshooting

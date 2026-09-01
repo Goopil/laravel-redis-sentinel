@@ -14,6 +14,6 @@ class RedisSentinelConnectionFailed
         public readonly RedisSentinelConnection $connection,
         public readonly Throwable $exception,
         public readonly string $context,
-        public readonly ?int $attempts = 0,
+        public readonly int $attempts = 0,
     ) {}
 }

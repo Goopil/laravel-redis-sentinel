@@ -39,9 +39,9 @@ class RedisSentinelConnector extends PhpRedisConnector
         $this->masterCache = $masterCache;
         $this->config = $config;
 
-        $this->setRetryLimit($config->get('phpredis-sentinel.retry.sentinel.attempts'))
-            ->setRetryDelay($config->get('phpredis-sentinel.retry.sentinel.delay'))
-            ->setRetryMessages($config->get('phpredis-sentinel.retry.sentinel.messages', []));
+        $this->setRetryLimit((int) $config->get('phpredis-sentinel.retry.sentinel.attempts', 5))
+            ->setRetryDelay((int) $config->get('phpredis-sentinel.retry.sentinel.delay', 1000))
+            ->setRetryMessages((array) $config->get('phpredis-sentinel.retry.sentinel.messages', []));
     }
 
     /**
@@ -60,17 +60,21 @@ class RedisSentinelConnector extends PhpRedisConnector
         }
 
         return (new RedisSentinelConnection($connector(), $connector, $config, $readConnector))
-            ->setRetryLimit(Arr::get(
+            ->setRetryLimit((int) Arr::get(
                 $config,
                 'retry.redis.attempts',
                 $this->config->get('phpredis-sentinel.retry.redis.attempts', $this->retryLimit)
             ))
-            ->setRetryDelay(Arr::get(
+            ->setRetryDelay((int) Arr::get(
                 $config,
                 'retry.redis.delay',
                 $this->config->get('phpredis-sentinel.retry.redis.delay', $this->retryDelay)
             ))
-            ->setRetryMessages($this->config->get('phpredis-sentinel.retry.redis.messages', []));
+            ->setRetryMessages((array) Arr::get(
+                $config,
+                'retry.redis.messages',
+                $this->config->get('phpredis-sentinel.retry.redis.messages', $this->retryMessages)
+            ));
     }
 
     /**
@@ -126,7 +130,7 @@ class RedisSentinelConnector extends PhpRedisConnector
                 'host' => $ip,
                 'port' => $port,
                 'password' => Arr::get($config, 'password') ?? Arr::get($config, 'sentinel.password', ''),
-                'timeout' => Arr::get($config, 'timeout') ?? Arr::get($config, 'sentinel.timeout', 1.0),
+                'timeout' => Arr::get($config, 'timeout') ?? Arr::get($config, 'sentinel.timeout', 5.0),
                 'read_timeout' => Arr::get($config, 'read_timeout') ?? Arr::get($config, 'sentinel.read_timeout', 0),
                 'retry_interval' => Arr::get($config, 'retry_interval') ?? Arr::get($config, 'sentinel.retry_interval', 0),
                 'persistent' => Arr::get($config, 'persistent') ?? Arr::get($config, 'sentinel.persistent', 0),
@@ -273,6 +277,10 @@ class RedisSentinelConnector extends PhpRedisConnector
                 if ($instance->ping()) {
                     return $instance;
                 }
+
+                $lastException = new RedisException(
+                    sprintf('Sentinel %s:%d did not respond to ping.', $host, $port)
+                );
             } catch (Throwable $e) {
                 $lastException = $e;
 

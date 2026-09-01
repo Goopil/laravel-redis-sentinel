@@ -2,7 +2,10 @@
 
 namespace Goopil\LaravelRedisSentinel\Commands;
 
+use Goopil\LaravelRedisSentinel\Concerns\EmitsWorkerEvents;
 use Goopil\LaravelRedisSentinel\Concerns\Loggable;
+use Goopil\LaravelRedisSentinel\Events\HorizonWorkerTerminateFailed;
+use Goopil\LaravelRedisSentinel\Events\HorizonWorkerTerminating;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Config\Repository as ConfigRepository;
@@ -12,6 +15,7 @@ use Symfony\Component\Process\Process;
 
 class HorizonWorkerPreStop extends Command
 {
+    use EmitsWorkerEvents;
     use Loggable;
 
     /**
@@ -80,14 +84,22 @@ class HorizonWorkerPreStop extends Command
             ));
 
             if (! posix_kill($pid, SIGTERM)) {
+                $error = posix_strerror(posix_get_last_error());
+
                 $this->error(
                     sprintf(
                         'Failed to kill command:%s with process: {%s} (%s)',
                         $startCommand,
                         $pid,
-                        posix_strerror(posix_get_last_error())
+                        $error
                     )
                 );
+
+                $this->emitFailureEvent(new HorizonWorkerTerminateFailed(
+                    startCommand: $startCommand,
+                    pid: $pid,
+                    reason: $error,
+                ));
             } else {
                 $this->info(
                     sprintf(
@@ -96,11 +108,22 @@ class HorizonWorkerPreStop extends Command
                         $pid,
                     )
                 );
+
+                $this->emitSuccessEvent(new HorizonWorkerTerminating(
+                    pid: $pid,
+                    startCommand: $startCommand,
+                ));
             }
         } else {
             $this->error(sprintf(
                 'failed to find command %s pid',
                 $startCommand
+            ));
+
+            $this->emitFailureEvent(new HorizonWorkerTerminateFailed(
+                startCommand: $startCommand,
+                pid: null,
+                reason: sprintf('failed to find command %s pid', $startCommand),
             ));
 
             return 1;
