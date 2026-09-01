@@ -4,6 +4,7 @@ use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 use Goopil\LaravelRedisSentinel\RedisSentinelManager;
+use Laravel\Horizon\Connectors\RedisConnector;
 
 test('resolveConnector throws InvalidArgumentException if clusters are defined', function () {
     $config = [
@@ -99,107 +100,109 @@ test('resolveConnector does not mutate driver property', function () {
     expect($driverProp->getValue($manager))->toBe($originalDriver);
 });
 
-test('resolve uses normalized name for non-sentinel connections in horizon context', function () {
-    config()->set('horizon.use', 'horizon-sentinel');
-    config()->set('horizon.driver', 'phpredis-sentinel');
+if (class_exists(RedisConnector::class)) {
+    test('resolve uses normalized name for non-sentinel connections in horizon context', function () {
+        config()->set('horizon.use', 'horizon-sentinel');
+        config()->set('horizon.driver', 'phpredis-sentinel');
 
-    $config = [
-        'horizon-sentinel' => [
-            'client' => 'phpredis',
-            'host' => '127.0.0.1',
-            'port' => 6379,
-            'database' => 0,
-        ],
-    ];
+        $config = [
+            'horizon-sentinel' => [
+                'client' => 'phpredis',
+                'host' => '127.0.0.1',
+                'port' => 6379,
+                'database' => 0,
+            ],
+        ];
 
-    $manager = new RedisSentinelManager(app(), 'phpredis', $config);
+        $manager = new RedisSentinelManager(app(), 'phpredis', $config);
 
-    $resolvedName = null;
-    $manager->extend('phpredis', function () use (&$resolvedName) {
-        return new class
-        {
-            public function connect($config, $options)
+        $resolvedName = null;
+        $manager->extend('phpredis', function () use (&$resolvedName) {
+            return new class
             {
-                return new class
+                public function connect($config, $options)
                 {
-                    public function close() {}
-                };
-            }
-        };
+                    return new class
+                    {
+                        public function close() {}
+                    };
+                }
+            };
+        });
+
+        $connection = $manager->resolve('horizon');
+
+        expect($connection)->not->toBeNull();
     });
 
-    $connection = $manager->resolve('horizon');
+    test('patchHorizonConnectionName throws ConfigurationException when horizon.use is missing in horizon context', function () {
+        config()->set('horizon.driver', 'phpredis-sentinel');
+        config()->offsetUnset('horizon.use');
 
-    expect($connection)->not->toBeNull();
-});
+        $manager = new RedisSentinelManager(app(), 'phpredis', []);
+        $manager->resolveConnector('horizon');
+    })->throws(ConfigurationException::class, 'The "horizon.use" configuration key is required');
 
-test('patchHorizonConnectionName throws ConfigurationException when horizon.use is missing in horizon context', function () {
-    config()->set('horizon.driver', 'phpredis-sentinel');
-    config()->offsetUnset('horizon.use');
+    test('patchHorizonPrefix sets horizon prefix when in horizon context', function () {
+        config()->set('horizon.driver', 'phpredis-sentinel');
+        config()->set('horizon.prefix', 'horizon:');
 
-    $manager = new RedisSentinelManager(app(), 'phpredis', []);
-    $manager->resolveConnector('horizon');
-})->throws(ConfigurationException::class, 'The "horizon.use" configuration key is required');
+        $manager = new RedisSentinelManager(app(), 'phpredis', []);
+        $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
+        $method->setAccessible(true);
 
-test('patchHorizonPrefix sets horizon prefix when in horizon context', function () {
-    config()->set('horizon.driver', 'phpredis-sentinel');
-    config()->set('horizon.prefix', 'horizon:');
+        $result = $method->invoke($manager, 'horizon', ['options' => ['prefix' => 'old:']]);
 
-    $manager = new RedisSentinelManager(app(), 'phpredis', []);
-    $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
-    $method->setAccessible(true);
+        expect($result['options']['prefix'])->toBe('horizon:');
+    });
 
-    $result = $method->invoke($manager, 'horizon', ['options' => ['prefix' => 'old:']]);
+    test('patchHorizonPrefix keeps existing prefix when horizon.prefix is not set', function () {
+        config()->set('horizon', ['driver' => 'phpredis-sentinel']);
 
-    expect($result['options']['prefix'])->toBe('horizon:');
-});
+        $manager = new RedisSentinelManager(app(), 'phpredis', []);
+        $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
+        $method->setAccessible(true);
 
-test('patchHorizonPrefix keeps existing prefix when horizon.prefix is not set', function () {
-    config()->set('horizon', ['driver' => 'phpredis-sentinel']);
+        $result = $method->invoke($manager, 'horizon', ['options' => ['prefix' => 'existing:']]);
 
-    $manager = new RedisSentinelManager(app(), 'phpredis', []);
-    $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
-    $method->setAccessible(true);
+        expect($result['options']['prefix'])->toBe('existing:');
+    });
 
-    $result = $method->invoke($manager, 'horizon', ['options' => ['prefix' => 'existing:']]);
+    test('patchHorizonPrefix does nothing when name is not horizon', function () {
+        config()->set('horizon.driver', 'phpredis-sentinel');
+        config()->set('horizon.prefix', 'horizon:');
 
-    expect($result['options']['prefix'])->toBe('existing:');
-});
+        $manager = new RedisSentinelManager(app(), 'phpredis', []);
+        $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
+        $method->setAccessible(true);
 
-test('patchHorizonPrefix does nothing when name is not horizon', function () {
-    config()->set('horizon.driver', 'phpredis-sentinel');
-    config()->set('horizon.prefix', 'horizon:');
+        $result = $method->invoke($manager, 'default', ['options' => ['prefix' => 'default:']]);
 
-    $manager = new RedisSentinelManager(app(), 'phpredis', []);
-    $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
-    $method->setAccessible(true);
+        expect($result['options']['prefix'])->toBe('default:');
+    });
 
-    $result = $method->invoke($manager, 'default', ['options' => ['prefix' => 'default:']]);
+    test('patchHorizonPrefix does nothing when not in horizon context', function () {
+        config()->offsetUnset('horizon.driver');
 
-    expect($result['options']['prefix'])->toBe('default:');
-});
+        $manager = new RedisSentinelManager(app(), 'phpredis', []);
+        $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
+        $method->setAccessible(true);
 
-test('patchHorizonPrefix does nothing when not in horizon context', function () {
-    config()->offsetUnset('horizon.driver');
+        $result = $method->invoke($manager, 'horizon', ['options' => ['prefix' => 'default:']]);
 
-    $manager = new RedisSentinelManager(app(), 'phpredis', []);
-    $method = new ReflectionMethod($manager, 'patchHorizonPrefix');
-    $method->setAccessible(true);
+        expect($result['options']['prefix'])->toBe('default:');
+    });
 
-    $result = $method->invoke($manager, 'horizon', ['options' => ['prefix' => 'default:']]);
+    test('patchHorizonConnectionName returns horizon.use value when in horizon context', function () {
+        config()->set('horizon', ['driver' => 'phpredis-sentinel', 'use' => 'my-sentinel']);
 
-    expect($result['options']['prefix'])->toBe('default:');
-});
+        $manager = new RedisSentinelManager(app(), 'phpredis', []);
+        $method = new ReflectionMethod($manager, 'patchHorizonConnectionName');
+        $method->setAccessible(true);
 
-test('patchHorizonConnectionName returns horizon.use value when in horizon context', function () {
-    config()->set('horizon', ['driver' => 'phpredis-sentinel', 'use' => 'my-sentinel']);
-
-    $manager = new RedisSentinelManager(app(), 'phpredis', []);
-    $method = new ReflectionMethod($manager, 'patchHorizonConnectionName');
-    $method->setAccessible(true);
-
-    expect($method->invoke($manager, 'horizon'))->toBe('my-sentinel');
-});
+        expect($method->invoke($manager, 'horizon'))->toBe('my-sentinel');
+    });
+}
 
 test('patchHorizonConnectionName returns original name when not horizon', function () {
     config()->set('horizon', ['driver' => 'phpredis-sentinel', 'use' => 'my-sentinel']);
