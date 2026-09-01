@@ -257,3 +257,30 @@ test('createClient preserves explicit read_timeout override', function () {
 
     expect((float) $client->getOption(Redis::OPT_READ_TIMEOUT))->toBe(5.0);
 });
+
+test('createSentinel defaults Sentinel client readTimeout to 60', function () {
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
+    {
+        public ?array $capturedOptions = null;
+
+        protected function createSentinelInstance(array $options): RedisSentinel
+        {
+            $this->capturedOptions = $options;
+
+            return parent::createSentinelInstance($options);
+        }
+    };
+
+    config(['database.redis.my-sentinel' => [
+        'sentinel' => [
+            'host' => CONNECTOR_TEST_HOST,
+            'port' => (int) env('REDIS_SENTINEL_PORT', 26379),
+            'service' => 'master',
+            'password' => env('REDIS_PASSWORD', 'test'),
+        ],
+    ]]);
+
+    $connector->createSentinel('my-sentinel');
+
+    expect($connector->capturedOptions['readTimeout'])->toBe(60.0);
+});
