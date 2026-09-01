@@ -19,7 +19,13 @@ describe('Real Sentinel failover through toxiproxy', function () {
 
         expect($newAddress['port'])->not->toBe($oldAddress['port']);
 
-        expect($this->reissueUntilSuccess(fn () => $connection->set('chaos_failover', 'after')))->toBeTrue()
+        // On CI, host port forwarding can refuse connects for several seconds after a
+        // proxy listener is (re)created, even past a first successful probe - the
+        // failover below promotes a node whose proxy is freshly recreated, so re-verify
+        // traffic and give the retry a wide window before reissuing writes
+        $this->waitForProxyReady($newAddress['port'], 10);
+
+        expect($this->reissueUntilSuccess(fn () => $connection->set('chaos_failover', 'after'), attempts: 20))->toBeTrue()
             ->and($connection->get('chaos_failover'))->toBe('after');
 
         Event::assertDispatched(RedisSentinelConnectionReconnected::class);
@@ -43,8 +49,13 @@ describe('Real Sentinel failover through toxiproxy', function () {
 
         // Reuse the SAME connection object: its established client still points at the
         // cut master, so the connector must retry the failed write and re-resolve the
-        // promoted master through Sentinel
-        expect($this->reissueUntilSuccess(fn () => $connection->set('chaos_stale', 'v2')))->toBeTrue()
+        // promoted master through Sentinel. Its proxy listener was freshly recreated by
+        // beforeEach resetAll (and by the previous test's re-enable), and CI host port
+        // forwarding can refuse connects for seconds - re-verify traffic and widen the
+        // retry window, or the reconnect-in-onFail exception exhausts the reissue budget
+        $this->waitForProxyReady($newAddress['port'], 10);
+
+        expect($this->reissueUntilSuccess(fn () => $connection->set('chaos_stale', 'v2'), attempts: 20))->toBeTrue()
             ->and($connection->get('chaos_stale'))->toBe('v2');
 
         $cached = app(NodeAddressCache::class)->get($service);
