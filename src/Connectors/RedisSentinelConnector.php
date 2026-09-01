@@ -129,9 +129,9 @@ class RedisSentinelConnector extends PhpRedisConnector
             [
                 'host' => $ip,
                 'port' => $port,
-                'password' => Arr::get($config, 'password') ?? Arr::get($config, 'sentinel.password', ''),
-                'timeout' => Arr::get($config, 'timeout') ?? Arr::get($config, 'sentinel.timeout', 5.0),
-                'read_timeout' => Arr::get($config, 'read_timeout') ?? Arr::get($config, 'sentinel.read_timeout', 0),
+                'password' => Arr::get($config, 'password', ''),
+                'timeout' => Arr::get($config, 'timeout', 5.0),
+                'read_timeout' => Arr::get($config, 'read_timeout', 0),
                 'retry_interval' => Arr::get($config, 'retry_interval') ?? Arr::get($config, 'sentinel.retry_interval', 0),
                 'persistent' => Arr::get($config, 'persistent') ?? Arr::get($config, 'sentinel.persistent', 0),
                 'database' => Arr::get($config, 'database') ?? Arr::get($config, 'sentinel.database', 0),

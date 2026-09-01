@@ -54,7 +54,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->app['events']->listen('Laravel\Octane\Events\RequestReceived', function () {
+        $resetCallback = function () {
             $app = Facade::getFacadeApplication() ?: Container::getInstance();
             if ($app->bound(RedisSentinelManager::class)) {
                 $manager = $app->make(RedisSentinelManager::class);
@@ -65,7 +65,11 @@ class RedisSentinelServiceProvider extends ServiceProvider
                     }
                 }
             }
-        });
+        };
+
+        foreach (['RequestReceived', 'TickReceived', 'TaskReceived', 'OperationTerminated'] as $event) {
+            $this->app['events']->listen("Laravel\\Octane\\Events\\{$event}", $resetCallback);
+        }
     }
 
     public function isHorizonContext(): bool

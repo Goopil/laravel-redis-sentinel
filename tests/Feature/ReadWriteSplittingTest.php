@@ -75,7 +75,7 @@ function readOnlyCommandDataset(): array
         'latency' => ['latency', ['history'], []],
         'memory' => ['memory', ['usage', 'foo'], 100],
         'client' => ['client', ['list'], []],
-        'debug' => ['debug', ['object', 'foo'], ['debug info']],
+        'debug' => ['debug', ['object', 'foo'], 'debug info'],
         'cluster' => ['cluster', ['countkeysinslot', 0], 0],
     ];
 }
@@ -399,7 +399,7 @@ test('it keeps cached master address when refreshing replicas', function () {
     {
         public function __construct(private $sentinelMock, NodeAddressCache $cache)
         {
-            parent::__construct($cache);
+            parent::__construct($cache, app('config'));
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -442,7 +442,7 @@ test('it reindexes healthy replicas after filtering unhealthy replicas', functio
     {
         public function __construct(private $sentinelMock, NodeAddressCache $cache)
         {
-            parent::__construct($cache);
+            parent::__construct($cache, app('config'));
         }
 
         protected function connectToSentinel(array $config): RedisSentinel

@@ -114,8 +114,10 @@ test('it stops after retry limit', function () {
         expect($exception->getMessage())->toBe(RETRY_MESSAGE);
     }
 
-    expect($retryable->callCount)->toBe(1)
-        ->and($retryable->sleeps)->toHaveCount(0)
+    expect($retryable->callCount)->toBe(2)
+        ->and($retryable->sleeps)->toHaveCount(1)
+        ->and($retryable->sleeps[0])->toBeGreaterThanOrEqual(100)
+        ->and($retryable->sleeps[0])->toBeLessThanOrEqual(150)
         ->and($retryable->maxFailCalls)->toBe(1);
 });
 

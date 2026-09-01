@@ -152,7 +152,7 @@ test('connect applies redis retry config with overrides', function () {
 });
 
 test('the data client does not inherit the sentinel password', function () {
-    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
         public array $captured = [];
 
@@ -182,7 +182,7 @@ test('the data client does not inherit the sentinel password', function () {
 });
 
 test('the data client timeout is not coupled to the sentinel timeout', function () {
-    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
         public array $captured = [];
 
