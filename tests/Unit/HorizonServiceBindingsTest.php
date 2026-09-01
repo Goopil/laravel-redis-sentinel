@@ -1,6 +1,11 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Horizon\HorizonServiceBindings;
+use Laravel\Horizon\ServiceBindings;
+
+if (! class_exists(ServiceBindings::class)) {
+    return;
+}
 
 test('HorizonServiceBindings getIterator returns ArrayIterator', function () {
     $bindings = new HorizonServiceBindings;
