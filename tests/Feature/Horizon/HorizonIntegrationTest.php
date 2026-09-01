@@ -229,7 +229,7 @@ describe('Horizon Integration with Orchestra', function () {
             }
 
             // Small delay between batches
-            usleep(100000); // 100ms
+            usleep(100000); // retained: no observable condition (batch pacing)
         }
 
         // Verify all 15 jobs (3 batches × 5 jobs) executed successfully

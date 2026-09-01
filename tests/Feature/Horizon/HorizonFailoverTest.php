@@ -91,7 +91,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
         // Process jobs with artificial delays to simulate network latency
         for ($i = 1; $i <= 10; $i++) {
             // Simulate network latency
-            usleep(50000); // 50ms delay
+            usleep(50000); // retained: no observable condition (simulated latency)
 
             $jobId = "{$testId}_{$i}";
             $job = new HorizonTestJob($jobId, [
@@ -130,8 +130,8 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
             // Expected - connection may throw on disconnect
         }
 
-        // Wait for potential reconnection
-        sleep(2);
+        // Wait for potential reconnection: the next command triggers the retry path
+        waitFor(fn () => $connection->ping(), timeoutMs: 5000);
 
         // Phase 2: Continue processing - connection should auto-reconnect
         $failedJobs = 0;
@@ -188,8 +188,8 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
             // Expected
         }
 
-        // Wait for failover to complete (Sentinel typically takes 1-2 seconds)
-        sleep(2);
+        // Wait for reconnection: the client retries and reconnects on the next command
+        waitFor(fn () => $connection->ping(), timeoutMs: 5000);
 
         // Phase 3: Process jobs during failover window
         $duringFailoverSuccess = 0;
@@ -213,7 +213,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
         }
 
         // Phase 4: Process jobs after failover recovery
-        sleep(1); // Ensure system is stable
+        waitFor(fn () => $connection->ping(), timeoutMs: 5000);
 
         for ($i = 1; $i <= $jobsAfterFailover; $i++) {
             $jobId = "{$testId}_after_{$i}";
@@ -266,9 +266,8 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
             // Expected
         }
 
-        sleep(1);
-
         // Verify data consistency after reconnection
+        waitFor(fn () => $connection->get("consistency:data:{$testId}:1") === 'value_1', timeoutMs: 5000);
         foreach ($dataKeys as $key => $expectedValue) {
             $actualValue = $connection->get($key);
             expect($actualValue)->toBe($expectedValue, "Data for {$key} should be consistent");
@@ -299,7 +298,6 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
                     } catch (Exception $e) {
                         // Expected
                     }
-                    usleep(100000); // 100ms recovery time
                 }
 
                 $jobId = "{$testId}_{$i}";
@@ -347,7 +345,8 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
             // Expected
         }
 
-        sleep(1);
+        // After reconnection, the first read must return the pre-failover value
+        waitFor(fn () => $connection->get('failover:rw:test1') === 'value1', timeoutMs: 5000);
 
         // After reconnection, stickiness should be reset
         // New read operation
@@ -381,9 +380,8 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
             // Expected
         }
 
-        sleep(1);
-
-        // Verify queue data persisted
+        // Verify queue data persisted after reconnection
+        waitFor(fn () => $connection->llen($queueKey) === 5, timeoutMs: 5000);
         $queueLength = $connection->llen($queueKey);
         expect($queueLength)->toBe(5, 'Queue should maintain its length through failover');
 
