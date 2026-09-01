@@ -30,7 +30,7 @@ test('it retries when master not found', function () {
 
         public function __construct($sentinelMock, $mockRedis)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->mockSentinel = $sentinelMock;
             $this->mockRedis = $mockRedis;
             $this->setRetryDelay(1);
@@ -93,7 +93,7 @@ test('it throws after max retries', function () {
 
         public function __construct($sentinelMock, $mockRedis)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->mockSentinel = $sentinelMock;
             $this->mockRedis = $mockRedis;
             $this->setRetryLimit(2);
@@ -159,7 +159,7 @@ test('it does not retry unrecognized exceptions', function () {
 
         public function __construct($sentinelMock, $mockRedis)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->mockSentinel = $sentinelMock;
             $this->mockRedis = $mockRedis;
             $this->setRetryMessages([NO_MASTER_MSG]);
@@ -206,7 +206,7 @@ test('it retries create sentinel on connection failure', function () {
 
         public function __construct()
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->setRetryLimit(2);
             $this->setRetryDelay(1);
             $this->setRetryMessages(['connection failed']);

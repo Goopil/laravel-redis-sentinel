@@ -54,3 +54,19 @@ test('horizon:ready returns 1 when master is for another host', function () {
 
     expect($status)->toBe(1);
 });
+
+test('horizon:ready does not match hostname as substring of another host', function () {
+    $realHostname = gethostname();
+
+    $otherMaster = new stdClass;
+    $otherMaster->name = $realHostname.'0:1';
+    $otherMaster->status = 'running';
+
+    $repository = Mockery::mock(MasterSupervisorRepository::class);
+    $repository->allows('all')->andReturns([$otherMaster]);
+    app()->instance(MasterSupervisorRepository::class, $repository);
+
+    $status = Artisan::call('horizon:ready');
+
+    expect($status)->toBe(1);
+});

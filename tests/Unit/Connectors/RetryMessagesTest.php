@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Event;
 test('per-connection retry messages override the global config', function () {
     config(['phpredis-sentinel.retry.redis.messages' => ['global-message']]);
 
-    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
         protected function getMasterAddress(array $config, bool $refresh = false): array
         {
@@ -51,7 +51,7 @@ test('a transient total sentinel outage is retried, not failed immediately', fun
         ],
     ]);
 
-    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
         protected function createSentinelInstance(array $options): RedisSentinel
         {
@@ -93,7 +93,7 @@ test('a sentinel that fails ping is retried and the failure carries a cause', fu
         ],
     ]);
 
-    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
         protected function createSentinelInstance(array $options): RedisSentinel
         {

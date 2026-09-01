@@ -37,6 +37,21 @@ test('log method supports different levels', function () {
     $obj->testLog('error message', [], 'error');
 });
 
+test('log method falls back to the default logger when no channel is configured', function () {
+    config()->offsetUnset('phpredis-sentinel.log.channel');
+
+    Log::shouldReceive('getLogger')
+        ->once()
+        ->andReturnSelf();
+
+    Log::shouldReceive('info')
+        ->once()
+        ->with('[LoggableTestObject] fallback message', []);
+
+    $obj = new LoggableTestObject;
+    $obj->testLog('fallback message');
+});
+
 test('logging failures never propagate to the caller', function () {
     Log::shouldReceive('channel')->andThrow(new RuntimeException('log backend down'));
 

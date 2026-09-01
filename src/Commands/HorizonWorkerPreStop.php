@@ -57,7 +57,7 @@ class HorizonWorkerPreStop extends Command
         $startCommand = $this->option('start-command');
 
         $pid = collect($masters->all())
-            ->filter(fn ($master) => str_contains($master->name, gethostname()))
+            ->filter(fn ($master) => str_starts_with($master->name, gethostname().':'))
             ->map(fn ($master) => (int) ($master->pid ?? 0))
             ->filter()
             ->first();
@@ -69,7 +69,12 @@ class HorizonWorkerPreStop extends Command
             );
 
             $process->run();
-            $pid = (int) $process->getOutput();
+            $output = trim($process->getOutput());
+            $pids = array_filter(explode("\n", $output), fn ($line) => ctype_digit(trim($line)));
+
+            if (! empty($pids)) {
+                $pid = (int) trim($pids[0]);
+            }
         }
 
         if ($pid) {
@@ -120,6 +125,8 @@ class HorizonWorkerPreStop extends Command
                 pid: null,
                 reason: sprintf('failed to find command %s pid', $startCommand),
             ));
+
+            return 1;
         }
 
         return 0;
@@ -127,6 +134,6 @@ class HorizonWorkerPreStop extends Command
 
     protected function buildPgrepProcess(string $startCommand, int $timeout): Process
     {
-        return new Process(['pgrep', '-x', '-f', $startCommand], timeout: $timeout);
+        return new Process(['pgrep', '-f', $startCommand], timeout: $timeout);
     }
 }

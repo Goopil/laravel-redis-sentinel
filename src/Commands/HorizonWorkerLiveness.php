@@ -73,7 +73,7 @@ class HorizonWorkerLiveness extends Command
 
             $result = ! is_array($data) || empty($data)
                 ? false
-                : $data[0] ?? false;
+                : ($data['ip'] ?? ($data[0] ?? false));
 
             return $result ? 0 : 1;
         } catch (Throwable $exception) {
@@ -94,7 +94,7 @@ class HorizonWorkerLiveness extends Command
         try {
             $manager
                 ->resolve($connectionName)
-                ->set('check:'.php_uname(), Carbon::now()->timestamp);
+                ->setex('check:'.php_uname(), 300, Carbon::now()->timestamp);
 
             return 0;
         } catch (Throwable $exception) {

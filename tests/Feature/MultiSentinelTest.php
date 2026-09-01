@@ -25,7 +25,7 @@ test('it can connect using multiple sentinels when first is down', function () {
 
         public function __construct(array $mocks, $mockRedis)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->mocks = $mocks;
             $this->mockRedis = $mockRedis;
             $this->setRetryDelay(1);
@@ -91,7 +91,7 @@ test('it throws exception if all sentinels are down', function () {
 
         public function __construct(array $mocks)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->mocks = $mocks;
             $this->setRetryDelay(1);
             $this->setRetryLimit(0); // No retries for this test to be fast

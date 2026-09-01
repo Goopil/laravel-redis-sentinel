@@ -205,7 +205,7 @@ describe('Horizon Command Events', function () {
         $master = horizonEventsRunningMaster();
 
         $connection = Mockery::mock(PhpRedisConnection::class);
-        $connection->allows('set')->andReturnTrue();
+        $connection->allows('setex')->andReturnTrue();
 
         $this->mock(RedisSentinelManager::class, function (MockInterface $mock) use ($connection) {
             $mock->allows('resolveConnector')->andThrow(new RuntimeException('sentinel unavailable'));

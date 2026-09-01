@@ -17,6 +17,9 @@ return [
             'emit_success' => env('REDIS_SENTINEL_EMIT_SUCCESS_EVENTS', false),
         ],
     ],
+
+    'read_commands' => [],
+
     'retry' => [
         'sentinel' => [
             'attempts' => 5,

@@ -29,7 +29,7 @@ class RedisSentinelManager extends RedisManager
 
         try {
             if ($this->driver !== 'phpredis-sentinel') {
-                return parent::resolve($name);
+                return parent::resolve($normalizedName);
             }
 
             $config = $this->parseConnectionConfiguration($this->config[$normalizedName]);
@@ -56,7 +56,7 @@ class RedisSentinelManager extends RedisManager
     {
         $normalizedName = $this->patchHorizonConnectionName($name);
 
-        if (($this->config[$normalizedName]['client'] ?? null) === 'phpredis-sentinel' && isset($this->config['clusters']['name'])) {
+        if (($this->config[$normalizedName]['client'] ?? null) === 'phpredis-sentinel' && isset($this->config['clusters'][$normalizedName])) {
             throw new ConfigurationException(
                 'Redis Sentinel connections do not support Redis Cluster.'
             );
@@ -91,9 +91,20 @@ class RedisSentinelManager extends RedisManager
 
     protected function patchHorizonConnectionName(string $name = 'default'): string
     {
-        return $name === 'horizon' && $this->isHorizonContext()
-            ? $this->app['config']->get('horizon.use', 'horizon')
-            : $name;
+        if ($name === 'horizon' && $this->isHorizonContext()) {
+            $horizonUse = $this->app['config']->get('horizon.use');
+
+            if ($horizonUse === null) {
+                throw new ConfigurationException(
+                    'The "horizon.use" configuration key is required when using Redis Sentinel with Horizon. '
+                    .'Please set it to the name of your Redis Sentinel connection in the horizon config.'
+                );
+            }
+
+            return $horizonUse;
+        }
+
+        return $name;
     }
 
     protected function patchHorizonPrefix(string $name, array $clientConfig): array

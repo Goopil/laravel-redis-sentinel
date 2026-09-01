@@ -77,7 +77,11 @@ class RedisSentinelConnection extends PhpRedisConnection
         'zcard', 'zcount', 'zlexcount', 'zrange', 'zrank', 'zrevrange', 'zrevrank', 'zscore', 'zscan',
         'zrangebyscore', 'zrevrangebyscore', 'zrangebylex', 'zrevrangebylex',
         'exists', 'scan', 'type', 'pttl', 'ttl',
+        'object', 'latency', 'memory', 'client', 'debug', 'cluster',
     ];
+
+    /** @var array<int, string>|null */
+    protected ?array $readOnlyCommands = null;
 
     /**
      * The master client instance (always writes to master).
@@ -126,10 +130,14 @@ class RedisSentinelConnection extends PhpRedisConnection
     {
         parent::__construct($client, $connector, $config);
 
-        // Store master client separately to guarantee writes always go to master
         $this->masterClient = $client;
         $this->masterConnector = $connector;
         $this->readConnector = $readConnector;
+
+        $this->readOnlyCommands = array_unique(array_merge(
+            self::READ_ONLY_COMMAND,
+            array_map('strtolower', $config['read_commands'] ?? []),
+        ));
     }
 
     /**
@@ -440,6 +448,7 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function resetStickiness(): void
     {
         $this->wroteToMaster = false;
+        $this->transactionLevel = 0;
     }
 
     /**
@@ -455,7 +464,7 @@ class RedisSentinelConnection extends PhpRedisConnection
             return $this->readClient = call_user_func($this->readConnector);
         }
 
-        return $this->client;
+        return $this->masterClient;
     }
 
     /**
@@ -463,6 +472,6 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     protected function isReadOnlyCommand(string $method): bool
     {
-        return in_array(strtolower($method), static::READ_ONLY_COMMAND);
+        return in_array(strtolower($method), $this->readOnlyCommands ?? self::READ_ONLY_COMMAND);
     }
 }

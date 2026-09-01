@@ -31,6 +31,31 @@ describe('Ioc bindings', function () {
             ->and(app()->make('redis.connection'))->toBe('native redis connection');
     });
 
+    test('bootOverrides flushes already resolved redis instances', function () {
+        app()->forgetInstance('redis');
+        app()->forgetInstance('redis.connection');
+
+        app()->singleton('redis', fn ($app) => new RedisManager(
+            $app,
+            'phpredis',
+            $app['config']->get('database.redis', [])
+        ));
+
+        $originalInstance = app()->make('redis');
+        expect($originalInstance)->toBeInstanceOf(RedisManager::class)
+            ->not->toBeInstanceOf(RedisSentinelManager::class);
+
+        $provider = new RedisSentinelServiceProvider(app());
+        $method = new ReflectionMethod($provider, 'bootOverrides');
+        $method->setAccessible(true);
+        $method->invoke($provider);
+
+        $newInstance = app()->make('redis');
+
+        expect($newInstance)->toBeInstanceOf(RedisSentinelManager::class)
+            ->and(spl_object_id($newInstance))->not->toBe(spl_object_id($originalInstance));
+    });
+
     test('explicit Sentinel integrations keep working without global redis override', function () {
         config()->set('phpredis-sentinel.override_laravel_redis', false);
         config()->set('cache.stores.phpredis-sentinel.driver', 'phpredis-sentinel');
@@ -86,6 +111,40 @@ describe('Ioc bindings', function () {
         expect(app()->make('session')->driver('redis')->getHandler()->getCache()->getStore()->getRedis())->toBeInstanceOf(RedisManager::class)
             ->and(app()->make('cache')->store('redis')->getStore()->connection())->toBeInstanceOf(PhpRedisConnection::class)
             ->toBeAWorkingRedisConnection();
+    });
+
+    test('session handler does not corrupt cache store connection', function () {
+        config()->set('session.connection', 'redis');
+        config()->set('session.lifetime', 120);
+
+        $cacheStore = app()->make('cache')->driver('phpredis-sentinel');
+        $store = $cacheStore->getStore();
+
+        $ref = new ReflectionProperty($store, 'connection');
+        $ref->setAccessible(true);
+        $originalConnection = $ref->getValue($store);
+
+        $provider = new RedisSentinelServiceProvider(app());
+        $bootMethod = new ReflectionMethod($provider, 'bootSessionHandler');
+        $bootMethod->setAccessible(true);
+        $bootMethod->invoke($provider);
+
+        $sessionManager = app()->make('session');
+        $driversRef = new ReflectionProperty($sessionManager, 'drivers');
+        $driversRef->setAccessible(true);
+        $driversRef->setValue($sessionManager, []);
+
+        $handler = app()->make('session')->driver('phpredis-sentinel')->getHandler();
+        $handlerStore = $handler->getCache()->getStore();
+
+        $handlerConnectionRef = new ReflectionProperty($handlerStore, 'connection');
+        $handlerConnectionRef->setAccessible(true);
+        $handlerConnection = $handlerConnectionRef->getValue($handlerStore);
+
+        $afterConnection = $ref->getValue($store);
+
+        expect($handlerConnection)->toBe('redis')
+            ->and($afterConnection)->toBe($originalConnection);
     });
 
     test('RedisSentinelConnector is bound', function () {

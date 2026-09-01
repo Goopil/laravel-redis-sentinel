@@ -71,6 +71,12 @@ function readOnlyCommandDataset(): array
         'type' => ['type', ['foo'], Redis::REDIS_STRING],
         'pttl' => ['pttl', ['foo'], 1000],
         'ttl' => ['ttl', ['foo'], 60],
+        'object' => ['object', ['encoding', 'foo'], 'raw'],
+        'latency' => ['latency', ['history'], []],
+        'memory' => ['memory', ['usage', 'foo'], 100],
+        'client' => ['client', ['list'], []],
+        'debug' => ['debug', ['object', 'foo'], 'debug info'],
+        'cluster' => ['cluster', ['countkeysinslot', 0], 0],
     ];
 }
 
@@ -101,6 +107,13 @@ test('it classifies exposed read-only commands as replica-safe', function (strin
 
     expect($connection->command($command, $parameters))->toBe($result);
 })->with(readOnlyCommandDataset());
+
+test('getReadClient falls back to the master client when no replica is configured', function () {
+    $masterClient = Mockery::mock(Redis::class);
+    $connection = redisSentinelConnection($masterClient);
+
+    expect($connection->getReadClient())->toBe($masterClient);
+});
 
 test('it has a dataset entry for every exposed read-only command', function () {
     $reflection = new ReflectionClass(RedisSentinelConnection::class);
@@ -304,7 +317,7 @@ test('it falls back to master if no replicas found', function () {
     {
         public function __construct(private $sentinelMock)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -349,7 +362,7 @@ test('it filters out unhealthy replicas', function () {
     {
         public function __construct(private $sentinelMock)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -393,7 +406,7 @@ test('it keeps cached master address when refreshing replicas', function () {
     {
         public function __construct(private $sentinelMock, NodeAddressCache $cache)
         {
-            parent::__construct($cache);
+            parent::__construct($cache, app('config'));
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -436,7 +449,7 @@ test('it reindexes healthy replicas after filtering unhealthy replicas', functio
     {
         public function __construct(private $sentinelMock, NodeAddressCache $cache)
         {
-            parent::__construct($cache);
+            parent::__construct($cache, app('config'));
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -482,7 +495,7 @@ test('it falls back to master if all replicas are unhealthy', function () {
     {
         public function __construct(private $sentinelMock)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
         }
 
         protected function connectToSentinel(array $config): RedisSentinel
@@ -526,7 +539,7 @@ test('it discovers replicas using secondary sentinel if primary is down', functi
     {
         public function __construct(private $mocks)
         {
-            parent::__construct(app(NodeAddressCache::class));
+            parent::__construct(app(NodeAddressCache::class), app('config'));
             $this->setRetryDelay(1);
         }
 
@@ -643,4 +656,20 @@ test('master client reference is never corrupted', function () {
 
     // Verify master client reference is STILL unchanged
     expect($masterClientProp->getValue($connection))->toBe($masterClient);
+});
+
+test('it allows custom read-only commands from config', function () {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $replicaClient->expects('customRead')->once()->andReturn('result');
+
+    $connection = new RedisSentinelConnection(
+        $masterClient,
+        fn () => $masterClient,
+        ['read_commands' => ['customread']],
+        fn () => $replicaClient,
+    );
+
+    expect($connection->command('customRead', []))->toBe('result');
 });

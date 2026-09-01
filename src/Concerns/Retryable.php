@@ -67,7 +67,7 @@ trait Retryable
 
                 return $result;
             } catch (Throwable $exception) {
-                if (! Str::contains($exception->getMessage(), $this->retryMessages, ignoreCase: true)) {
+                if (empty($this->retryMessages) || ! Str::contains($exception->getMessage(), $this->retryMessages, ignoreCase: true)) {
                     throw $exception;
                 }
 

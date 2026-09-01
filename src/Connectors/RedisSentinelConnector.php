@@ -11,6 +11,7 @@ use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterReconnected;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 use Goopil\LaravelRedisSentinel\Exceptions\NotImplementedException;
+use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Redis\Connections\PhpRedisClusterConnection;
 use Illuminate\Redis\Connectors\PhpRedisConnector;
 use Illuminate\Support\Arr;
@@ -29,15 +30,18 @@ class RedisSentinelConnector extends PhpRedisConnector
 
     protected NodeAddressCache $masterCache;
 
+    protected ConfigRepository $config;
+
     protected ?string $phpredisVersion = null;
 
-    public function __construct(NodeAddressCache $masterCache)
+    public function __construct(NodeAddressCache $masterCache, ConfigRepository $config)
     {
         $this->masterCache = $masterCache;
+        $this->config = $config;
 
-        $this->setRetryLimit((int) config('phpredis-sentinel.retry.sentinel.attempts', 5))
-            ->setRetryDelay((int) config('phpredis-sentinel.retry.sentinel.delay', 1000))
-            ->setRetryMessages((array) config('phpredis-sentinel.retry.sentinel.messages', []));
+        $this->setRetryLimit((int) $config->get('phpredis-sentinel.retry.sentinel.attempts', 5))
+            ->setRetryDelay((int) $config->get('phpredis-sentinel.retry.sentinel.delay', 1000))
+            ->setRetryMessages((array) $config->get('phpredis-sentinel.retry.sentinel.messages', []));
     }
 
     /**
@@ -59,17 +63,17 @@ class RedisSentinelConnector extends PhpRedisConnector
             ->setRetryLimit((int) Arr::get(
                 $config,
                 'retry.redis.attempts',
-                config('phpredis-sentinel.retry.redis.attempts', $this->retryLimit)
+                $this->config->get('phpredis-sentinel.retry.redis.attempts', $this->retryLimit)
             ))
             ->setRetryDelay((int) Arr::get(
                 $config,
                 'retry.redis.delay',
-                config('phpredis-sentinel.retry.redis.delay', $this->retryDelay)
+                $this->config->get('phpredis-sentinel.retry.redis.delay', $this->retryDelay)
             ))
             ->setRetryMessages((array) Arr::get(
                 $config,
                 'retry.redis.messages',
-                config('phpredis-sentinel.retry.redis.messages', $this->retryMessages)
+                $this->config->get('phpredis-sentinel.retry.redis.messages', $this->retryMessages)
             ));
     }
 
@@ -218,7 +222,7 @@ class RedisSentinelConnector extends PhpRedisConnector
             $this->masterCache->setReplicas($service, $replicas);
         }
 
-        $replica = $replicas[array_rand($replicas)];
+        $replica = $replicas[random_int(0, count($replicas) - 1)];
 
         return [
             'ip' => $replica['ip'] ?? $replica[0],
@@ -257,7 +261,7 @@ class RedisSentinelConnector extends PhpRedisConnector
             $options = [
                 'host' => $host,
                 'port' => $port,
-                'connectTimeout' => $config['sentinel']['timeout'] ?? $config['timeout'] ?? 0.2,
+                'connectTimeout' => $config['sentinel']['timeout'] ?? $config['timeout'] ?? 1.0,
                 'persistent' => $config['sentinel']['persistent'] ?? $config['persistent'] ?? null,
                 'retryInterval' => $config['sentinel']['retry_interval'] ?? $config['retry_interval'] ?? 0,
                 'readTimeout' => $config['sentinel']['read_timeout'] ?? $config['read_timeout'] ?? 0,
@@ -335,7 +339,16 @@ class RedisSentinelConnector extends PhpRedisConnector
     private function needParamsAsArray(): bool
     {
         if ($this->phpredisVersion === null) {
-            $this->phpredisVersion = phpversion('redis');
+            $version = phpversion('redis');
+
+            // @codeCoverageIgnoreStart
+            // The test suite cannot run with the extension unloaded.
+            if ($version === false) {
+                throw new ConfigurationException('PhpRedis extension is not loaded');
+            }
+            // @codeCoverageIgnoreEnd
+
+            $this->phpredisVersion = $version;
         }
 
         return version_compare($this->phpredisVersion, '6.0', '>=');

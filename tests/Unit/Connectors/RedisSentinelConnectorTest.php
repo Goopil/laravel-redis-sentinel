@@ -10,9 +10,29 @@ use Illuminate\Redis\Connections\PhpRedisConnection;
 const CONNECTOR_TEST_HOST = '127.0.0.1';
 
 test('connectToCluster throws NotImplementedException', function () {
-    $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
     $connector->connectToCluster([], [], []);
 })->throws(NotImplementedException::class, 'The Redis Sentinel driver does not support connecting to clusters.');
+
+test('connector uses injected config instead of global helper', function () {
+    config(['phpredis-sentinel.retry.sentinel.attempts' => 7]);
+    config(['phpredis-sentinel.retry.sentinel.delay' => 500]);
+    config(['phpredis-sentinel.retry.sentinel.messages' => ['test error']]);
+
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
+
+    $reflection = new ReflectionClass($connector);
+    $limitProp = $reflection->getProperty('retryLimit');
+    $limitProp->setAccessible(true);
+    $delayProp = $reflection->getProperty('retryDelay');
+    $delayProp->setAccessible(true);
+    $messagesProp = $reflection->getProperty('retryMessages');
+    $messagesProp->setAccessible(true);
+
+    expect($limitProp->getValue($connector))->toBe(7)
+        ->and($delayProp->getValue($connector))->toBe(500)
+        ->and($messagesProp->getValue($connector))->toBe(['test error']);
+});
 
 test('createSentinel throws ConfigurationException if host is missing', function () {
     config(['database.redis.my-sentinel' => [
@@ -22,7 +42,7 @@ test('createSentinel throws ConfigurationException if host is missing', function
         ],
     ]]);
 
-    $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
     $connector->createSentinel('my-sentinel');
 })->throws(ConfigurationException::class, 'No reachable Redis Sentinel host found.');
 
@@ -33,19 +53,19 @@ test('createSentinel throws ConfigurationException if service is missing', funct
         ],
     ]]);
 
-    $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
     $connector->createSentinel('my-sentinel');
 })->throws(ConfigurationException::class, "No service name has been specified for the Redis Sentinel connection 'my-sentinel'.");
 
 test('createSentinel throws RedisException if sentinel config is missing', function () {
     config(['database.redis.my-sentinel' => []]);
 
-    $connector = new RedisSentinelConnector(app(NodeAddressCache::class));
+    $connector = new RedisSentinelConnector(app(NodeAddressCache::class), app('config'));
     $connector->createSentinel('my-sentinel');
 })->throws(RedisException::class, 'No sentinel config');
 
 test('connect preserves merged options across reconnects', function () {
-    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
         public array $configs = [];
 
@@ -98,7 +118,7 @@ test('connect applies redis retry config with overrides', function () {
         'phpredis-sentinel.retry.redis.delay' => 250,
     ]);
 
-    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
         protected function getMasterAddress(array $config, bool $refresh = false): array
         {
@@ -132,7 +152,7 @@ test('connect applies redis retry config with overrides', function () {
 });
 
 test('the data client does not inherit the sentinel password', function () {
-    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
         public array $captured = [];
 
@@ -162,7 +182,7 @@ test('the data client does not inherit the sentinel password', function () {
 });
 
 test('the data client timeout is not coupled to the sentinel timeout', function () {
-    $connector = new class(app(NodeAddressCache::class)) extends RedisSentinelConnector
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
         public array $captured = [];
 

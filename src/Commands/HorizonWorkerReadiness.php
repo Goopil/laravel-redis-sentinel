@@ -34,7 +34,7 @@ class HorizonWorkerReadiness extends Command
     public function handle(MasterSupervisorRepository $masters): int
     {
         $result = collect($masters->all())
-            ->filter(fn ($master) => str_contains($master->name, gethostname()) &&
+            ->filter(fn ($master) => str_starts_with($master->name, gethostname().':') &&
                 $master->status === 'running'
             );
 
