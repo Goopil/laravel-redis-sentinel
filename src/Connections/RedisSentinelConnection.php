@@ -80,6 +80,7 @@ class RedisSentinelConnection extends PhpRedisConnection
         'object', 'latency', 'memory', 'client', 'debug', 'cluster',
     ];
 
+    /** @var array<int, string>|null */
     protected ?array $readOnlyCommands = null;
 
     /**
