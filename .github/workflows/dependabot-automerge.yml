@@ -13,6 +13,9 @@ jobs:
   automerge:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Merge patch/minor dependabot PRs older than 7 days with green CI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
