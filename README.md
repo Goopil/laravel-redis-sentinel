@@ -300,6 +300,12 @@ The package uses **exponential backoff with jitter** to avoid thundering herd:
 - Third retry: ~4s
 - And so on...
 
+When every Sentinel node is unreachable, resolution attempts are circuit-broken: after 2 consecutive failed
+resolutions, further attempts fail immediately (rethrowing the last resolution error) for 5 seconds, instead of
+paying the full retry/backoff cost (~30s) on every command. A successful resolution or the cooldown expiry resets
+the breaker. The command that opens the breaker still completes its own retry cycle, so expect the first failing
+command to take up to ~30s; the following ones fail fast until the breaker re-opens a resolution window.
+
 ## Read/Write Splitting
 
 When `read_only_replicas` is enabled, the package provides intelligent command routing:
