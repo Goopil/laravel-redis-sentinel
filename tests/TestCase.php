@@ -3,9 +3,11 @@
 namespace Goopil\LaravelRedisSentinel\Tests;
 
 use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
+use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\RedisSentinelServiceProvider;
 use Illuminate\Contracts\Config\Repository;
 use Orchestra\Testbench\TestCase as Orchestra;
+use ReflectionProperty;
 
 class TestCase extends Orchestra
 {
@@ -21,6 +23,13 @@ class TestCase extends Orchestra
         // Flush the master address cache between tests
         if ($app->bound(NodeAddressCache::class)) {
             $app->make(NodeAddressCache::class)->flush();
+        }
+
+        // Reset the Sentinel resolution breaker between tests (static connector state)
+        foreach (['resolutionFailures' => 0, 'breakerOpenedAt' => null, 'breakerLastException' => null] as $property => $value) {
+            $reflection = new ReflectionProperty(RedisSentinelConnector::class, $property);
+            $reflection->setAccessible(true);
+            $reflection->setValue(null, $value);
         }
 
         // Load workbench routes
