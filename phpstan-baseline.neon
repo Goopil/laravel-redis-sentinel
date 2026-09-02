@@ -109,12 +109,6 @@ parameters:
 			path: src/Connections/RedisSentinelConnection.php
 
 		-
-			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:flushdb\(\) has parameter \$async with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: src/Connections/RedisSentinelConnection.php
-
-		-
 			message: '#^Method Goopil\\LaravelRedisSentinel\\Connections\\RedisSentinelConnection\:\:hscan\(\) has parameter \$options with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
