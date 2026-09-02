@@ -1,3 +1,12 @@
+## [1.5.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.5.0...1.5.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* default node_cache.ttl to 15s so long-lived workers detect failovers ([#72](https://github.com/Goopil/laravel-redis-sentinel/issues/72)) ([4e4fd97](https://github.com/Goopil/laravel-redis-sentinel/commit/4e4fd97c43c720293b0a3bf5e847b9a509393c5c))
+* default read_timeout to 60s to prevent indefinite hangs on half-open sockets ([#70](https://github.com/Goopil/laravel-redis-sentinel/issues/70)) ([bd225b2](https://github.com/Goopil/laravel-redis-sentinel/commit/bd225b272211b99d4b815f0988a5fb58cb8342f7))
+* exclude replicas with a disconnected master link from read routing ([#71](https://github.com/Goopil/laravel-redis-sentinel/issues/71)) ([a1fe7ac](https://github.com/Goopil/laravel-redis-sentinel/commit/a1fe7ac33454ba7bf22b642b58cbcd60cabea506))
+
 # [1.5.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.4.0...1.5.0) (2026-09-01)
 
 
