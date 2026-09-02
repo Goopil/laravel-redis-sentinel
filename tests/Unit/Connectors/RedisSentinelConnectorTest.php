@@ -258,6 +258,30 @@ test('createClient preserves explicit read_timeout override', function () {
     expect((float) $client->getOption(Redis::OPT_READ_TIMEOUT))->toBe(5.0);
 });
 
+test('connect strips command_retries from the connection config', function () {
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
+    {
+        protected function getMasterAddress(array $config, bool $refresh = false): array
+        {
+            return ['ip' => CONNECTOR_TEST_HOST, 'port' => 6379];
+        }
+
+        protected function createClient(array $config, bool $refresh = false, bool $readOnly = false): Redis
+        {
+            return Mockery::mock(Redis::class);
+        }
+    };
+
+    $connection = $connector->connect([
+        'sentinel' => ['service' => 'master', 'host' => CONNECTOR_TEST_HOST],
+        'command_retries' => 3,
+    ], []);
+
+    $config = (new ReflectionProperty(PhpRedisConnection::class, 'config'))->getValue($connection);
+
+    expect($config['command_retries'] ?? null)->toBeNull();
+});
+
 test('createSentinel defaults Sentinel client readTimeout to 60', function () {
     $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
     {
