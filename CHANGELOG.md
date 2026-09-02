@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.5.2...1.6.0) (2026-09-02)
+
+
+### Features
+
+* surface the no-healthy-replica master fallback with a warning log and event ([#77](https://github.com/Goopil/laravel-redis-sentinel/issues/77)) ([2ac5a2b](https://github.com/Goopil/laravel-redis-sentinel/commit/2ac5a2b9b0d969cec9e93ba97d01d821b9c82604))
+
 ## [1.5.2](https://github.com/Goopil/laravel-redis-sentinel/compare/1.5.1...1.5.2) (2026-09-02)
 
 
