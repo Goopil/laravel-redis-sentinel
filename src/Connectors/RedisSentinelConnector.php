@@ -9,6 +9,7 @@ use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterReconnected;
+use Goopil\LaravelRedisSentinel\Events\RedisSentinelReplicaFallback;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 use Goopil\LaravelRedisSentinel\Exceptions\NotImplementedException;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -268,6 +269,9 @@ class RedisSentinelConnector extends PhpRedisConnector
             }));
 
             if (empty($replicas)) {
+                $this->log('No healthy replica, reads fall back to the master', ['service' => $service, 'replicas' => $slaves], 'warning');
+                RedisSentinelReplicaFallback::dispatch($service, $slaves);
+
                 return $this->getMasterAddress($config, $refresh);
             }
 

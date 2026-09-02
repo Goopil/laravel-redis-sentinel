@@ -747,6 +747,7 @@ The default retry configuration is intentionally conservative. Tune it according
 
 Monitor and alert on these operational symptoms:
 
+- repeated `RedisSentinelReplicaFallback` events, which mean read/write splitting is disabled and every read lands on the master;
 - repeated `RedisSentinelConnectionFailed` or `RedisSentinelConnectionMaxRetryFailed` events;
 - repeated Sentinel discovery failures;
 - `READONLY` errors after failover, which usually indicate a stale master connection;
@@ -772,6 +773,9 @@ Events\RedisSentinelMasterMaxRetryFailed::class
 Events\RedisSentinelConnectionFailed::class
 Events\RedisSentinelConnectionReconnected::class
 Events\RedisSentinelConnectionMaxRetryFailed::class
+
+// Replica fallback event
+Events\RedisSentinelReplicaFallback::class
 ```
 
 ### Horizon Worker Events
