@@ -101,7 +101,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(NodeAddressCache::class, fn ($app) => new NodeAddressCache(
-            // Null counts as missing (Laravel 13 offsetUnset sets null instead of removing the key).
+            // Null counts as missing (Laravel 10+ offsetUnset sets null instead of removing the key).
             (float) ($app['config']->get('phpredis-sentinel.node_cache.ttl') ?? 15)
         ));
         $this->app->bind('redis.sentinel', RedisSentinelConnector::class);
