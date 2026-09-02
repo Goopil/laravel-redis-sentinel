@@ -11,6 +11,7 @@ use Illuminate\Cache\CacheManager;
 use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Console\Command;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository as MasterSupervisorRepositoryAlias;
+use Laravel\Horizon\MasterSupervisor;
 use Symfony\Component\Process\Process;
 
 class HorizonWorkerPreStop extends Command
@@ -57,7 +58,7 @@ class HorizonWorkerPreStop extends Command
         $startCommand = $this->option('start-command') ?: 'php artisan horizon';
 
         $pid = collect($masters->all())
-            ->filter(fn ($master) => str_starts_with($master->name, gethostname().':'))
+            ->filter(fn ($master) => str_starts_with($master->name, MasterSupervisor::basename().'-'))
             ->map(fn ($master) => (int) ($master->pid ?? 0))
             ->filter()
             ->first();

@@ -2,10 +2,11 @@
 
 use Illuminate\Support\Facades\Artisan;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
+use Laravel\Horizon\MasterSupervisor;
 
 test('horizon:ready returns 0 when master is running for this host', function () {
     $master = new stdClass;
-    $master->name = gethostname().':1';
+    $master->name = MasterSupervisor::basename().'-tst1';
     $master->status = 'running';
 
     $repository = Mockery::mock(MasterSupervisorRepository::class);
@@ -29,7 +30,7 @@ test('horizon:ready returns 1 when no master is running', function () {
 
 test('horizon:ready returns 1 when master is not running', function () {
     $master = new stdClass;
-    $master->name = gethostname().':1';
+    $master->name = MasterSupervisor::basename().'-tst1';
     $master->status = 'paused';
 
     $repository = Mockery::mock(MasterSupervisorRepository::class);
@@ -56,10 +57,8 @@ test('horizon:ready returns 1 when master is for another host', function () {
 });
 
 test('horizon:ready does not match hostname as substring of another host', function () {
-    $realHostname = gethostname();
-
     $otherMaster = new stdClass;
-    $otherMaster->name = $realHostname.'0:1';
+    $otherMaster->name = MasterSupervisor::basename().'0-efgh';
     $otherMaster->status = 'running';
 
     $repository = Mockery::mock(MasterSupervisorRepository::class);

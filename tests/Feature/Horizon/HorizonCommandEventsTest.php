@@ -21,7 +21,7 @@ const HORIZON_EVENTS_NOT_INSTALLED = 'Horizon not installed';
 function horizonEventsRunningMaster(): MasterSupervisor
 {
     $master = new MasterSupervisor;
-    $master->name = gethostname().':1';
+    $master->name = MasterSupervisor::basename().'-tst1';
     $master->status = 'running';
 
     return $master;
@@ -106,7 +106,7 @@ describe('Horizon Command Events', function () {
         }
 
         $master = new MasterSupervisor;
-        $master->name = gethostname().':1';
+        $master->name = MasterSupervisor::basename().'-tst1';
         $master->status = 'paused';
 
         $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) use ($master) {
@@ -139,7 +139,7 @@ describe('Horizon Command Events', function () {
         });
 
         $master = new MasterSupervisor;
-        $master->name = gethostname().':1';
+        $master->name = MasterSupervisor::basename().'-tst1';
         $master->status = 'paused';
 
         $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) use ($master) {
@@ -236,7 +236,7 @@ describe('Horizon Command Events', function () {
 
         $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) {
             $master = new MasterSupervisor;
-            $master->name = gethostname().':1';
+            $master->name = MasterSupervisor::basename().'-tst1';
             $master->pid = 999999; // Non-existent PID likely
 
             $mock->expects('all')->andReturn([$master]);
@@ -274,7 +274,7 @@ describe('Horizon Command Events', function () {
 
         $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) use ($pid) {
             $master = new MasterSupervisor;
-            $master->name = gethostname().':1';
+            $master->name = MasterSupervisor::basename().'-tst1';
             $master->pid = $pid;
 
             $mock->expects('all')->andReturn([$master]);
@@ -289,5 +289,29 @@ describe('Horizon Command Events', function () {
         });
 
         Event::assertNotDispatched(HorizonWorkerTerminateFailed::class);
+    });
+
+    test('horizon:pre-stop ignores masters whose hostname extends ours', function () {
+        if (! interface_exists(MasterSupervisorRepository::class)) {
+            $this->markTestSkipped(HORIZON_EVENTS_NOT_INSTALLED);
+        }
+
+        if (! extension_loaded('pcntl') || ! extension_loaded('posix')) {
+            $this->markTestSkipped('pcntl or posix extension not loaded');
+        }
+
+        $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) {
+            $extended = new MasterSupervisor;
+            $extended->name = MasterSupervisor::basename().'1-efgh';
+            $extended->pid = 555555;
+
+            $mock->expects('all')->andReturn([$extended]);
+        });
+
+        Artisan::call('horizon:pre-stop', ['--start-command' => 'definitely-not-running-xyz']);
+
+        Event::assertDispatched(HorizonWorkerTerminateFailed::class, function (HorizonWorkerTerminateFailed $event) {
+            return $event->pid === null;
+        });
     });
 });

@@ -5,6 +5,7 @@ use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Redis\Connections\Connection;
 use Illuminate\Support\Facades\Artisan;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
+use Laravel\Horizon\MasterSupervisor;
 
 const HORIZON_LIVENESS_TEST_HOST = '127.0.0.1';
 
@@ -33,7 +34,7 @@ test('horizon:alive returns 0 when all checks pass', function () {
 
     // 3. Mock horizon:ready (returns 0 on success)
     $master = new stdClass;
-    $master->name = gethostname().':1';
+    $master->name = MasterSupervisor::basename().'-tst1';
     $master->status = 'running';
     $repository = Mockery::mock(MasterSupervisorRepository::class);
     $repository->allows('all')->andReturns([$master]);
@@ -64,7 +65,7 @@ test('horizon:alive uses setex with TTL for liveness check key', function () {
     app()->instance(RedisSentinelManager::class, $manager);
 
     $master = new stdClass;
-    $master->name = gethostname().':1';
+    $master->name = MasterSupervisor::basename().'-tst1';
     $master->status = 'running';
     $repository = Mockery::mock(MasterSupervisorRepository::class);
     $repository->allows('all')->andReturns([$master]);
@@ -93,7 +94,7 @@ test('horizon:alive returns 0 when sentinel returns associative array (phpredis 
     app()->instance(RedisSentinelManager::class, $manager);
 
     $master = new stdClass;
-    $master->name = gethostname().':1';
+    $master->name = MasterSupervisor::basename().'-tst1';
     $master->status = 'running';
     $repository = Mockery::mock(MasterSupervisorRepository::class);
     $repository->allows('all')->andReturns([$master]);
@@ -122,7 +123,7 @@ test('horizon:alive returns 1 when sentinel check fails (no master)', function (
     app()->instance(RedisSentinelManager::class, $manager);
 
     $master = new stdClass;
-    $master->name = gethostname().':1';
+    $master->name = MasterSupervisor::basename().'-tst1';
     $master->status = 'running';
     $repository = Mockery::mock(MasterSupervisorRepository::class);
     $repository->allows('all')->andReturns([$master]);
@@ -150,7 +151,7 @@ test('horizon:alive returns 1 when connection check fails', function () {
     app()->instance(RedisSentinelManager::class, $manager);
 
     $master = new stdClass;
-    $master->name = gethostname().':1';
+    $master->name = MasterSupervisor::basename().'-tst1';
     $master->status = 'running';
     $repository = Mockery::mock(MasterSupervisorRepository::class);
     $repository->allows('all')->andReturns([$master]);
