@@ -248,7 +248,7 @@ return [
 
 - `timeout` for the data connection defaults to **5 seconds** and is no longer derived from `sentinel.timeout`.
 - The data client uses strictly `password`; `sentinel.password` only authenticates against Sentinel nodes.
-- `retry.redis.messages` can be overridden **per connection** (`retry.redis.messages` inside the connection config), like `attempts`/`delay`.
+- `retry.redis.messages` can be overridden **per connection** (`retry.redis.messages` inside the connection config), like `attempts`/`delay`. See the [Retry contract](#retry-contract) for the at-least-once implications.
 - Resolved master/replica addresses are cached with a TTL: `phpredis-sentinel.node_cache.ttl` (seconds, default `15`; `0`
   disables expiry — discouraged, it delays failover detection in long-lived workers).
 
@@ -305,6 +305,22 @@ resolutions, further attempts fail immediately (rethrowing the last resolution e
 paying the full retry/backoff cost (~30s) on every command. A successful resolution or the cooldown expiry resets
 the breaker. The command that opens the breaker still completes its own retry cycle, so expect the first failing
 command to take up to ~30s; the following ones fail fast until the breaker re-opens a resolution window.
+
+### Retry contract
+
+Connection errors matched by the retry messages (`went away`, `read error on connection`, `connection lost`, ...) are
+ambiguous: the server may not have executed the command, or may have executed it while the reply was lost. The retry
+layer applies to every command, so a non-idempotent write (`INCR`, `LPUSH`, `RPUSH`, `SADD`, `ZADD`, ...) can execute
+up to `retry.redis.attempts + 1` times on a flapping connection — duplicated queue jobs, doubled counters (Laravel
+does not deduplicate jobs by content).
+
+Make write paths resilient to re-execution:
+
+- prefer idempotent commands where the semantics allow it (`SET` over `INCR`, `SET ... NX`, ...);
+- carry a unique job/command ID and deduplicate on the consumer side;
+- wrap multi-step side effects in a Lua script with a side-effect guard (check a marker key before applying);
+- treat `pipeline()`/`transaction()` callbacks as re-executable units (see the at-least-once caveat under
+  [Production Operations](#production-operations)).
 
 ## Read/Write Splitting
 
@@ -714,7 +730,9 @@ The default retry configuration is intentionally conservative. Tune it according
 - keep Redis and Sentinel timeouts lower than your HTTP/job timeout budget;
 - account for the worst-case retry duration during failover;
 - avoid very high retry counts on latency-sensitive paths;
-- prefer observability-driven tuning using the package events rather than blindly increasing retry attempts.
+- prefer observability-driven tuning using the package events rather than blindly increasing retry attempts;
+- remember the [Retry contract](#retry-contract): connection-loss retries re-execute commands, so keep write paths
+  idempotent or deduplicate on the consumer side;
 
 ### Security Checklist
 
