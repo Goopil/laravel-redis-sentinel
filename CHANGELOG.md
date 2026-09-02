@@ -1,3 +1,11 @@
+## [1.6.2](https://github.com/Goopil/laravel-redis-sentinel/compare/1.6.1...1.6.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* match Horizon master supervisor names by hostname basename with delimiter ([#80](https://github.com/Goopil/laravel-redis-sentinel/issues/80)) ([2f9fc25](https://github.com/Goopil/laravel-redis-sentinel/commit/2f9fc25764ca7d099b3cf5162bbd3a2d9f1a5791))
+* tighten default redis retry messages to specific transient failures ([#79](https://github.com/Goopil/laravel-redis-sentinel/issues/79)) ([ffb26e5](https://github.com/Goopil/laravel-redis-sentinel/commit/ffb26e5f2de5de02ad1ac7bf5fd9f14cdd735b68))
+
 ## [1.6.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.6.0...1.6.1) (2026-09-02)
 
 
