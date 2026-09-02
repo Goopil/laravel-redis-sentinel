@@ -34,6 +34,16 @@ class RedisSentinelConnector extends PhpRedisConnector
 
     protected ?string $phpredisVersion = null;
 
+    private const BREAKER_THRESHOLD = 2;
+
+    private const BREAKER_COOLDOWN_SECONDS = 5.0;
+
+    private static int $resolutionFailures = 0;
+
+    private static ?float $breakerOpenedAt = null;
+
+    private static ?Throwable $breakerLastException = null;
+
     public function __construct(NodeAddressCache $masterCache, ConfigRepository $config)
     {
         $this->masterCache = $masterCache;
@@ -99,8 +109,24 @@ class RedisSentinelConnector extends PhpRedisConnector
             throw new ConfigurationException(sprintf("No service name has been specified for the Redis Sentinel connection '%s'.", $name));
         }
 
+        $this->guardSentinelResolution();
+
         return $this->retryOnFailure(
-            fn () => $this->connectToSentinel($config),
+            function () use ($config) {
+                $this->guardSentinelResolution();
+
+                try {
+                    $instance = $this->connectToSentinel($config);
+                } catch (Throwable $e) {
+                    $this->recordSentinelFailure($e);
+
+                    throw $e;
+                }
+
+                $this->recordSentinelSuccess();
+
+                return $instance;
+            },
             onFail: $this->onSentinelFail($service, 'connectToSentinel'),
             onReconnect: $this->onSentinelReconnect($service, 'connectToSentinel'),
             onMaxFail: $this->onSentinelMaxFail($service, 'connectToSentinel')
@@ -158,13 +184,25 @@ class RedisSentinelConnector extends PhpRedisConnector
             return $master;
         }
 
+        $this->guardSentinelResolution();
+
         ['ip' => $ip, 'port' => $port] = $this->retryOnFailure(
             function () use ($config, $service) {
-                if ($master = $this->connectToSentinel($config)->master($service)) {
-                    return $master;
-                }
+                $this->guardSentinelResolution();
 
-                throw new RedisException(sprintf("No master found for service '%s'.", $service));
+                try {
+                    if ($master = $this->connectToSentinel($config)->master($service)) {
+                        $this->recordSentinelSuccess();
+
+                        return $master;
+                    }
+
+                    throw new RedisException(sprintf("No master found for service '%s'.", $service));
+                } catch (Throwable $e) {
+                    $this->recordSentinelFailure($e);
+
+                    throw $e;
+                }
             },
             onFail: $this->onSentinelFail($service, 'getMasterAddress'),
             onReconnect: $this->onSentinelReconnect($service, 'getMasterAddress'),
@@ -192,14 +230,27 @@ class RedisSentinelConnector extends PhpRedisConnector
         $replicas = $this->masterCache->getReplicas($service);
 
         if (empty($replicas)) {
+            $this->guardSentinelResolution();
+
             $slaves = $this->retryOnFailure(
                 function () use ($config, $service) {
-                    $result = $this->connectToSentinel($config)->slaves($service);
-                    if ($result === false) {
-                        throw new RedisException(sprintf("No replicas found for service '%s'.", $service));
-                    }
+                    $this->guardSentinelResolution();
 
-                    return $result;
+                    try {
+                        $result = $this->connectToSentinel($config)->slaves($service);
+
+                        if ($result === false) {
+                            throw new RedisException(sprintf("No replicas found for service '%s'.", $service));
+                        }
+
+                        $this->recordSentinelSuccess();
+
+                        return $result;
+                    } catch (Throwable $e) {
+                        $this->recordSentinelFailure($e);
+
+                        throw $e;
+                    }
                 },
                 onFail: $this->onSentinelFail($service, 'getReplicaAddress'),
                 onReconnect: $this->onSentinelReconnect($service, 'getReplicaAddress'),
@@ -294,6 +345,46 @@ class RedisSentinelConnector extends PhpRedisConnector
             0,
             $lastException
         );
+    }
+
+    private function guardSentinelResolution(): void
+    {
+        if (self::$breakerOpenedAt === null) {
+            return;
+        }
+
+        if ((microtime(true) - self::$breakerOpenedAt) >= self::BREAKER_COOLDOWN_SECONDS) {
+            self::$breakerOpenedAt = null;
+            self::$resolutionFailures = 0;
+            self::$breakerLastException = null;
+
+            return;
+        }
+
+        throw self::$breakerLastException;
+    }
+
+    private function recordSentinelFailure(Throwable $exception): void
+    {
+        // Only Sentinel unreachability (connectToSentinel exhausting all hosts) opens the breaker;
+        // a reachable Sentinel that has no master/replicas for the service is not a Sentinel outage.
+        if (! $exception instanceof ConfigurationException) {
+            return;
+        }
+
+        self::$resolutionFailures++;
+        self::$breakerLastException = $exception;
+
+        if (self::$resolutionFailures >= self::BREAKER_THRESHOLD) {
+            self::$breakerOpenedAt = microtime(true);
+        }
+    }
+
+    private function recordSentinelSuccess(): void
+    {
+        self::$resolutionFailures = 0;
+        self::$breakerOpenedAt = null;
+        self::$breakerLastException = null;
     }
 
     protected function getService(array $config): ?string
