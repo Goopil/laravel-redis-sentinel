@@ -4,6 +4,7 @@ use Goopil\LaravelRedisSentinel\Commands\HorizonWorkerPreStop;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 use Illuminate\Support\Facades\Artisan;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
+use Laravel\Horizon\MasterSupervisor;
 use Symfony\Component\Process\Process;
 
 test('horizon:pre-stop returns non-zero when no pid found', function () {
@@ -26,15 +27,13 @@ test('horizon:pre-stop does not match hostname as substring of another master', 
         $this->expectException(ConfigurationException::class);
     }
 
-    $realHostname = gethostname();
-
     $otherMaster = new stdClass;
-    $otherMaster->name = $realHostname.'0:1';
+    $otherMaster->name = MasterSupervisor::basename().'1-efgh';
     $otherMaster->pid = 99999;
     $otherMaster->status = 'running';
 
     $ourMaster = new stdClass;
-    $ourMaster->name = $realHostname.':1';
+    $ourMaster->name = MasterSupervisor::basename().'-abcd';
     $ourMaster->pid = 88888;
     $ourMaster->status = 'running';
 

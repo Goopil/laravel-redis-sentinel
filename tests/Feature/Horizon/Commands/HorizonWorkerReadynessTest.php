@@ -57,10 +57,8 @@ test('horizon:ready returns 1 when master is for another host', function () {
 });
 
 test('horizon:ready does not match hostname as substring of another host', function () {
-    $realHostname = gethostname();
-
     $otherMaster = new stdClass;
-    $otherMaster->name = $realHostname.'0:1';
+    $otherMaster->name = MasterSupervisor::basename().'0-efgh';
     $otherMaster->status = 'running';
 
     $repository = Mockery::mock(MasterSupervisorRepository::class);

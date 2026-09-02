@@ -308,7 +308,7 @@ describe('Horizon Command Events', function () {
             $mock->expects('all')->andReturn([$extended]);
         });
 
-        Artisan::call('horizon:pre-stop');
+        Artisan::call('horizon:pre-stop', ['--start-command' => 'definitely-not-running-xyz']);
 
         Event::assertDispatched(HorizonWorkerTerminateFailed::class, function (HorizonWorkerTerminateFailed $event) {
             return $event->pid === null;
