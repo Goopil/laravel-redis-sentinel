@@ -180,10 +180,10 @@ class RedisSentinelConnector extends PhpRedisConnector
         $service = $this->getService($config);
 
         if ($refresh) {
-            $this->masterCache->forgetMaster($service);
+            $this->masterCache->forgetMaster($this->getNodeCacheKey($config));
         }
 
-        if ($master = $this->masterCache->get($service)) {
+        if ($master = $this->masterCache->get($this->getNodeCacheKey($config))) {
             return $master;
         }
 
@@ -212,7 +212,7 @@ class RedisSentinelConnector extends PhpRedisConnector
             onMaxFail: $this->onSentinelMaxFail($service, 'getMasterAddress')
         );
 
-        $this->masterCache->set($service, $ip, $port);
+        $this->masterCache->set($this->getNodeCacheKey($config), $ip, $port);
 
         return ['ip' => $ip, 'port' => $port];
     }
@@ -227,10 +227,10 @@ class RedisSentinelConnector extends PhpRedisConnector
         $service = $this->getService($config);
 
         if ($refresh) {
-            $this->masterCache->forgetReplicas($service);
+            $this->masterCache->forgetReplicas($this->getNodeCacheKey($config));
         }
 
-        $replicas = $this->masterCache->getReplicas($service);
+        $replicas = $this->masterCache->getReplicas($this->getNodeCacheKey($config));
 
         if (empty($replicas)) {
             $this->guardSentinelResolution();
@@ -277,7 +277,7 @@ class RedisSentinelConnector extends PhpRedisConnector
                 return $this->getMasterAddress($config, $refresh);
             }
 
-            $this->masterCache->setReplicas($service, $replicas);
+            $this->masterCache->setReplicas($this->getNodeCacheKey($config), $replicas);
         }
 
         $replica = $replicas[random_int(0, count($replicas) - 1)];
@@ -391,6 +391,35 @@ class RedisSentinelConnector extends PhpRedisConnector
         self::$resolutionFailures = 0;
         self::$breakerOpenedAt = null;
         self::$breakerLastException = null;
+    }
+
+    /**
+     * Namespace the node cache key by service name and Sentinel endpoints so two
+     * connections pointing at different clusters sharing a service name never
+     * exchange cached addresses.
+     *
+     * @param  array<string, mixed>  $config
+     */
+    private function getNodeCacheKey(array $config): string
+    {
+        $service = $this->getService($config) ?? '';
+
+        $endpoints = [];
+
+        foreach ($this->getSentinels($config) as $sentinel) {
+            $host = $this->normalizeHost($sentinel['host'] ?? '');
+            $port = $this->normalizePort($sentinel['port'] ?? null);
+
+            if ($host === null) {
+                continue;
+            }
+
+            $endpoints[] = $host.':'.$port;
+        }
+
+        sort($endpoints);
+
+        return $service.'-'.sha1(implode(',', $endpoints));
     }
 
     protected function getService(array $config): ?string
