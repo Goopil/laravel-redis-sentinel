@@ -663,8 +663,9 @@ your own Redis topology, workload, and deployment model.
   is re-executed after reconnection. Only use idempotent operations inside, or handle duplicates in your callback.
 - **Scan-family commands reset their cursor** on retry after a reconnection, so iteration restarts on the new node (SCAN
   semantics allow duplicates).
-- **`read_timeout` defaults to 0** (no timeout, like Laravel's PhpRedis driver): blocking commands can hang indefinitely if the
-  server disappears without closing the socket. Set an explicit `read_timeout` for latency-sensitive paths.
+- **`read_timeout` defaults to 60 seconds** (both the Redis client and the Sentinel client): a blocking command on a half-open
+  socket now fails after 60s instead of hanging the worker forever. Set `read_timeout: 0` for unbounded blocking reads, and
+  always keep it above your longest blocking command (`BLPOP`, `WAIT`, ...).
 - **`flushdb($async)` / `flushall($sync)` flags are not reliably forwarded**: on phpredis 6.x the flag is ignored (commands
   run synchronously); on older 5.x releases a truthy argument may be sent as `ASYNC`. Do not rely on the parameter for
   predictable background flushing.

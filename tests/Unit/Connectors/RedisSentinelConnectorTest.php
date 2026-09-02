@@ -222,3 +222,65 @@ test('the data client timeout is not coupled to the sentinel timeout', function 
 
     expect($connector->captured[1]['timeout'])->toBe(2.5);
 });
+
+test('createClient defaults read_timeout to 60 when config omits it', function () {
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
+    {
+        protected function getMasterAddress(array $config, bool $refresh = false): array
+        {
+            return ['ip' => CONNECTOR_TEST_HOST, 'port' => (int) env('REDIS_STANDALONE_PORT', 6379)];
+        }
+    };
+
+    $client = (new ReflectionMethod($connector, 'createClient'))->invoke($connector, [
+        'sentinel' => ['service' => 'master', 'host' => CONNECTOR_TEST_HOST],
+        'password' => env('REDIS_PASSWORD', 'test'),
+    ]);
+
+    expect((float) $client->getOption(Redis::OPT_READ_TIMEOUT))->toBe(60.0);
+});
+
+test('createClient preserves explicit read_timeout override', function () {
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
+    {
+        protected function getMasterAddress(array $config, bool $refresh = false): array
+        {
+            return ['ip' => CONNECTOR_TEST_HOST, 'port' => (int) env('REDIS_STANDALONE_PORT', 6379)];
+        }
+    };
+
+    $client = (new ReflectionMethod($connector, 'createClient'))->invoke($connector, [
+        'sentinel' => ['service' => 'master', 'host' => CONNECTOR_TEST_HOST],
+        'password' => env('REDIS_PASSWORD', 'test'),
+        'read_timeout' => 5,
+    ]);
+
+    expect((float) $client->getOption(Redis::OPT_READ_TIMEOUT))->toBe(5.0);
+});
+
+test('createSentinel defaults Sentinel client readTimeout to 60', function () {
+    $connector = new class(app(NodeAddressCache::class), app('config')) extends RedisSentinelConnector
+    {
+        public ?array $capturedOptions = null;
+
+        protected function createSentinelInstance(array $options): RedisSentinel
+        {
+            $this->capturedOptions = $options;
+
+            return parent::createSentinelInstance($options);
+        }
+    };
+
+    config(['database.redis.my-sentinel' => [
+        'sentinel' => [
+            'host' => CONNECTOR_TEST_HOST,
+            'port' => (int) env('REDIS_SENTINEL_PORT', 26379),
+            'service' => 'master',
+            'password' => env('REDIS_PASSWORD', 'test'),
+        ],
+    ]]);
+
+    $connector->createSentinel('my-sentinel');
+
+    expect($connector->capturedOptions['readTimeout'])->toBe(60.0);
+});
