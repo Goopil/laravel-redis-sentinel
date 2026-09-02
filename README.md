@@ -235,7 +235,7 @@ return [
                 'connection lost',
                 'connection refused',
                 'went away',
-                'readonly',
+                'Connection reset by peer',
                 "can't write against a read only replica",
                 // ...more in default config
             ],
@@ -255,6 +255,8 @@ return [
 > If you previously published the config file, your copy still defaults to `env('REDIS_SENTINEL_NODE_CACHE_TTL', 0)` — set the env var or update your copy to get the new 15 s default.
 
 > If you previously published the config file, add `'No reachable Redis Sentinel host found'` to `retry.sentinel.messages` to retry total Sentinel outages.
+
+> If you previously published the config file, the default `retry.redis.messages` list was tightened: the overly broad `'socket'`, `'loading'` and `'readonly'` entries were replaced by `'socket error'` and `'Connection reset by peer'` (the canonical `"can't write against a read only replica"` and `'is loading the dataset in memory'` messages were already present). Published copies keep the old broad list — remove those entries or re-publish to adopt the new defaults.
 
 ### Laravel Redis Binding Override
 

@@ -56,12 +56,14 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
         }
     });
 
-    test('lib configuration includes READONLY in retry messages', function () {
+    test('default retry messages target specific transient failures', function () {
         $retryMessages = config('phpredis-sentinel.retry.redis.messages', []);
 
         expect($retryMessages)->toBeArray()
-            ->and($retryMessages)->toContain('readonly')
-            ->and($retryMessages)->toContain("can't write against a read only replica");
+            ->and($retryMessages)->toContain("can't write against a read only replica")
+            ->and($retryMessages)->not->toContain('readonly')
+            ->and($retryMessages)->not->toContain('loading')
+            ->and($retryMessages)->not->toContain('socket');
     });
 
     test('cache flush works after proper configuration', function () {
@@ -230,29 +232,18 @@ describe('READONLY Error Handling - Lib Should Auto-Retry', function () {
     });
 
     test('case-insensitive error matching works for READONLY errors', function () {
-        // This tests that the fix for case-insensitive matching works
         $retryMessages = config('phpredis-sentinel.retry.redis.messages', []);
 
-        // Test various case variations that should all match
-        $errorVariations = [
-            'READONLY You can\'t write against a read only replica',
-            'readonly you can\'t write against a read only replica',
-            'ReadOnly You can\'t write against a read only replica',
-            'READONLY You Can\'t Write Against A Read Only Replica',
-        ];
+        // The config only carries the canonical server message; matching is case-insensitive.
+        expect($retryMessages)->toContain("can't write against a read only replica")
+            ->and($retryMessages)->not->toContain('readonly');
 
-        // The config contains lowercase versions
-        expect($retryMessages)->toContain('readonly');
-        expect($retryMessages)->toContain("can't write against a read only replica");
-
-        // Verify our implementation would match all variations
-        // This is a meta-test to ensure the Str::contains with ignoreCase works
-        foreach ($errorVariations as $errorMsg) {
-            $shouldMatch = Str::contains($errorMsg, 'readonly', ignoreCase: true);
-            expect($shouldMatch)->toBeTrue("Error message '{$errorMsg}' should match 'readonly' (case-insensitive)");
-
-            $shouldMatchWrite = Str::contains($errorMsg, "can't write", ignoreCase: true);
-            expect($shouldMatchWrite)->toBeTrue("Error message '{$errorMsg}' should match 'can't write' (case-insensitive)");
+        foreach ([
+            "READONLY You can't write against a read only replica",
+            "readonly you can't write against a read only replica",
+        ] as $errorMsg) {
+            expect(Str::contains($errorMsg, "can't write against a read only replica", ignoreCase: true))
+                ->toBeTrue("Error message '{$errorMsg}' should match case-insensitively");
         }
     });
 });
