@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.6.0...1.6.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* neutralize parent command() retry and reconnect side effects ([#78](https://github.com/Goopil/laravel-redis-sentinel/issues/78)) ([e3a1320](https://github.com/Goopil/laravel-redis-sentinel/commit/e3a1320a44df1fcd863ba2bbcdc1246c8703141a))
+
 # [1.6.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.5.2...1.6.0) (2026-09-02)
 
 
