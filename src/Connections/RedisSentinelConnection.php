@@ -207,12 +207,14 @@ class RedisSentinelConnection extends PhpRedisConnection
     /**
      * Remove all keys from the current database and reset stickiness.
      *
+     * @param  bool|null  $async  true requests a non-blocking flush, null/false blocks
+     *
      * @throws Throwable
      */
     public function flushdb($async = null): mixed
     {
         try {
-            return $this->command('flushdb', $async ? ['ASYNC'] : []);
+            return $this->command('flushdb', $this->asyncFlushArguments((bool) $async));
         } finally {
             // Reset stickiness after flushing since all data is gone
             $this->wroteToMaster = false;
@@ -222,16 +224,37 @@ class RedisSentinelConnection extends PhpRedisConnection
     /**
      * Remove all keys from all databases and reset stickiness.
      *
+     * @param  bool|null  $sync  true/null perform a blocking flush, false requests a non-blocking flush
+     *
      * @throws Throwable
      */
     public function flushall(?bool $sync = null): bool|\Redis
     {
         try {
-            return $this->command('flushall', $sync === false ? ['ASYNC'] : []);
+            return $this->command('flushall', $sync === false ? $this->asyncFlushArguments(true) : []);
         } finally {
             // Reset stickiness after flushing since all data is gone
             $this->wroteToMaster = false;
         }
+    }
+
+    /**
+     * phpredis 5.x selects ASYNC for any truthy argument; phpredis 6.x flipped the
+     * meaning (true = SYNC, false = ASYNC) — verified on the wire with MONITOR.
+     * Return the argument list that selects ASYNC on the installed extension,
+     * or an empty list for a blocking flush.
+     *
+     * @return array<int, bool|string>
+     */
+    private function asyncFlushArguments(bool $async): array
+    {
+        if (! $async) {
+            return [];
+        }
+
+        return version_compare((string) phpversion('redis'), '6.0', '>=')
+            ? [false]
+            : ['ASYNC'];
     }
 
     /**

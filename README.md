@@ -708,8 +708,9 @@ your own Redis topology, workload, and deployment model.
   socket now fails after 60s instead of hanging the worker forever. Set `read_timeout: 0` for unbounded blocking reads, and
   always keep it above your longest blocking command (`BLPOP`, `WAIT`, ...).
 - **`flushdb($async)` / `flushall($sync)` flush semantics are normalized**: `flushdb(async: true)` and `flushall(sync: false)`
-  send `ASYNC` explicitly; any other value (including the defaults) performs a blocking flush. Parameter names follow
-  phpredis's signatures, so `sync: false` / `async: true` are the asynchronous forms.
+  request a non-blocking flush. The package sends the argument that selects ASYNC on the installed phpredis major (`false` on
+  phpredis 6.x, the literal `'ASYNC'` on 5.x); any other value (including the defaults) performs a blocking flush.
+  Blocking-vs-async remains best-effort: do not rely on the flag for strict ordering guarantees.
 - **Laravel's built-in command retry is disabled for this connection**: Laravel 13+ wraps `command()` with an internal single
   retry whose connector is not Sentinel-aware and dispatches no events. This connection overrides `isRetryable()` to turn it
   off, so the package's `retry()` layer stays the single retry path and `RedisSentinelConnectionFailed` /

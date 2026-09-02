@@ -2,7 +2,7 @@
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 
-test('flushall sends ASYNC only when sync is false', function (?bool $sync, array $expectedArgs) {
+test('flushall sends the ASYNC selector only when sync is false', function (?bool $sync, array $expectedArgs) {
     $connection = Mockery::mock(RedisSentinelConnection::class)->makePartial();
     $connection->shouldReceive('command')->once()->with('flushall', $expectedArgs)->andReturnTrue();
 
@@ -10,17 +10,17 @@ test('flushall sends ASYNC only when sync is false', function (?bool $sync, arra
 })->with([
     'default sync' => [null, []],
     'explicit sync' => [true, []],
-    'async' => [false, ['ASYNC']],
+    'async' => [false, expectedAsyncFlushArgs()],
 ]);
 
-test('flushdb sends ASYNC only when async is true', function ($async, array $expectedArgs) {
+test('flushdb sends the ASYNC selector only when async is true', function ($async, array $expectedArgs) {
     $connection = Mockery::mock(RedisSentinelConnection::class)->makePartial();
     $connection->shouldReceive('command')->once()->with('flushdb', $expectedArgs)->andReturnTrue();
 
     expect($connection->flushdb($async))->toBeTrue();
 })->with([
     'default sync' => [null, []],
-    'async' => [true, ['ASYNC']],
+    'async' => [true, expectedAsyncFlushArgs()],
     'explicit sync' => [false, []],
 ]);
 
@@ -28,9 +28,19 @@ test('flush methods reset master stickiness even when the command fails', functi
     $connection = Mockery::mock(RedisSentinelConnection::class)->makePartial();
     $connection->shouldReceive('command')->once()->with('flushall', [])->andThrow(new RuntimeException('boom'));
 
-    expect(fn () => $connection->flushall())->toThrow(RuntimeException::class);
-
     $stickiness = new ReflectionProperty(RedisSentinelConnection::class, 'wroteToMaster');
+    $stickiness->setValue($connection, true);
 
-    expect($stickiness->getValue($connection))->toBeFalse();
+    expect(fn () => $connection->flushall())->toThrow(RuntimeException::class)
+        ->and($stickiness->getValue($connection))->toBeFalse();
 });
+
+/**
+ * phpredis 6.x inverted flushall/flushdb argument semantics (true = SYNC, false = ASYNC,
+ * verified on the wire with MONITOR); 5.x selected ASYNC for any truthy argument. The
+ * async rows must assert what the installed runtime sends.
+ */
+function expectedAsyncFlushArgs(): array
+{
+    return version_compare((string) phpversion('redis'), '6.0', '>=') ? [false] : ['ASYNC'];
+}
