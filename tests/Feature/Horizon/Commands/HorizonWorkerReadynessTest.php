@@ -2,10 +2,11 @@
 
 use Illuminate\Support\Facades\Artisan;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
+use Laravel\Horizon\MasterSupervisor;
 
 test('horizon:ready returns 0 when master is running for this host', function () {
     $master = new stdClass;
-    $master->name = gethostname().':1';
+    $master->name = MasterSupervisor::basename().'-tst1';
     $master->status = 'running';
 
     $repository = Mockery::mock(MasterSupervisorRepository::class);
@@ -29,7 +30,7 @@ test('horizon:ready returns 1 when no master is running', function () {
 
 test('horizon:ready returns 1 when master is not running', function () {
     $master = new stdClass;
-    $master->name = gethostname().':1';
+    $master->name = MasterSupervisor::basename().'-tst1';
     $master->status = 'paused';
 
     $repository = Mockery::mock(MasterSupervisorRepository::class);

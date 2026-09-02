@@ -36,7 +36,7 @@ describe('Horizon Commands', function () {
 
         $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) {
             $master = new MasterSupervisor;
-            $master->name = gethostname().':1';
+            $master->name = MasterSupervisor::basename().'-tst1';
             $master->status = 'running';
 
             $mock->expects('all')->andReturn([$master]);
@@ -67,7 +67,7 @@ describe('Horizon Commands', function () {
         // Mock horizon:ready to return 0
         $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) {
             $master = new MasterSupervisor;
-            $master->name = gethostname().':1';
+            $master->name = MasterSupervisor::basename().'-tst1';
             $master->status = 'running';
             $mock->expects('all')->andReturn([$master]);
         });
@@ -94,7 +94,7 @@ describe('Horizon Commands', function () {
 
         $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) {
             $master = new MasterSupervisor;
-            $master->name = gethostname().':1';
+            $master->name = MasterSupervisor::basename().'-tst1';
             $master->pid = 999999; // Non-existent PID likely
             $mock->expects('all')->andReturn([$master]);
         });
@@ -103,6 +103,44 @@ describe('Horizon Commands', function () {
         // The command reports the failure and returns 1.
 
         $exitCode = Artisan::call('horizon:pre-stop');
+        expect($exitCode)->toBe(1);
+    });
+
+    test('horizon:ready does not match a master whose hostname extends ours', function () {
+        if (! interface_exists(MasterSupervisorRepository::class)) {
+            $this->markTestSkipped(HORIZON_NOT_INSTALLED);
+        }
+
+        $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) {
+            $mine = new MasterSupervisor;
+            $mine->name = MasterSupervisor::basename().'-abcd';
+            $mine->status = 'running';
+
+            $extended = new MasterSupervisor;
+            $extended->name = MasterSupervisor::basename().'1-efgh'; // worker-11 when we are worker-1
+            $extended->status = 'running';
+
+            $mock->expects('all')->andReturn([$mine, $extended]);
+        });
+
+        $exitCode = Artisan::call('horizon:ready');
+        expect($exitCode)->toBe(0);
+    });
+
+    test('horizon:ready returns 1 when only an extended-hostname master is running', function () {
+        if (! interface_exists(MasterSupervisorRepository::class)) {
+            $this->markTestSkipped(HORIZON_NOT_INSTALLED);
+        }
+
+        $this->mock(MasterSupervisorRepository::class, function (MockInterface $mock) {
+            $extended = new MasterSupervisor;
+            $extended->name = MasterSupervisor::basename().'1-efgh';
+            $extended->status = 'running';
+
+            $mock->expects('all')->twice()->andReturn([$extended]);
+        });
+
+        $exitCode = Artisan::call('horizon:ready');
         expect($exitCode)->toBe(1);
     });
 });

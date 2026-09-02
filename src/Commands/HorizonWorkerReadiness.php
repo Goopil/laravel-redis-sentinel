@@ -8,6 +8,7 @@ use Goopil\LaravelRedisSentinel\Events\HorizonWorkerNotReady;
 use Goopil\LaravelRedisSentinel\Events\HorizonWorkerReady;
 use Illuminate\Console\Command;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
+use Laravel\Horizon\MasterSupervisor;
 
 class HorizonWorkerReadiness extends Command
 {
@@ -34,7 +35,7 @@ class HorizonWorkerReadiness extends Command
     public function handle(MasterSupervisorRepository $masters): int
     {
         $result = collect($masters->all())
-            ->filter(fn ($master) => str_starts_with($master->name, gethostname().':') &&
+            ->filter(fn ($master) => str_starts_with($master->name, MasterSupervisor::basename().'-') &&
                 $master->status === 'running'
             );
 
