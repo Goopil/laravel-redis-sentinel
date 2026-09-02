@@ -198,8 +198,7 @@ trait InteractsWithToxiproxy
      */
     public function connectedMasterPort(): int
     {
-        $service = (string) config('database.redis.phpredis-sentinel.sentinel.service', 'master');
-        $cached = app(NodeAddressCache::class)->get($service);
+        $cached = app(NodeAddressCache::class)->get(sentinelNodeCacheKey());
 
         if ($cached === null) {
             throw new RuntimeException('NodeAddressCache holds no master address for the established connection.');

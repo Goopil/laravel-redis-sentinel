@@ -2,6 +2,8 @@
 
 namespace Goopil\LaravelRedisSentinel\Connectors;
 
+use Closure;
+
 final class NodeAddressCache
 {
     private const MASTER_KEY = 'master';
@@ -13,7 +15,7 @@ final class NodeAddressCache
      */
     protected array $nodes = [];
 
-    public function __construct(protected float $ttlSeconds = 0.0) {}
+    public function __construct(protected float $ttlSeconds = 0.0, protected ?Closure $clock = null) {}
 
     /**
      * Get the cached master address for a service.
@@ -109,13 +111,18 @@ final class NodeAddressCache
         $this->nodes = [];
     }
 
+    private function now(): float
+    {
+        return $this->clock ? ($this->clock)() : microtime(true);
+    }
+
     private function expiresAt(): ?float
     {
-        return $this->ttlSeconds > 0 ? microtime(true) + $this->ttlSeconds : null;
+        return $this->ttlSeconds > 0 ? $this->now() + $this->ttlSeconds : null;
     }
 
     private function isExpired(?float $expiresAt): bool
     {
-        return $expiresAt !== null && microtime(true) >= $expiresAt;
+        return $expiresAt !== null && $this->now() >= $expiresAt;
     }
 }

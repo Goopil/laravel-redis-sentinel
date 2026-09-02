@@ -12,6 +12,7 @@
 */
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\Tests\Support\Toxiproxy\InteractsWithToxiproxy;
 use Goopil\LaravelRedisSentinel\Tests\TestCase;
 use Illuminate\Redis\Connections\PhpRedisConnection;
@@ -73,6 +74,16 @@ expect()->extend('toBeAWorkingRedisConnection', function () {
 function getRedisSentinelConnection()
 {
     return app()->get('redis')->connection('phpredis-sentinel');
+}
+
+/**
+ * The namespaced NodeAddressCache key the connector derives for the
+ * phpredis-sentinel connection, so tests read the exact keys production writes.
+ */
+function sentinelNodeCacheKey(): string
+{
+    return app(RedisSentinelConnector::class)
+        ->getNodeCacheKey((array) config('database.redis.phpredis-sentinel'));
 }
 
 function getRedisConnection()
