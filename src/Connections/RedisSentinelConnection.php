@@ -297,18 +297,31 @@ class RedisSentinelConnection extends PhpRedisConnection
     public function command($method, array $parameters = []): mixed
     {
         return $this->retry(
-            fn () => parent::command($method, $parameters),
+            function () use ($method, $parameters) {
+                $connector = $this->connector;
+                $this->connector = null;
+
+                try {
+                    return parent::command($method, $parameters);
+                } finally {
+                    $this->connector = $connector;
+                }
+            },
             $method
         );
     }
 
     /**
-     * Laravel 13+ retries read-only commands internally in PhpRedisConnection::command().
-     * Its connector is not Sentinel-aware and it dispatches no events, which would mask
-     * failovers and bypass this connection's retry logic. Disable it entirely so this
-     * connection's retry() wrapper stays the single retry path.
+     * Laravel retries read-only commands internally in PhpRedisConnection::command()
+     * by calling the connector closure with $refresh = false, reconnecting to the
+     * cached (possibly demoted) node without dispatching events; on Laravel 13+ it
+     * also nests retries. Neutralize it entirely so this connection's retry() wrapper
+     * stays the single retry path.
      *
-     * No-op on Laravel 10-12 where the method does not exist on the parent.
+     * No-op on Laravel 10-12, where the parent has no isRetryable() method.
+     *
+     * The connector nulling above also neutralizes the parent's catch-block
+     * reconnect (which passes $refresh = false) on all supported versions.
      *
      * @param  string  $method
      * @param  array<int|string, mixed>  $parameters

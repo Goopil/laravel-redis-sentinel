@@ -187,6 +187,12 @@ parameters:
 			path: src/Connections/RedisSentinelConnection.php
 
 		-
+			message: '#^Property Illuminate\\Redis\\Connections\\PhpRedisConnection\:\:\$connector \(callable\(\)\: mixed\) does not accept null\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: src/Connections/RedisSentinelConnection.php
+
+		-
 			message: '#^Strict comparison using \!\=\= between null and Redis will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1

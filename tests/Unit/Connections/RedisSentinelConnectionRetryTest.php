@@ -74,6 +74,34 @@ test('a failed sticky read refreshes the master, not the replica', function () {
         ->and($masterRefreshes)->toBe(1);
 });
 
+test('parent command() cannot reconnect or nest retries on Laravel 13', function () {
+    Event::fake();
+
+    $masterClient = Mockery::mock(Redis::class);
+    $masterClient->shouldReceive('get')->times(3)->andThrow(new RedisException('went away'));
+
+    $reconnects = 0;
+    $connection = new RedisSentinelConnection(
+        $masterClient,
+        function () use (&$reconnects, $masterClient) {
+            $reconnects++;
+
+            return $masterClient;
+        },
+        [],
+    );
+
+    $connection->setRetryLimit(2)->setRetryDelay(0)->setRetryMessages(['went away']);
+
+    try {
+        $connection->command('get', ['foo']);
+        $this->fail('RedisException was not thrown.');
+    } catch (RedisException $exception) {
+        expect($exception->getMessage())->toBe('went away')
+            ->and($reconnects)->toBe(3);
+    }
+});
+
 test('a retried scan restarts its cursor on the refreshed client', function () {
     $master1 = Mockery::mock(Redis::class);
     $master2 = Mockery::mock(Redis::class);

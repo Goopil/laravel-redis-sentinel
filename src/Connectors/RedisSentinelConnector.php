@@ -62,6 +62,8 @@ class RedisSentinelConnector extends PhpRedisConnector
      */
     public function connect(array $config, array $options): RedisSentinelConnection
     {
+        $config = Arr::except($config, 'command_retries');
+
         $connectionConfig = $this->mergeConnectionOptions($config, $options);
         $connector = fn ($refresh = false) => $this->createClient($connectionConfig, $refresh);
 
