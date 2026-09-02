@@ -1,3 +1,11 @@
+## [1.5.2](https://github.com/Goopil/laravel-redis-sentinel/compare/1.5.1...1.5.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* fail fast when all sentinels are unreachable (~30s stall per command) ([#74](https://github.com/Goopil/laravel-redis-sentinel/issues/74)) ([7f21a0a](https://github.com/Goopil/laravel-redis-sentinel/commit/7f21a0a5f9993156da4322d2c008602bbc0b6fa5))
+* unquote horizon:pre-stop start-command default and return 1 on kill failure ([#76](https://github.com/Goopil/laravel-redis-sentinel/issues/76)) ([244bd6a](https://github.com/Goopil/laravel-redis-sentinel/commit/244bd6adc09512322070b7645f6c99185589515e))
+
 ## [1.5.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.5.0...1.5.1) (2026-09-02)
 
 
