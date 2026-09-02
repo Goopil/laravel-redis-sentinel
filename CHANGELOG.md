@@ -1,3 +1,11 @@
+## [1.6.3](https://github.com/Goopil/laravel-redis-sentinel/compare/1.6.2...1.6.3) (2026-09-02)
+
+
+### Bug Fixes
+
+* correct flushall/flushdb ASYNC semantics and select the argument per installed phpredis major ([#83](https://github.com/Goopil/laravel-redis-sentinel/issues/83)) ([f416811](https://github.com/Goopil/laravel-redis-sentinel/commit/f416811e0d8784f62cfb9ece401825ccceca4139))
+* namespace node address cache keys per Sentinel cluster endpoints ([#82](https://github.com/Goopil/laravel-redis-sentinel/issues/82)) ([ba42c5a](https://github.com/Goopil/laravel-redis-sentinel/commit/ba42c5af2e1f8a05395ccf622117649c1bff1654))
+
 ## [1.6.2](https://github.com/Goopil/laravel-redis-sentinel/compare/1.6.1...1.6.2) (2026-09-02)
 
 
