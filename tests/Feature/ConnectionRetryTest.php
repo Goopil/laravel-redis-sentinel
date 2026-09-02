@@ -136,7 +136,7 @@ describe('Reconnect', function () {
         expect($failoverTriggered)->toBeTrue('Failover command should succeed after retries');
 
         // Invalidate the cache after failover to ensure the package will fetch the new master
-        app(NodeAddressCache::class)->forget('master');
+        app(NodeAddressCache::class)->forget(sentinelNodeCacheKey());
 
         // Wait for Sentinel to converge on the new master (failover can take
         // up to ~30s on a fresh CI setup, so poll up to 30s).

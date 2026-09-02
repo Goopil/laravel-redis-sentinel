@@ -518,7 +518,7 @@ test('it keeps cached master address when refreshing replicas', function () {
     expect($connector->master($config))->toBe(['ip' => HOST_1, 'port' => 6379]);
     expect($connector->replica($config))->toBe(['ip' => HOST_2, 'port' => 6379]);
     expect($connector->replica($config, true))->toBe(['ip' => HOST_3, 'port' => 6379]);
-    expect($cache->get('mymaster'))->toBe(['ip' => HOST_1, 'port' => 6379]);
+    expect($cache->get($connector->getNodeCacheKey($config)))->toBe(['ip' => HOST_1, 'port' => 6379]);
 });
 
 test('it reindexes healthy replicas after filtering unhealthy replicas', function () {
@@ -558,13 +558,15 @@ test('it reindexes healthy replicas after filtering unhealthy replicas', functio
         }
     };
 
-    $connection = $connector->connect([
+    $config = [
         'sentinel' => ['service' => 'mymaster', 'host' => HOST_1],
         'read_only_replicas' => true,
-    ], []);
+    ];
+
+    $connection = $connector->connect($config, []);
 
     expect($connection->getReadClient()->getHost())->toBeIn([HOST_3, HOST_4]);
-    expect(array_keys($cache->getReplicas('mymaster')))->toBe([0, 1]);
+    expect(array_keys($cache->getReplicas($connector->getNodeCacheKey($config))))->toBe([0, 1]);
 });
 
 test('it falls back to master if all replicas are unhealthy', function () {

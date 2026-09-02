@@ -400,7 +400,7 @@ class RedisSentinelConnector extends PhpRedisConnector
      *
      * @param  array<string, mixed>  $config
      */
-    private function getNodeCacheKey(array $config): string
+    public function getNodeCacheKey(array $config): string
     {
         $service = $this->getService($config) ?? '';
 
@@ -410,7 +410,7 @@ class RedisSentinelConnector extends PhpRedisConnector
             $host = $this->normalizeHost($sentinel['host'] ?? '');
             $port = $this->normalizePort($sentinel['port'] ?? null);
 
-            if ($host === null) {
+            if ($host === null || $port === null) {
                 continue;
             }
 

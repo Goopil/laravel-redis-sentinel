@@ -38,7 +38,6 @@ describe('Real Sentinel failover through toxiproxy', function () {
     });
 
     test('stale master connection retries and lands on the promoted master', function () {
-        $service = (string) config('database.redis.phpredis-sentinel.sentinel.service', 'master');
         $connection = Redis::connection('phpredis-sentinel');
         expect($connection->set('chaos_stale', 'v1'))->toBeTrue();
 
@@ -58,7 +57,7 @@ describe('Real Sentinel failover through toxiproxy', function () {
         expect($this->reissueUntilSuccess(fn () => $connection->set('chaos_stale', 'v2'), attempts: 20))->toBeTrue()
             ->and($connection->get('chaos_stale'))->toBe('v2');
 
-        $cached = app(NodeAddressCache::class)->get($service);
+        $cached = app(NodeAddressCache::class)->get(sentinelNodeCacheKey());
         expect($cached['port'])->toBe($newAddress['port'], 'NodeAddressCache must point at the promoted master');
 
         app('redis')->purge('phpredis-sentinel');
@@ -68,7 +67,6 @@ describe('Real Sentinel failover through toxiproxy', function () {
     test('stale node address cache writes to the demoted master, hits READONLY and recovers', function () {
         Event::fake([RedisSentinelConnectionReconnected::class]);
 
-        $service = (string) config('database.redis.phpredis-sentinel.sentinel.service', 'master');
         $connection = Redis::connection('phpredis-sentinel');
         expect($connection->set('chaos_readonly', 'v1'))->toBeTrue();
 
@@ -85,7 +83,7 @@ describe('Real Sentinel failover through toxiproxy', function () {
         // Prime the in-process address cache with the demoted node, mimicking a
         // long-running process (Octane, queue workers) whose cached master address
         // survived the failover, then force a fresh connection to read that cache
-        app(NodeAddressCache::class)->set($service, $oldAddress['ip'], $oldAddress['port']);
+        app(NodeAddressCache::class)->set(sentinelNodeCacheKey(), $oldAddress['ip'], $oldAddress['port']);
         $this->purgeSentinelConnection();
 
         $stale = Redis::connection('phpredis-sentinel');
@@ -98,7 +96,7 @@ describe('Real Sentinel failover through toxiproxy', function () {
 
         Event::assertDispatched(RedisSentinelConnectionReconnected::class);
 
-        $cached = app(NodeAddressCache::class)->get($service);
+        $cached = app(NodeAddressCache::class)->get(sentinelNodeCacheKey());
         expect($cached['port'])->toBe($newAddress['port'], 'Cache must be refreshed to the promoted master');
     });
 
