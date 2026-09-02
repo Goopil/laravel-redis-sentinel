@@ -100,10 +100,9 @@ describe('Horizon Commands', function () {
         });
 
         // Note: posix_kill will fail if PID doesn't exist or no permission.
-        // The command will log an error but might still return 0 if it catches it or just proceed.
-        // Actually it returns 0 at the end of handle().
+        // The command reports the failure and returns 1.
 
         $exitCode = Artisan::call('horizon:pre-stop');
-        expect($exitCode)->toBe(0);
+        expect($exitCode)->toBe(1);
     });
 });

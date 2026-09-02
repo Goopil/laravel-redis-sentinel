@@ -244,7 +244,7 @@ describe('Horizon Command Events', function () {
 
         $exitCode = Artisan::call('horizon:pre-stop', ['--start-command' => 'php artisan horizon']);
 
-        expect($exitCode)->toBe(0);
+        expect($exitCode)->toBe(1);
 
         Event::assertDispatched(HorizonWorkerTerminateFailed::class, function (HorizonWorkerTerminateFailed $event) {
             return $event->pid === 999999

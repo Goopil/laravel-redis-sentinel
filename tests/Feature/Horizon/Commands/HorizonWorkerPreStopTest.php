@@ -105,10 +105,10 @@ test('horizon:pre-stop kills the first pid from multi-line pgrep output', functi
     $status = Artisan::call('horizon:pre-stop', ['--start-command' => 'anything']);
 
     // 999999999 does not exist: the TERM fails and the failure is reported,
-    // but the first numeric line of the multi-line pgrep output was targeted.
+    // the hook exits 1 (a failing preStop hook does not block pod termination in K8s).
     expect($command->signalledPids)->toContain(999999999)
         ->and($command->signalledPids)->not->toContain(67890)
-        ->and($status)->toBe(0);
+        ->and($status)->toBe(1);
 });
 
 test('horizon:pre-stop builds pgrep process safely', function () {
@@ -127,4 +127,39 @@ test('horizon:pre-stop builds pgrep process safely', function () {
         ->and($commandLine)->toContain('-f')
         ->and($commandLine)->not->toContain('-x')
         ->and($commandLine)->toContain("'php artisan horizon; rm -rf /'");
+});
+
+test('horizon:pre-stop falls back to the unquoted default start command', function () {
+    $repository = Mockery::mock(MasterSupervisorRepository::class);
+    $repository->expects('all')->andReturn([]);
+    app()->instance(MasterSupervisorRepository::class, $repository);
+
+    $process = Mockery::mock(Process::class);
+    $process->shouldReceive('run')->once();
+    $process->shouldReceive('getOutput')->andReturn('');
+
+    $command = new class($process) extends HorizonWorkerPreStop
+    {
+        public ?string $captured = null;
+
+        public function __construct(private Process $mockedProcess)
+        {
+            parent::__construct();
+        }
+
+        protected function buildPgrepProcess(string $startCommand, int $timeout): Process
+        {
+            $this->captured = $startCommand;
+
+            return $this->mockedProcess;
+        }
+    };
+
+    app()->bind(HorizonWorkerPreStop::class, fn () => $command);
+
+    expect((new HorizonWorkerPreStop)->getDefinition()->getOption('start-command')->getDefault())->toBeNull();
+
+    Artisan::call('horizon:pre-stop');
+
+    expect($command->captured)->toBe('php artisan horizon');
 });

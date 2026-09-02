@@ -23,11 +23,11 @@ class HorizonWorkerPreStop extends Command
      *
      * @var string
      */
-    protected $signature = "horizon:pre-stop
+    protected $signature = 'horizon:pre-stop
                             {--wait : Wait for all workers to terminate}
-                            {--start-command='php artisan horizon'}
+                            {--start-command=}
                             {--timeout=60}
-                            ";
+                            ';
 
     /**
      * The console command description.
@@ -54,7 +54,7 @@ class HorizonWorkerPreStop extends Command
             );
         }
 
-        $startCommand = $this->option('start-command');
+        $startCommand = $this->option('start-command') ?: 'php artisan horizon';
 
         $pid = collect($masters->all())
             ->filter(fn ($master) => str_starts_with($master->name, gethostname().':'))
@@ -100,6 +100,8 @@ class HorizonWorkerPreStop extends Command
                     pid: $pid,
                     reason: $error,
                 ));
+
+                return 1;
             } else {
                 $this->info(
                     sprintf(
