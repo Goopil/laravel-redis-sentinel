@@ -102,7 +102,7 @@ required.
 - ✅ Configurable retry logic for both Sentinel and Redis connections
 - ✅ Full support for Laravel Cache, Queue, Session, Broadcasting
 - ✅ Native Laravel Horizon integration
-- ✅ Laravel Octane compatible (Swoole and RoadRunner runtimes)
+- ✅ Laravel Octane compatible (sequential runtimes — see [Laravel Octane Support](#laravel-octane-support) for coroutine limits)
 
 ### Advanced Features
 
@@ -482,6 +482,19 @@ The package is compatible with Laravel Octane and supports long-lived processes:
 // ✅ Graceful reconnection on failures
 ```
 
+### Coroutine runtimes (Swoole) and R/W splitting
+
+The connection mutates shared per-command state (master/replica client swap, sticky flag), so **concurrent
+coroutines sharing one worker are not fully supported for R/W splitting**: interleaving can flip routing
+mid-request, and the retry backoff blocks the whole worker, not just the coroutine that hit the failure.
+
+- **Safe**: sequential runtimes — FPM, FrankenPHP worker mode, RoadRunner, Swoole with a single in-flight
+  request per worker.
+- **Not safe**: Swoole coroutines sharing one connection concurrently (e.g. async requests in the same worker).
+
+If you rely on concurrent coroutines, disable `read_only_replicas` (everything routes to the master, no client
+swap) or keep R/W splitting on sequential workers.
+
 ### No Configuration Needed
 
 Simply use Octane as normal:
@@ -492,7 +505,8 @@ php artisan octane:start --server=swoole
 php artisan octane:start --server=roadrunner
 ```
 
-The package listens to Octane's `RequestReceived` event and resets state automatically.
+The package listens to Octane's lifecycle events (`RequestReceived`, `TaskReceived`, `TickReceived`,
+`OperationTerminated`) and to queue `JobProcessing`, and resets stickiness automatically at each boundary.
 
 ## Horizon Integration
 
