@@ -42,6 +42,29 @@ test('a dynamic command that succeeds after one failure returns its result', fun
         ->and(Event::assertDispatchedTimes(RedisSentinelConnectionFailed::class, 1))->toBeNull();
 });
 
+test('a throwing listener on the connection fail event does not abort the retry loop', function () {
+    $listenerInvoked = false;
+    Event::listen(RedisSentinelConnectionFailed::class, function () use (&$listenerInvoked): void {
+        $listenerInvoked = true;
+
+        throw new RuntimeException('listener down');
+    });
+
+    $client = Mockery::mock(Redis::class);
+    $client->expects('hset')->twice()->andReturnUsing(
+        fn () => throw new RedisException('broken pipe'),
+        fn () => 1,
+    );
+
+    $connection = new RedisSentinelConnection($client, fn () => $client, []);
+    $connection->setRetryLimit(1);
+    $connection->setRetryDelay(1);
+    $connection->setRetryMessages(['broken pipe']);
+
+    expect($connection->hset('key', 'field', 'value'))->toBe(1)
+        ->and($listenerInvoked)->toBeTrue();
+});
+
 test('a failed sticky read refreshes the master, not the replica', function () {
     Event::fake();
 

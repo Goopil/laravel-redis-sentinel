@@ -269,7 +269,7 @@ class RedisSentinelConnector extends PhpRedisConnector
 
             if (empty($replicas)) {
                 $this->log('No healthy replica, reads fall back to the master', ['service' => $service, 'replicas' => $slaves], 'warning');
-                RedisSentinelReplicaFallback::dispatch($service, $slaves);
+                $this->dispatchSafely(new RedisSentinelReplicaFallback($service, $slaves));
 
                 return $this->getMasterAddress($config, $refresh);
             }
@@ -515,7 +515,7 @@ class RedisSentinelConnector extends PhpRedisConnector
     protected function onSentinelFail(string $service, string $method): Closure
     {
         return function ($exception, $attempts) use ($service, $method) {
-            RedisSentinelMasterFailed::dispatch($service, $exception, $method, $attempts);
+            $this->dispatchSafely(new RedisSentinelMasterFailed($service, $exception, $method, $attempts));
 
             $this->log($method.' - fail', [
                 'method' => $method,
@@ -529,7 +529,7 @@ class RedisSentinelConnector extends PhpRedisConnector
     protected function onSentinelReconnect(string $service, string $method): Closure
     {
         return function ($attempts) use ($service, $method) {
-            RedisSentinelMasterReconnected::dispatch($service, $method, $attempts);
+            $this->dispatchSafely(new RedisSentinelMasterReconnected($service, $method, $attempts));
 
             $this->log($method.' - reconnected', [
                 'method' => $method,
@@ -542,7 +542,7 @@ class RedisSentinelConnector extends PhpRedisConnector
     protected function onSentinelMaxFail(string $service, string $method): Closure
     {
         return function ($exception, $attempts) use ($service, $method) {
-            RedisSentinelMasterMaxRetryFailed::dispatch($service, $exception, $method, $attempts);
+            $this->dispatchSafely(new RedisSentinelMasterMaxRetryFailed($service, $exception, $method, $attempts));
 
             $this->log($method.' - max fail', [
                 'method' => $method,
