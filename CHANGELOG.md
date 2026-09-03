@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.7.0...1.7.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* isolate Sentinel node timeouts from the data connection timeouts ([#88](https://github.com/Goopil/laravel-redis-sentinel/issues/88)) ([88e4e7e](https://github.com/Goopil/laravel-redis-sentinel/commit/88e4e7ef1c9b919e79bc73eae9c338968156d229))
+
 # [1.7.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.6.3...1.7.0) (2026-09-03)
 
 
