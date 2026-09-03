@@ -1,3 +1,15 @@
+# [1.7.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.6.3...1.7.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* fall back to documented retry defaults on null or invalid config values ([#85](https://github.com/Goopil/laravel-redis-sentinel/issues/85)) ([2529e65](https://github.com/Goopil/laravel-redis-sentinel/commit/2529e65cc4df75ec6d8b98c1e29774ce9ebd1e4f))
+
+
+### Features
+
+* opt-in error_log notice when swallowed log failures drop telemetry ([#86](https://github.com/Goopil/laravel-redis-sentinel/issues/86)) ([ed9cc2e](https://github.com/Goopil/laravel-redis-sentinel/commit/ed9cc2e2983426bb9ecc7d66190f0842bdb028c1))
+
 ## [1.6.3](https://github.com/Goopil/laravel-redis-sentinel/compare/1.6.2...1.6.3) (2026-09-02)
 
 
