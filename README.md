@@ -519,6 +519,8 @@ The package is compatible with Laravel Octane and supports long-lived processes:
 The connection mutates shared per-command state (master/replica client swap, sticky flag), so **concurrent
 coroutines sharing one worker are not fully supported for R/W splitting**: interleaving can flip routing
 mid-request, and the retry backoff blocks the whole worker, not just the coroutine that hit the failure.
+The manager shares the same caveat: `RedisSentinelManager` temporarily swaps its internal `$driver` property
+while resolving a connection — another piece of transient shared state that assumes sequential resolution.
 
 - **Safe**: sequential runtimes — FPM, FrankenPHP worker mode, RoadRunner, Swoole with a single in-flight
   request per worker.
@@ -526,6 +528,9 @@ mid-request, and the retry backoff blocks the whole worker, not just the corouti
 
 If you rely on concurrent coroutines, disable `read_only_replicas` (everything routes to the master, no client
 swap) or keep R/W splitting on sequential workers.
+
+The sequential contract is pinned by the hermetic `InterleavedRoutingTest` (unit) — coroutine-level races on the
+shared client swap are explicitly out of scope without ext-swoole in CI.
 
 ### No Configuration Needed
 
