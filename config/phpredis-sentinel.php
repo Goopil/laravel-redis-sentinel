@@ -11,6 +11,9 @@ return [
 
     'log' => [
         'channel' => env('REDIS_SENTINEL_LOG_CHANNEL', env('LOG_CHANNEL')),
+        // Once per consuming class, error_log() a notice when a logging failure is
+        // swallowed (opt-in: retry/failover telemetry is being lost otherwise).
+        'notify_swallowed' => env('REDIS_SENTINEL_LOG_NOTIFY_SWALLOWED', false),
     ],
     'commands' => [
         'events' => [

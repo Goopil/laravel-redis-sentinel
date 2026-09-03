@@ -212,6 +212,7 @@ return [
 
     'log' => [
         'channel' => null, // Use Laravel's default log channel
+        'notify_swallowed' => false, // error_log() notice (once per consuming class) when logging failures are swallowed
     ],
 
     'retry' => [
@@ -243,6 +244,11 @@ return [
     ],
 ];
 ```
+
+- `log.notify_swallowed` (default `false`): when the configured log channel throws, the
+  package swallows the failure so retries never break. Set `REDIS_SENTINEL_LOG_NOTIFY_SWALLOWED=true`
+  to emit an `error_log()` notice when telemetry is being dropped this way — once per
+  consuming class, so a process sees at most a handful of notices.
 
 ### Data connection defaults (v1.3+)
 
