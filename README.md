@@ -253,6 +253,9 @@ return [
 ### Data connection defaults (v1.3+)
 
 - `timeout` for the data connection defaults to **5 seconds** and is no longer derived from `sentinel.timeout`.
+- Sentinel node timeouts are isolated from the data connection: `connectTimeout` comes from
+  `sentinel.timeout` only (default `1` s) and Sentinel `readTimeout` from `sentinel.read_timeout`
+  only (default `60` s). Raising the data `timeout`/`read_timeout` no longer affects Sentinel nodes.
 - The data client uses strictly `password`; `sentinel.password` only authenticates against Sentinel nodes.
 - `retry.redis.messages` can be overridden **per connection** (`retry.redis.messages` inside the connection config), like `attempts`/`delay`. See the [Retry contract](#retry-contract) for the at-least-once implications.
 - Resolved master/replica addresses are cached with a TTL: `phpredis-sentinel.node_cache.ttl` (seconds, default `15`; `0`
@@ -712,9 +715,10 @@ your own Redis topology, workload, and deployment model.
   is re-executed after reconnection. Only use idempotent operations inside, or handle duplicates in your callback.
 - **Scan-family commands reset their cursor** on retry after a reconnection, so iteration restarts on the new node (SCAN
   semantics allow duplicates).
-- **`read_timeout` defaults to 60 seconds** (both the Redis client and the Sentinel client): a blocking command on a half-open
-  socket now fails after 60s instead of hanging the worker forever. Set `read_timeout: 0` for unbounded blocking reads, and
-  always keep it above your longest blocking command (`BLPOP`, `WAIT`, ...).
+- **`read_timeout` defaults to 60 seconds** for the data Redis client (a blocking command on a half-open
+  socket now fails after 60s instead of hanging the worker forever). Set `read_timeout: 0` for unbounded blocking reads, and
+  always keep it above your longest blocking command (`BLPOP`, `WAIT`, ...). The Sentinel node read timeout is
+  configured separately via `sentinel.read_timeout` (default `60` s).
 - **`flushdb($async)` / `flushall($sync)` flush semantics are normalized**: `flushdb(async: true)` and `flushall(sync: false)`
   request a non-blocking flush. The package sends the argument that selects ASYNC on the installed phpredis major (`false` on
   phpredis 6.x, the literal `'ASYNC'` on 5.x); any other value (including the defaults) performs a blocking flush.

@@ -320,10 +320,10 @@ class RedisSentinelConnector extends PhpRedisConnector
             $options = [
                 'host' => $host,
                 'port' => $port,
-                'connectTimeout' => $config['sentinel']['timeout'] ?? $config['timeout'] ?? 1.0,
+                'connectTimeout' => $config['sentinel']['timeout'] ?? 1.0,
                 'persistent' => $config['sentinel']['persistent'] ?? $config['persistent'] ?? null,
                 'retryInterval' => $config['sentinel']['retry_interval'] ?? $config['retry_interval'] ?? 0,
-                'readTimeout' => $config['sentinel']['read_timeout'] ?? $config['read_timeout'] ?? 60.0,
+                'readTimeout' => $config['sentinel']['read_timeout'] ?? 60.0,
             ];
 
             if (($password = $config['sentinel']['password'] ?? $config['password'] ?? '') !== '') {
