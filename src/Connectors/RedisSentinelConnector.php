@@ -50,9 +50,9 @@ class RedisSentinelConnector extends PhpRedisConnector
         $this->masterCache = $masterCache;
         $this->config = $config;
 
-        $this->setRetryLimit((int) $config->get('phpredis-sentinel.retry.sentinel.attempts', 5))
-            ->setRetryDelay((int) $config->get('phpredis-sentinel.retry.sentinel.delay', 1000))
-            ->setRetryMessages((array) $config->get('phpredis-sentinel.retry.sentinel.messages', []));
+        $this->setRetryLimit($this->resolveRetryInt($config->get('phpredis-sentinel.retry.sentinel.attempts'), $this->retryLimit))
+            ->setRetryDelay($this->resolveRetryInt($config->get('phpredis-sentinel.retry.sentinel.delay'), $this->retryDelay))
+            ->setRetryMessages($this->resolveRetryMessages($config->get('phpredis-sentinel.retry.sentinel.messages'), $this->retryMessages));
     }
 
     /**
@@ -73,20 +73,17 @@ class RedisSentinelConnector extends PhpRedisConnector
         }
 
         return (new RedisSentinelConnection($connector(), $connector, $config, $readConnector))
-            ->setRetryLimit((int) Arr::get(
-                $config,
-                'retry.redis.attempts',
-                $this->config->get('phpredis-sentinel.retry.redis.attempts', $this->retryLimit)
+            ->setRetryLimit($this->resolveRetryInt(
+                Arr::get($config, 'retry.redis.attempts'),
+                $this->resolveRetryInt($this->config->get('phpredis-sentinel.retry.redis.attempts'), $this->retryLimit)
             ))
-            ->setRetryDelay((int) Arr::get(
-                $config,
-                'retry.redis.delay',
-                $this->config->get('phpredis-sentinel.retry.redis.delay', $this->retryDelay)
+            ->setRetryDelay($this->resolveRetryInt(
+                Arr::get($config, 'retry.redis.delay'),
+                $this->resolveRetryInt($this->config->get('phpredis-sentinel.retry.redis.delay'), $this->retryDelay)
             ))
-            ->setRetryMessages((array) Arr::get(
-                $config,
-                'retry.redis.messages',
-                $this->config->get('phpredis-sentinel.retry.redis.messages', $this->retryMessages)
+            ->setRetryMessages($this->resolveRetryMessages(
+                Arr::get($config, 'retry.redis.messages'),
+                $this->resolveRetryMessages($this->config->get('phpredis-sentinel.retry.redis.messages'), $this->retryMessages)
             ));
     }
 
@@ -291,6 +288,10 @@ class RedisSentinelConnector extends PhpRedisConnector
     /**
      * Connect to the configured Redis Sentinel instance.
      *
+     * When no Sentinel host is reachable the reported cause is the LAST failure
+     * observed across the node loop (most recent, most specific). Earlier failures
+     * are not preserved — the ConfigurationException carries only this one.
+     *
      * @throws ConfigurationException
      */
     protected function connectToSentinel(array $config): RedisSentinel
@@ -461,6 +462,36 @@ class RedisSentinelConnector extends PhpRedisConnector
         $config['options'] = array_merge($options, $configOptions);
 
         return $config;
+    }
+
+    /**
+     * Resolve an integer retry setting, falling back when the configured value is
+     * null (explicit) or otherwise not a usable non-negative integer, instead of
+     * casting null/bool to 0. Numeric strings are accepted so env()-wrapped
+     * published configs keep working.
+     */
+    private function resolveRetryInt(mixed $value, int $default): int
+    {
+        $int = filter_var($value, FILTER_VALIDATE_INT);
+
+        return $int !== false && $int >= 0 ? $int : $default;
+    }
+
+    /**
+     * Resolve a retry message list, falling back when the configured value is
+     * null or not an array. An explicit empty array stays valid: it means
+     * "never retry on message match".
+     *
+     * @param  array<int, string>  $default
+     * @return array<int, string>
+     */
+    private function resolveRetryMessages(mixed $value, array $default): array
+    {
+        if ($value === null || ! is_array($value)) {
+            return $default;
+        }
+
+        return array_values(array_filter($value, 'is_string'));
     }
 
     private function needParamsAsArray(): bool
