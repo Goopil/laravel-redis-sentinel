@@ -187,7 +187,7 @@ jobs:
           echo "Redis Sentinel is ready!"
 
       - name: Execute tests
-        run: vendor/bin/pest --coverage-clover coverage.xml --min=50 --testdox --log-junit junit.xml
+        run: vendor/bin/pest --coverage-clover coverage.xml --min=70 --testdox --log-junit junit.xml
         env:
           REDIS_PASSWORD: test
           REDIS_SENTINEL_PASSWORD: test
