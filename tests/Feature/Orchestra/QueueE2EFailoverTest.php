@@ -52,23 +52,20 @@ describe('Queue E2E Failover Tests with Read/Write Mode', function () {
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        $reflection = new ReflectionClass($connection);
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-
         // Queue push is a write operation
         $connection->rpush('queues:test', 'job_payload');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('Queue push should trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('Queue push should trigger stickiness');
 
         // Reset for next test
         $connection->resetStickiness();
 
         // Queue read operations
         $connection->llen('queues:test');
-        expect($wroteToMasterProp->getValue($connection))->toBeFalse('Queue length check should not trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeFalse('Queue length check should not trigger stickiness');
 
         // Queue pop is a write operation
         $connection->lpop('queues:test');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('Queue pop should trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('Queue pop should trigger stickiness');
     });
 
     test('queue jobs are processed correctly with read/write mode', function () {

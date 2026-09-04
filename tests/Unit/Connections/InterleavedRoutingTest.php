@@ -27,9 +27,8 @@ test('interleaved reads and writes on one shared connection route to the right c
 
     $connection->set('k1', 'v1');
 
-    expect((new ReflectionProperty($connection, 'wroteToMaster'))->getValue($connection))->toBeTrue()
-        ->and((new ReflectionProperty($connection, 'client'))->getValue($connection))->toBe($master)
-        ->and((new ReflectionProperty($connection, 'readClient'))->getValue($connection))->toBe($replica);
+    expect($connection->client())->toBe($master)
+        ->and($connection->getReadClient())->toBe($replica);
 });
 
 test('resetting stickiness flips reads back to the replica after a write', function () {
@@ -58,7 +57,9 @@ test('reads issued inside a transaction are routed to the master', function () {
     $master->shouldReceive('multi')->once()->andReturnSelf();
     $master->shouldReceive('exec')->once()->andReturn([]);
     $master->shouldReceive('get')->once()->with('in-tx')->andReturn('from-master');
-    $replica->shouldReceive('get')->never();
+    $master->shouldReceive('get')->with('after-tx')->never();
+    $replica->shouldReceive('get')->never()->with('in-tx');
+    $replica->shouldReceive('get')->once()->with('after-tx')->andReturn('from-replica');
 
     $connection = new RedisSentinelConnection($master, fn () => $master, [], fn () => $replica);
 
@@ -66,5 +67,9 @@ test('reads issued inside a transaction are routed to the master', function () {
         expect($connection->get('in-tx'))->toBe('from-master');
     });
 
-    expect((new ReflectionProperty($connection, 'transactionLevel'))->getValue($connection))->toBe(0);
+    // Clear the stickiness the transaction itself set; the read then reaching the
+    // replica proves the transaction level is back to zero
+    $connection->resetStickiness();
+
+    expect($connection->get('after-tx'))->toBe('from-replica');
 });

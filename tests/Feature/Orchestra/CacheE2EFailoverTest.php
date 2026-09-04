@@ -40,16 +40,13 @@ describe('Cache E2E Failover Tests with Read/Write Mode', function () {
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        $reflection = new ReflectionClass($connection);
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-
         // Cache read should not trigger stickiness
         Cache::get('test_key');
-        expect($wroteToMasterProp->getValue($connection))->toBeFalse('Cache read should not trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeFalse('Cache read should not trigger stickiness');
 
         // Cache write should trigger stickiness
         Cache::put('test_key', 'test_value', 60);
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('Cache write should trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('Cache write should trigger stickiness');
     });
 
     test('cache stores and retrieves data with read/write mode', function () {

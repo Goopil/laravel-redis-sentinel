@@ -6,14 +6,12 @@ use Illuminate\Queue\Events\JobProcessing;
 test('stickiness is reset on job processing', function () {
     $connection = getRedisSentinelConnection();
 
-    $reflection = new ReflectionClass($connection);
-    $property = $reflection->getProperty('wroteToMaster');
-    $property->setValue($connection, true);
+    connectionState($connection)->wroteToMaster = true;
 
     $job = Mockery::mock(Job::class);
     $job->allows('payload')->andReturn([]);
 
     event(new JobProcessing('redis', $job));
 
-    expect($property->getValue($connection))->toBeFalse();
+    expect(connectionState($connection)->wroteToMaster)->toBeFalse();
 });

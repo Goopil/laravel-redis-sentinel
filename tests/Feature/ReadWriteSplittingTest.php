@@ -288,9 +288,7 @@ test('it is always sticky when read only replicas is active', function () {
 
     $connection->set('foo', 'bar');
 
-    $reflection = new ReflectionClass($connection);
-    $property = $reflection->getProperty('wroteToMaster');
-    expect($property->getValue($connection))->toBeTrue();
+    expect(connectionState($connection)->wroteToMaster)->toBeTrue();
 
     expect($connection->get('foo'))->toBe('bar');
 });
@@ -725,27 +723,23 @@ test('master client reference is never corrupted', function () {
 
     $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
 
-    // Use reflection to verify internal state
-    $reflection = new ReflectionClass($connection);
-    $masterClientProp = $reflection->getProperty('masterClient');
-
     // First read goes to replica
     expect($connection->get('key'))->toBe('value');
 
     // Verify master client reference is unchanged
-    expect($masterClientProp->getValue($connection))->toBe($masterClient);
+    expect($connection->client())->toBe($masterClient);
 
     // Write goes to master
     expect($connection->set('key', 'newvalue'))->toBeTrue();
 
     // Verify master client reference is STILL unchanged
-    expect($masterClientProp->getValue($connection))->toBe($masterClient);
+    expect($connection->client())->toBe($masterClient);
 
     // Subsequent read goes to master due to stickiness
     expect($connection->get('key2'))->toBe('value2');
 
     // Verify master client reference is STILL unchanged
-    expect($masterClientProp->getValue($connection))->toBe($masterClient);
+    expect($connection->client())->toBe($masterClient);
 });
 
 test('it allows custom read-only commands from config', function () {

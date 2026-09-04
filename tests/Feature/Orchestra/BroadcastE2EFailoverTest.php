@@ -243,12 +243,9 @@ describe('Broadcast E2E Failover Tests with Read/Write Mode', function () {
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        $reflection = new ReflectionClass($connection);
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-
         // Publish (write operation)
         $connection->publish('test-channel', 'message1');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue();
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue();
 
         // Simulate failover
         try {

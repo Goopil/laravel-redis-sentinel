@@ -50,8 +50,7 @@ describe('Cache E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         Cache::get('test_key');
         Cache::put('test_key', 'test_value', 60);
 
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('All operations use master');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('All operations use master');
     });
 
     test('cache stores and retrieves in master-only mode', function () {

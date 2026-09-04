@@ -54,9 +54,6 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        $reflection = new ReflectionClass($connection);
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-
         // Broadcasting is a write operation (publishes to Redis channels)
         Queue::fake();
         $event = new UserRegistered(1, 'test', 'test@example.com');
@@ -278,16 +275,13 @@ describe('Broadcast E2E Tests with Read/Write Mode', function () {
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        $reflection = new ReflectionClass($connection);
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-
         // Check channel subscription list (operational command)
         $connection->pubsub('channels', 'user-*');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('PUBSUB should stay on master and trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('PUBSUB should stay on master and trigger stickiness');
 
         // Publish to channel (write operation)
         $connection->publish('user-registrations', json_encode(['user_id' => 1]));
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('Publish should trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('Publish should trigger stickiness');
     });
 
     test('broadcast handles concurrent events efficiently', function () {

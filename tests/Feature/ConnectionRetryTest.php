@@ -89,11 +89,10 @@ describe('Reconnect', function () {
         $connection->setRetryDelay(1);
         $connection->setRetryMessages(['broken pipe']);
 
-        $property = (new ReflectionClass($connection))->getProperty('wroteToMaster');
-        $property->setValue($connection, true);
+        connectionState($connection)->wroteToMaster = true;
 
         expect(fn () => $connection->flushdb())->toThrow(RedisException::class)
-            ->and($property->getValue($connection))->toBeFalse();
+            ->and(connectionState($connection)->wroteToMaster)->toBeFalse();
     });
 
     test('flushall routes once through the client and resets stickiness', function () {
@@ -104,11 +103,10 @@ describe('Reconnect', function () {
 
         $connection = new RedisSentinelConnection($client, fn () => $client, []);
 
-        $property = (new ReflectionClass($connection))->getProperty('wroteToMaster');
-        $property->setValue($connection, true);
+        connectionState($connection)->wroteToMaster = true;
 
         expect($connection->flushall())->toBeTrue()
-            ->and($property->getValue($connection))->toBeFalse();
+            ->and(connectionState($connection)->wroteToMaster)->toBeFalse();
     });
 
     test('Reconnecting after a manual fail over', function () {

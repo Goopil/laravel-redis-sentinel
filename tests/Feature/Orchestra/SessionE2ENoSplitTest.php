@@ -55,8 +55,7 @@ describe('Session E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         Session::put('test_key', 'test_value');
         Session::save();
 
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('All operations use master');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('All operations use master');
     });
 
     test('session stores and retrieves in master-only mode', function () {

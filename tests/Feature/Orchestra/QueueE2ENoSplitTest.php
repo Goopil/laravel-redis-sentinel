@@ -62,8 +62,7 @@ describe('Queue E2E Tests WITHOUT Read/Write Splitting - Master Only', function 
         $connection->rpush($queueKey, 'job1');
         $connection->lpop($queueKey);
 
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('All operations use master');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('All operations use master');
     });
 
     test('queue processes jobs correctly in master-only mode', function () {

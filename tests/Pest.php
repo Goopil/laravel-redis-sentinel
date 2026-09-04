@@ -13,6 +13,8 @@
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
+use Goopil\LaravelRedisSentinel\Context\ConnectionState;
+use Goopil\LaravelRedisSentinel\Context\ExecutionContext;
 use Goopil\LaravelRedisSentinel\Tests\Support\Toxiproxy\InteractsWithToxiproxy;
 use Goopil\LaravelRedisSentinel\Tests\TestCase;
 use Illuminate\Redis\Connections\PhpRedisConnection;
@@ -74,6 +76,28 @@ expect()->extend('toBeAWorkingRedisConnection', function () {
 function getRedisSentinelConnection()
 {
     return app()->get('redis')->connection('phpredis-sentinel');
+}
+
+/**
+ * The live ConnectionState of the connection's current execution slot.
+ * State moved into per-context storage, so tests assert stickiness
+ * (and seed it) through this accessor instead of instance properties.
+ */
+function connectionState(RedisSentinelConnection $connection): ConnectionState
+{
+    // Mirrors the connection's lazy context init: non-split connections only
+    // build their context on first use, and partially mocked instances never run
+    // the constructor at all. The property is resolved from its declaring class
+    // because Mockery proxies hide inherited private properties.
+    $property = new ReflectionProperty(RedisSentinelConnection::class, 'context');
+    $context = $property->getValue($connection);
+
+    if ($context === null) {
+        $context = new ExecutionContext;
+        $property->setValue($connection, $context);
+    }
+
+    return $context->storage()['state'] ??= new ConnectionState;
 }
 
 /**

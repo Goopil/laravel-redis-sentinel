@@ -58,9 +58,7 @@ describe('Horizon E2E Tests WITHOUT Read/Write Splitting - Master Only', functio
         $connection->get('horizon:master:read');
         $connection->set('horizon:master:write', 'value');
 
-        // No stickiness tracking needed in master-only mode
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('All operations go to master');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('All operations go to master');
     });
 
     test('horizon processes jobs correctly in master-only mode', function () {

@@ -49,7 +49,7 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
         }
 
         $reflection = new ReflectionClass($connection);
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
+        $wroteToMasterState = connectionState($connection);
 
         // Test read operation (should not trigger stickiness if read/write splitting is enabled)
         $connection->get('horizon:test:read');
@@ -62,7 +62,7 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
         // Test write operation (should use master and activate stickiness)
         $connection->set('horizon:test:write', 'value');
 
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('Stickiness should be activated after write');
+        expect($wroteToMasterState->wroteToMaster)->toBeTrue('Stickiness should be activated after write');
 
         // If read/write splitting is available, verify it was initialized
         if ($hasReadConnector) {
@@ -325,11 +325,8 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        $reflection = new ReflectionClass($connection);
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-
         // Start with no stickiness
-        expect($wroteToMasterProp->getValue($connection))->toBeFalse();
+        expect(connectionState($connection)->wroteToMaster)->toBeFalse();
 
         // Perform multiple read operations
         for ($i = 1; $i <= 5; $i++) {
@@ -337,13 +334,13 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
         }
 
         // Should still not have stickiness
-        expect($wroteToMasterProp->getValue($connection))->toBeFalse('Reads should not trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeFalse('Reads should not trigger stickiness');
 
         // Perform a write operation
         $connection->set('horizon:write:key', 'value');
 
         // Now stickiness should be active
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('Write should trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('Write should trigger stickiness');
 
         // Subsequent reads should use master due to stickiness
         for ($i = 1; $i <= 5; $i++) {
@@ -351,6 +348,6 @@ describe('Horizon E2E Tests with Read/Write Mode and Failover', function () {
         }
 
         // Stickiness should remain
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('Stickiness should persist');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('Stickiness should persist');
     });
 });
