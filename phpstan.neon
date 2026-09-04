@@ -7,3 +7,8 @@ parameters:
         - src
     bootstrapFiles:
         - vendor/autoload.php
+    ignoreErrors:
+        # OpenSwoole is an optional runtime: its classes are not installed in CI.
+        -
+            message: '#Call to static method (getCid|getContext)\(\) on an unknown class OpenSwoole\\Coroutine\.#'
+            path: src/Context/ExecutionContext.php

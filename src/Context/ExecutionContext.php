@@ -9,6 +9,7 @@ final class ExecutionContext implements ConnectionContext
 {
     private static ?bool $coroutineRuntime = null;
 
+    /** @var \ArrayObject<string, mixed> */
     private \ArrayObject $fallback;
 
     public function __construct()
@@ -36,6 +37,9 @@ final class ExecutionContext implements ConnectionContext
         // @codeCoverageIgnoreEnd
     }
 
+    /**
+     * @return \ArrayObject<string, mixed>
+     */
     public function storage(): \ArrayObject
     {
         if (! self::inCoroutine()) {

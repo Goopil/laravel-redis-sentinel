@@ -167,6 +167,9 @@ class RedisSentinelConnector extends PhpRedisConnector
      * sockets: the persistent connection table is process-wide, so such a
      * client would share its socket with other coroutines and reintroduce
      * response interleaving.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
      */
     protected function buildClientConfig(array $config, string $ip, int $port): array
     {
