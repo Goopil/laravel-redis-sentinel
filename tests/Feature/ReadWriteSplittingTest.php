@@ -74,11 +74,6 @@ function readOnlyCommandDataset(): array
         'pttl' => ['pttl', ['foo'], 1000],
         'ttl' => ['ttl', ['foo'], 60],
         'object' => ['object', ['encoding', 'foo'], 'raw'],
-        'latency' => ['latency', ['history'], []],
-        'memory' => ['memory', ['usage', 'foo'], 100],
-        'client' => ['client', ['list'], []],
-        'debug' => ['debug', ['object', 'foo'], 'debug info'],
-        'cluster' => ['cluster', ['countkeysinslot', 0], 0],
     ];
 }
 
@@ -109,6 +104,23 @@ test('it classifies exposed read-only commands as replica-safe', function (strin
 
     expect($connection->command($command, $parameters))->toBe($result);
 })->with(readOnlyCommandDataset());
+
+test('operational or mutating subcommands of removed families stay on the master', function (string $command, array $parameters, mixed $result) {
+    $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
+
+    $replicaClient->shouldNotReceive($command);
+    $masterClient->expects($command)->with(...$parameters)->once()->andReturn($result);
+
+    $connection = redisSentinelConnection($masterClient, $replicaClient);
+
+    expect($connection->command($command, $parameters))->toBe($result);
+})->with([
+    'client kill' => ['client', ['kill', HOST_1.':6380'], 1],
+    'latency reset' => ['latency', ['reset'], 0],
+    'memory purge' => ['memory', ['purge'], true],
+    'debug reload' => ['debug', ['reload'], 'OK'],
+]);
 
 test('getReadClient falls back to the master client when no replica is configured', function () {
     $masterClient = Mockery::mock(Redis::class);

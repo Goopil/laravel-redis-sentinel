@@ -84,7 +84,7 @@ class RedisSentinelConnection extends PhpRedisConnection
         'zcard', 'zcount', 'zlexcount', 'zrange', 'zrank', 'zrevrange', 'zrevrank', 'zscore', 'zscan',
         'zrangebyscore', 'zrevrangebyscore', 'zrangebylex', 'zrevrangebylex',
         'exists', 'scan', 'type', 'pttl', 'ttl',
-        'object', 'latency', 'memory', 'client', 'debug', 'cluster',
+        'object',
     ];
 
     /** @var array<int, string>|null */
