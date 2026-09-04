@@ -26,6 +26,10 @@ use Throwable;
  * overridden: the framework's __call routes dynamic commands through $this->command(),
  * so overriding it here would create nested retries (up to (limit+1)^2 attempts).
  *
+ * NOTE: PacksPhpRedisValues::pack() (used by RedisStore/PhpRedisLock) reads $this->client
+ * outside the swap — benign because all context clients share the same connection
+ * options/serializer.
+ *
  * @method mixed get(string $key) Get the value of a key
  * @method bool set(string $key, mixed $value, mixed $expireResolution = null, mixed $expireTTL = null, mixed $flag = null) Set the string value of a key
  * @method int|false del(string|array $key, ...$other_keys) Delete one or more keys
@@ -109,7 +113,9 @@ class RedisSentinelConnection extends PhpRedisConnection
 
     /**
      * Per-execution-unit storage (process slot for FPM/CLI, coroutine slot for
-     * Swoole/OpenSwoole). Lazily created so non-split connections never build one.
+     * Swoole/OpenSwoole). Lazily created on first state access. It is only an
+     * ArrayObject holder: non-split connections short-circuit per-context
+     * client creation elsewhere, so routing never builds clients from it.
      */
     private ?ConnectionContext $context = null;
 
@@ -129,7 +135,7 @@ class RedisSentinelConnection extends PhpRedisConnection
         $this->initialMaster = $client;
         $this->masterConnector = $connector;
         $this->readConnector = $readConnector;
-        $this->context = $context ?? ($readConnector === null ? null : new ExecutionContext);
+        $this->context = $context;
 
         // Seed the current (worker) slot with the constructor client: the FPM/CLI
         // fallback keeps using it and creates no extra connection.
@@ -417,9 +423,11 @@ class RedisSentinelConnection extends PhpRedisConnection
 
                 // CRITICAL: Temporarily swap $this->client to the target client
                 // This is necessary because parent class methods use $this->client.
-                // The swap is single-read-after-set (safe under cooperative scheduling):
-                // restoring the PREVIOUS value instead of the master keeps interleaved
-                // coroutines from restoring over each other's value.
+                // Routing never reads $this->client outside this swap window, which
+                // is what makes the swap safe under cooperative scheduling: with 3+
+                // interleaved coroutines the restores cascade and can leave $this->client
+                // pointing at a foreign context's master — harmless, since no command is
+                // ever dispatched through the stale value.
                 $previous = $this->client;
                 $this->client = $targetClient;
 

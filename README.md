@@ -102,7 +102,7 @@ required.
 - ✅ Configurable retry logic for both Sentinel and Redis connections
 - ✅ Full support for Laravel Cache, Queue, Session, Broadcasting
 - ✅ Native Laravel Horizon integration
-- ✅ Laravel Octane compatible (sequential runtimes — see [Laravel Octane Support](#laravel-octane-support) for coroutine limits)
+- ✅ Laravel Octane compatible (concurrent coroutines safe in split mode — see [Laravel Octane Support](#laravel-octane-support) for the safe/unsafe matrix)
 
 ### Advanced Features
 
@@ -517,7 +517,7 @@ The package is compatible with Laravel Octane and supports long-lived processes:
 
 ```php
 // The package automatically handles:
-// ✅ Connection reuse across requests
+// ✅ Connection reuse across requests (FPM/CLI and non-split mode; split-mode coroutines create a fresh pair per request — see below)
 // ✅ Sticky session reset between requests
 // ✅ Graceful reconnection on failures
 ```
