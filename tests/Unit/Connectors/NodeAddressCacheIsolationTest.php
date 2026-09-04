@@ -4,14 +4,9 @@ use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 
 beforeEach(function () {
-    foreach (['resolutionFailures', 'breakerOpenedAt', 'breakerLastException'] as $property) {
-        $ref = new ReflectionProperty(RedisSentinelConnector::class, $property);
-        $ref->setAccessible(true);
-        $ref->setValue(null, match ($property) {
-            'resolutionFailures' => 0,
-            default => null,
-        });
-    }
+    $ref = new ReflectionProperty(RedisSentinelConnector::class, 'resolutionBreakers');
+    $ref->setAccessible(true);
+    $ref->setValue(null, []);
 });
 
 function isolatedConnector(): RedisSentinelConnector

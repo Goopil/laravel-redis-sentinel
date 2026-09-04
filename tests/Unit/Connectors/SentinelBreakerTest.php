@@ -77,9 +77,12 @@ test('breaker closes after the cooldown and a full resolution cycle runs again',
 
     expect($calls)->toBe(2);
 
-    $openedAt = new ReflectionProperty(RedisSentinelConnector::class, 'breakerOpenedAt');
+    $openedAt = new ReflectionProperty(RedisSentinelConnector::class, 'resolutionBreakers');
     $openedAt->setAccessible(true);
-    $openedAt->setValue(null, microtime(true) - 10.0);
+    $state = $openedAt->getValue();
+    $key = array_key_first($state);
+    $state[$key]['openedAt'] = microtime(true) - 10.0;
+    $openedAt->setValue(null, $state);
 
     try {
         $connector->getMasterAddress(['sentinel' => ['service' => 'master', 'host' => BREAKER_TEST_HOST]]);
@@ -98,8 +101,29 @@ test('a successful resolution resets the breaker counter', function () {
     expect($master)->toBeArray()
         ->and($calls)->toBe(2);
 
-    $failures = new ReflectionProperty(RedisSentinelConnector::class, 'resolutionFailures');
+    $failures = new ReflectionProperty(RedisSentinelConnector::class, 'resolutionBreakers');
     $failures->setAccessible(true);
 
-    expect($failures->getValue())->toBe(0);
+    expect($failures->getValue())->toBe([]);
+});
+
+test('a cluster outage does not block other clusters', function () {
+    $calls = 0;
+    $connector = breakerConnector($calls);
+
+    // Trip the breaker on cluster A (127.0.0.1 endpoints)
+    try {
+        $connector->getMasterAddress(['sentinel' => ['service' => 'master', 'host' => BREAKER_TEST_HOST]]);
+    } catch (Throwable) {
+    }
+
+    expect($calls)->toBe(2);
+
+    // Cluster B (different Sentinel host) must still attempt a real resolution
+    try {
+        $connector->getMasterAddress(['sentinel' => ['service' => 'master', 'host' => '127.0.0.2']]);
+    } catch (Throwable) {
+    }
+
+    expect($calls)->toBe(4);
 });
