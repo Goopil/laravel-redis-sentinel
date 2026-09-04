@@ -67,6 +67,9 @@ test('reads issued inside a transaction are routed to the master', function () {
         expect($connection->get('in-tx'))->toBe('from-master');
     });
 
+    // The finally block must release the level, or reads are pinned to master forever
+    expect(connectionState($connection)->transactionLevel)->toBe(0);
+
     // Clear the stickiness the transaction itself set; the read then reaching the
     // replica proves the transaction level is back to zero
     $connection->resetStickiness();
