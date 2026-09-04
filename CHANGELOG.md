@@ -1,3 +1,10 @@
+## [1.8.2](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.1...1.8.2) (2026-09-04)
+
+
+### Bug Fixes
+
+* never replay non-transport exceptions thrown inside retried code ([#96](https://github.com/Goopil/laravel-redis-sentinel/issues/96)) ([b7561b8](https://github.com/Goopil/laravel-redis-sentinel/commit/b7561b8422691ae66961da4abe2e8001745745cf))
+
 ## [1.8.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.0...1.8.1) (2026-09-04)
 
 
