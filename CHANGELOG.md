@@ -1,3 +1,10 @@
+## [1.8.3](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.2...1.8.3) (2026-09-04)
+
+
+### Bug Fixes
+
+* key the Sentinel resolution breaker by cluster ([#97](https://github.com/Goopil/laravel-redis-sentinel/issues/97)) ([f24c630](https://github.com/Goopil/laravel-redis-sentinel/commit/f24c630c2178d71cc212ee969de8da9b1d89f630))
+
 ## [1.8.2](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.1...1.8.2) (2026-09-04)
 
 
