@@ -40,11 +40,14 @@ class RedisSentinelConnector extends PhpRedisConnector
 
     private const BREAKER_COOLDOWN_SECONDS = 5.0;
 
-    private static int $resolutionFailures = 0;
-
-    private static ?float $breakerOpenedAt = null;
-
-    private static ?Throwable $breakerLastException = null;
+    /**
+     * Per-cluster Sentinel resolution breaker state, keyed by node cache key
+     * (service + Sentinel endpoints): one cluster's outage must never block
+     * another cluster's resolution. An absent entry means the breaker is closed.
+     *
+     * @var array<string, array{failures: int, openedAt: ?float, lastException: ?Throwable}>
+     */
+    private static array $resolutionBreakers = [];
 
     /**
      * Test-only seam: forces the coroutine branch of buildClientConfig() without
@@ -116,21 +119,23 @@ class RedisSentinelConnector extends PhpRedisConnector
             throw new ConfigurationException(sprintf("No service name has been specified for the Redis Sentinel connection '%s'.", $name));
         }
 
-        $this->guardSentinelResolution();
+        $key = $this->getNodeCacheKey($config);
+
+        $this->guardSentinelResolution($key);
 
         return $this->retryOnFailure(
-            function () use ($config) {
-                $this->guardSentinelResolution();
+            function () use ($config, $key) {
+                $this->guardSentinelResolution($key);
 
                 try {
                     $instance = $this->connectToSentinel($config);
                 } catch (Throwable $e) {
-                    $this->recordSentinelFailure($e);
+                    $this->recordSentinelFailure($key, $e);
 
                     throw $e;
                 }
 
-                $this->recordSentinelSuccess();
+                $this->recordSentinelSuccess($key);
 
                 return $instance;
             },
@@ -209,22 +214,24 @@ class RedisSentinelConnector extends PhpRedisConnector
             return $master;
         }
 
-        $this->guardSentinelResolution();
+        $key = $this->getNodeCacheKey($config);
+
+        $this->guardSentinelResolution($key);
 
         ['ip' => $ip, 'port' => $port] = $this->retryOnFailure(
-            function () use ($config, $service) {
-                $this->guardSentinelResolution();
+            function () use ($config, $service, $key) {
+                $this->guardSentinelResolution($key);
 
                 try {
                     if ($master = $this->connectToSentinel($config)->master($service)) {
-                        $this->recordSentinelSuccess();
+                        $this->recordSentinelSuccess($key);
 
                         return $master;
                     }
 
                     throw new RedisException(sprintf("No master found for service '%s'.", $service));
                 } catch (Throwable $e) {
-                    $this->recordSentinelFailure($e);
+                    $this->recordSentinelFailure($key, $e);
 
                     throw $e;
                 }
@@ -255,11 +262,13 @@ class RedisSentinelConnector extends PhpRedisConnector
         $replicas = $this->masterCache->getReplicas($this->getNodeCacheKey($config));
 
         if (empty($replicas)) {
-            $this->guardSentinelResolution();
+            $key = $this->getNodeCacheKey($config);
+
+            $this->guardSentinelResolution($key);
 
             $slaves = $this->retryOnFailure(
-                function () use ($config, $service) {
-                    $this->guardSentinelResolution();
+                function () use ($config, $service, $key) {
+                    $this->guardSentinelResolution($key);
 
                     try {
                         $result = $this->connectToSentinel($config)->slaves($service);
@@ -268,11 +277,11 @@ class RedisSentinelConnector extends PhpRedisConnector
                             throw new RedisException(sprintf("No replicas found for service '%s'.", $service));
                         }
 
-                        $this->recordSentinelSuccess();
+                        $this->recordSentinelSuccess($key);
 
                         return $result;
                     } catch (Throwable $e) {
-                        $this->recordSentinelFailure($e);
+                        $this->recordSentinelFailure($key, $e);
 
                         throw $e;
                     }
@@ -390,24 +399,28 @@ class RedisSentinelConnector extends PhpRedisConnector
         return true;
     }
 
-    private function guardSentinelResolution(): void
+    private function guardSentinelResolution(string $key): void
     {
-        if (self::$breakerOpenedAt === null) {
+        $breaker = self::$resolutionBreakers[$key] ?? null;
+
+        if ($breaker === null || $breaker['openedAt'] === null) {
             return;
         }
 
-        if ((microtime(true) - self::$breakerOpenedAt) >= self::BREAKER_COOLDOWN_SECONDS) {
-            self::$breakerOpenedAt = null;
-            self::$resolutionFailures = 0;
-            self::$breakerLastException = null;
+        if ((microtime(true) - $breaker['openedAt']) >= self::BREAKER_COOLDOWN_SECONDS) {
+            unset(self::$resolutionBreakers[$key]);
 
             return;
         }
 
-        throw self::$breakerLastException;
+        $lastException = $breaker['lastException'];
+
+        if ($lastException !== null) {
+            throw $lastException;
+        }
     }
 
-    private function recordSentinelFailure(Throwable $exception): void
+    private function recordSentinelFailure(string $key, Throwable $exception): void
     {
         // Only Sentinel unreachability (connectToSentinel exhausting all hosts) opens the breaker;
         // a reachable Sentinel that has no master/replicas for the service is not a Sentinel outage.
@@ -415,19 +428,20 @@ class RedisSentinelConnector extends PhpRedisConnector
             return;
         }
 
-        self::$resolutionFailures++;
-        self::$breakerLastException = $exception;
+        $breaker = self::$resolutionBreakers[$key] ?? ['failures' => 0, 'openedAt' => null, 'lastException' => null];
+        $breaker['failures']++;
+        $breaker['lastException'] = $exception;
 
-        if (self::$resolutionFailures >= self::BREAKER_THRESHOLD) {
-            self::$breakerOpenedAt = microtime(true);
+        if ($breaker['failures'] >= self::BREAKER_THRESHOLD) {
+            $breaker['openedAt'] = microtime(true);
         }
+
+        self::$resolutionBreakers[$key] = $breaker;
     }
 
-    private function recordSentinelSuccess(): void
+    private function recordSentinelSuccess(string $key): void
     {
-        self::$resolutionFailures = 0;
-        self::$breakerOpenedAt = null;
-        self::$breakerLastException = null;
+        unset(self::$resolutionBreakers[$key]);
     }
 
     /**

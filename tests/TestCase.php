@@ -26,11 +26,9 @@ class TestCase extends Orchestra
         }
 
         // Reset the Sentinel resolution breaker between tests (static connector state)
-        foreach (['resolutionFailures' => 0, 'breakerOpenedAt' => null, 'breakerLastException' => null] as $property => $value) {
-            $reflection = new ReflectionProperty(RedisSentinelConnector::class, $property);
-            $reflection->setAccessible(true);
-            $reflection->setValue(null, $value);
-        }
+        $breakers = new ReflectionProperty(RedisSentinelConnector::class, 'resolutionBreakers');
+        $breakers->setAccessible(true);
+        $breakers->setValue(null, []);
 
         // Load workbench routes
         $this->loadWorkbenchRoutes($app);
