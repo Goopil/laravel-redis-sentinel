@@ -2,6 +2,7 @@
 
 namespace Goopil\LaravelRedisSentinel\Context;
 
+use Goopil\LaravelRedisSentinel\Exceptions\CoroutineContextException;
 use Swoole\Coroutine;
 
 final class ExecutionContext implements ConnectionContext
@@ -46,6 +47,11 @@ final class ExecutionContext implements ConnectionContext
             return $context['lrs-'.spl_object_id($this)] ??= new \ArrayObject;
         }
 
-        return $this->fallback;
+        // Silent fallback here would make every coroutine share the worker's
+        // state and reintroduce the cross-coroutine bug fixed in #66.
+        throw new CoroutineContextException(sprintf(
+            '%s returned an unexpected coroutine context (expected ArrayObject), refusing to fall back to shared worker state.',
+            class_exists(Coroutine::class) ? 'Swoole' : 'OpenSwoole'
+        ));
     }
 }
