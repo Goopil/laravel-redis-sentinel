@@ -27,9 +27,13 @@ final class ExecutionContext implements ConnectionContext
             return false;
         }
 
+        // Runtime detection requires a Swoole/OpenSwoole extension; both branches
+        // are unreachable in a plain-PHP test environment.
+        // @codeCoverageIgnoreStart
         return class_exists(Coroutine::class)
             ? Coroutine::getCid() > 0
             : \OpenSwoole\Coroutine::getCid() > 0;
+        // @codeCoverageIgnoreEnd
     }
 
     public function storage(): \ArrayObject
@@ -38,6 +42,7 @@ final class ExecutionContext implements ConnectionContext
             return $this->fallback;
         }
 
+        // @codeCoverageIgnoreStart
         $context = class_exists(Coroutine::class)
             ? Coroutine::getContext()
             : \OpenSwoole\Coroutine::getContext();
@@ -53,5 +58,6 @@ final class ExecutionContext implements ConnectionContext
             '%s returned an unexpected coroutine context (expected ArrayObject), refusing to fall back to shared worker state.',
             class_exists(Coroutine::class) ? 'Swoole' : 'OpenSwoole'
         ));
+        // @codeCoverageIgnoreEnd
     }
 }

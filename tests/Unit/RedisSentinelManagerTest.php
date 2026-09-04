@@ -74,6 +74,21 @@ test('resolveConnector returns the correct connector', function () {
     expect($manager->resolveConnector('default'))->toBe($connector);
 });
 
+test('sentinel resolution throws ConfigurationException when no connector is registered for the driver', function () {
+    $config = [
+        'default' => [
+            'client' => 'phpredis-sentinel',
+            'sentinel' => [
+                'host' => '127.0.0.1',
+                'service' => 'master',
+            ],
+        ],
+    ];
+
+    $manager = new RedisSentinelManager(null, 'phpredis', $config);
+    $manager->resolveConnector('default');
+})->throws(ConfigurationException::class, 'No connector registered for the [phpredis-sentinel] driver.');
+
 test('resolveConnector does not mutate driver property', function () {
     $config = [
         'default' => [
