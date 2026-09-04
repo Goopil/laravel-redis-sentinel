@@ -379,6 +379,17 @@ class RedisSentinelConnector extends PhpRedisConnector
         );
     }
 
+    /**
+     * Sentinel resolution failures surface as a ConfigurationException wrapping
+     * the transport cause; the connector only ever retries its own wrapped
+     * failures (no user callback crosses this path), so the message-based
+     * contract keeps applying to every Throwable here.
+     */
+    protected function isRetryableException(Throwable $exception): bool
+    {
+        return true;
+    }
+
     private function guardSentinelResolution(): void
     {
         if (self::$breakerOpenedAt === null) {

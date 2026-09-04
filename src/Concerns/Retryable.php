@@ -4,6 +4,7 @@ namespace Goopil\LaravelRedisSentinel\Concerns;
 
 use Illuminate\Support\Str;
 use Random\RandomException;
+use RedisException;
 use Throwable;
 
 trait Retryable
@@ -47,6 +48,16 @@ trait Retryable
     }
 
     /**
+     * Only phpredis transport failures are retryable by default: any other
+     * Throwable — e.g. an exception raised inside a user callback — must
+     * propagate immediately instead of being replayed (#91).
+     */
+    protected function isRetryableException(Throwable $exception): bool
+    {
+        return $exception instanceof RedisException;
+    }
+
+    /**
      * @throws Throwable
      */
     protected function retryOnFailure(
@@ -67,7 +78,7 @@ trait Retryable
 
                 return $result;
             } catch (Throwable $exception) {
-                if (empty($this->retryMessages) || ! Str::contains($exception->getMessage(), $this->retryMessages, ignoreCase: true)) {
+                if (! $this->isRetryableException($exception) || empty($this->retryMessages) || ! Str::contains($exception->getMessage(), $this->retryMessages, ignoreCase: true)) {
                     throw $exception;
                 }
 

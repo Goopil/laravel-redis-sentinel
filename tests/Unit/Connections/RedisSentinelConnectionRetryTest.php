@@ -139,3 +139,30 @@ test('a retried scan restarts its cursor on the refreshed client', function () {
 
     expect($connection->scan(5))->toBe([null, ['key1']]);
 });
+
+test('a non-transport exception thrown inside transaction() is never replayed', function () {
+    Event::fake();
+
+    $master = Mockery::mock(Redis::class);
+    $master->expects('multi')->once()->andReturnSelf();
+    $master->expects('exec')->never();
+
+    $calls = 0;
+    $connection = new RedisSentinelConnection($master, fn () => $master, []);
+    $connection->setRetryLimit(5);
+    $connection->setRetryDelay(1);
+    $connection->setRetryMessages(['went away']);
+
+    try {
+        $connection->transaction(function () use (&$calls): void {
+            $calls++;
+            throw new RuntimeException('MySQL server has gone away');
+        });
+        $this->fail('RuntimeException was not thrown.');
+    } catch (RuntimeException $exception) {
+        expect($exception->getMessage())->toBe('MySQL server has gone away');
+    }
+
+    expect($calls)->toBe(1)
+        ->and(Event::assertDispatchedTimes(RedisSentinelConnectionFailed::class, 0))->toBeNull();
+});
