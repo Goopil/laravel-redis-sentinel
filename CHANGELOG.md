@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.0...1.8.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* keep operational command families off the replicas ([#95](https://github.com/Goopil/laravel-redis-sentinel/issues/95)) ([d71eeaf](https://github.com/Goopil/laravel-redis-sentinel/commit/d71eeaf18947958ead887ab95566c1ce9d3b447a))
+
 # [1.8.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.7.1...1.8.0) (2026-09-04)
 
 
