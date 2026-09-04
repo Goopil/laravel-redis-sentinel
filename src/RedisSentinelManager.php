@@ -24,32 +24,34 @@ class RedisSentinelManager extends RedisManager
         $name = $name ?: 'default';
 
         $normalizedName = $this->patchHorizonConnectionName($name);
-        $previousDriver = $this->driver;
-        $this->driver = $this->config[$normalizedName]['client'] ?? $this->driver;
+        $clientDriver = $this->config[$normalizedName]['client'] ?? $this->driver;
 
-        try {
-            if ($this->driver !== 'phpredis-sentinel') {
+        if ($clientDriver !== 'phpredis-sentinel') {
+            $previousDriver = $this->driver;
+            $this->driver = $clientDriver;
+
+            try {
                 return parent::resolve($normalizedName);
+            } finally {
+                $this->driver = $previousDriver;
             }
-
-            $config = $this->parseConnectionConfiguration($this->config[$normalizedName]);
-
-            $config = $this->patchHorizonPrefix(
-                $name,
-                $config
-            );
-
-            $options = $this->config['options'] ?? [];
-
-            $options = array_merge(
-                Arr::except($options, 'parameters'),
-                ['parameters' => Arr::get($options, 'parameters.'.$name, Arr::get($options, 'parameters', []))]
-            );
-
-            return $this->connector()->connect($config, $options);
-        } finally {
-            $this->driver = $previousDriver;
         }
+
+        $config = $this->parseConnectionConfiguration($this->config[$normalizedName]);
+
+        $config = $this->patchHorizonPrefix(
+            $name,
+            $config
+        );
+
+        $options = $this->config['options'] ?? [];
+
+        $options = array_merge(
+            Arr::except($options, 'parameters'),
+            ['parameters' => Arr::get($options, 'parameters.'.$name, Arr::get($options, 'parameters', []))]
+        );
+
+        return $this->sentinelConnector()->connect($config, $options);
     }
 
     public function resolveConnector($name = null): Connector|PhpRedisConnector|PredisConnector|RedisSentinelConnector
@@ -68,6 +70,10 @@ class RedisSentinelManager extends RedisManager
             );
         }
 
+        if (($this->config[$normalizedName]['client'] ?? $this->driver) === 'phpredis-sentinel') {
+            return $this->sentinelConnector();
+        }
+
         $previousDriver = $this->driver;
         $this->driver = $this->config[$normalizedName]['client'] ?? $this->driver;
 
@@ -76,6 +82,22 @@ class RedisSentinelManager extends RedisManager
         } finally {
             $this->driver = $previousDriver;
         }
+    }
+
+    /**
+     * Resolve the connector registered for the sentinel driver without
+     * consulting or mutating the shared $driver property, so concurrent
+     * resolutions (e.g. Swoole coroutines) never observe a swapped driver.
+     */
+    private function sentinelConnector(): Connector
+    {
+        $creator = $this->customCreators['phpredis-sentinel'] ?? null;
+
+        if ($creator === null) {
+            throw new ConfigurationException('No connector registered for the [phpredis-sentinel] driver.');
+        }
+
+        return $creator();
     }
 
     protected function isHorizonContext(): bool
