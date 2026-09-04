@@ -526,7 +526,9 @@ The package is compatible with Laravel Octane and supports long-lived processes:
 
 Connection state (master/replica clients, stickiness, transaction level) lives in an execution context: the
 worker process on sequential runtimes, the coroutine's own storage under Swoole/OpenSwoole. Concurrent coroutines
-sharing one worker therefore no longer race on shared routing state.
+sharing one worker therefore no longer race on shared routing state. Runtime detection is extension-based
+(`class_exists` + coroutine id), not server-based: a Swoole/OpenSwoole extension loaded under any server — including
+RoadRunner or FrankenPHP workers — automatically switches connections to the coroutine-safe path.
 
 - **Split mode (`read_only_replicas: true`)**: each request coroutine lazily builds its own master/replica client
   pair — the same one-pair-per-request connection cost as FPM. Laravel's `pipeline()`/`transaction()` route to the
