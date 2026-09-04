@@ -304,6 +304,8 @@ Important limitations when `REDIS_SENTINEL_OVERRIDE_LARAVEL_REDIS=false`:
 
 For most applications, keep the override enabled. Disable it only for advanced mixed setups where Laravel's native Redis manager must remain global and Sentinel is used through explicitly configured package integrations.
 
+Resolving a `phpredis-sentinel` connection when the package's connector creator is not registered throws a `ConfigurationException` instead of failing with a fatal PHP error.
+
 ### Retry Strategy
 
 The package uses **exponential backoff with jitter** to avoid thundering herd:
@@ -380,7 +382,10 @@ Cache::put('user:123', 'John');  // Write to master, enables sticky mode
 $name = Cache::get('user:123');   // Read from master → guaranteed fresh
 ```
 
-The sticky mode **automatically resets** between requests in Octane/Horizon.
+Stickiness lives in per-execution-context state: under concurrent runtimes (Swoole/OpenSwoole) each request
+coroutine gets its own flag, so it is structurally scoped to the request; on sequential runtimes (FPM, RoadRunner,
+CLI workers) the context is the long-lived worker process, which is why the package additionally resets stickiness
+on each Octane lifecycle event and queue `JobProcessing` event as belt-and-suspenders.
 
 ### Replica-Safe Commands
 
@@ -519,21 +524,42 @@ The package is compatible with Laravel Octane and supports long-lived processes:
 
 ### Coroutine runtimes (Swoole) and R/W splitting
 
-The connection mutates shared per-command state (master/replica client swap, sticky flag), so **concurrent
-coroutines sharing one worker are not fully supported for R/W splitting**: interleaving can flip routing
-mid-request, and the retry backoff blocks the whole worker, not just the coroutine that hit the failure.
-The manager shares the same caveat: `RedisSentinelManager` temporarily swaps its internal `$driver` property
-while resolving a connection — another piece of transient shared state that assumes sequential resolution.
+Connection state (master/replica clients, stickiness, transaction level) lives in an execution context: the
+worker process on sequential runtimes, the coroutine's own storage under Swoole/OpenSwoole. Concurrent coroutines
+sharing one worker therefore no longer race on shared routing state.
 
-- **Safe**: sequential runtimes — FPM, FrankenPHP worker mode, RoadRunner, Swoole with a single in-flight
-  request per worker.
-- **Not safe**: Swoole coroutines sharing one connection concurrently (e.g. async requests in the same worker).
+- **Split mode (`read_only_replicas: true`)**: each request coroutine lazily builds its own master/replica client
+  pair — the same one-pair-per-request connection cost as FPM. Laravel's `pipeline()`/`transaction()` route to the
+  coroutine's master through the `client()` override, and the per-command client swap restores the previous
+  `$client` value, so interleaved commands cannot corrupt each other's routing.
+- **`persistent` is ignored inside coroutines** (forced to `0` for coroutine-created clients): phpredis' persistent
+  connection table is process-wide, so a persistent client created in a coroutine would share its socket with other
+  coroutines and reintroduce response interleaving. Persistent sockets keep working normally in FPM/CLI.
+- **Non-split mode**: every command uses the single client created at construction, shared by the whole worker.
+  Sharing one phpredis socket across concurrent coroutines carries the same caveat as plain Laravel + phpredis on
+  Octane — an upstream characteristic, not specific to Sentinel.
+- **Subscriptions still block their coroutine** (`subscribe`/`psubscribe` loop until the connection ends).
+- **Retry backoff still blocks the worker**: the retry delay sleeps the whole worker process, not just the
+  coroutine that hit the failure. Sequential runtimes are unaffected.
+- **Manager resolution is coroutine-safe**: `RedisSentinelManager` resolves `phpredis-sentinel` connections
+  without mutating its shared `$driver` property (non-Sentinel connections still temporarily swap it, matching
+  upstream's sequential assumption).
 
-If you rely on concurrent coroutines, disable `read_only_replicas` (everything routes to the master, no client
-swap) or keep R/W splitting on sequential workers.
+Safe/unsafe summary:
 
-The sequential contract is pinned by the hermetic `InterleavedRoutingTest` (unit) — coroutine-level races on the
-shared client swap are explicitly out of scope without ext-swoole in CI.
+- **Safe**: sequential runtimes — FPM, FrankenPHP worker mode, RoadRunner, and Swoole workers with a single
+  in-flight request per worker.
+- **Safe**: concurrent Swoole/OpenSwoole coroutines with `read_only_replicas` enabled — state and clients are
+  isolated per coroutine.
+- **Shared-socket caveat**: concurrent coroutines without R/W splitting share one client/socket — same caveat as
+  upstream Laravel on Octane.
+
+Per-context clients are created lazily per request. If connection churn ever becomes measurable in your workload,
+a connection pool is the documented upgrade path (deliberately not implemented).
+
+The sequential contract is pinned by the hermetic `InterleavedRoutingTest` (unit), and context isolation by
+`ContextIsolationTest`, which uses a switchable fake context to stand in for coroutine interleaving — real-Swoole
+interleaving tests are still out of scope without ext-swoole in CI (issue #65).
 
 ### No Configuration Needed
 

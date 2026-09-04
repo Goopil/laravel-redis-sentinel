@@ -55,7 +55,7 @@ Retry delays are overridden to 1ms in `TestCase` for speed.
 ## Architecture
 
 - `RedisSentinelManager` extends Laravel's `RedisManager`; registers the `phpredis-sentinel` driver via `RedisSentinelConnector`.
-- `RedisSentinelConnection` extends `PhpRedisConnection` and implements read/write splitting by mutating `$this->client` between master and replica clients.
+- `RedisSentinelConnection` extends `PhpRedisConnection` and implements read/write splitting with per-execution-context state (`src/Context/`): each coroutine (Swoole/OpenSwoole) or worker process owns its master/replica clients, stickiness and transaction level. The per-command swap still mutates `$this->client` but targets context clients and restores the previous value; split mode creates per-context clients lazily, non-split keeps the shared constructor client.
 - `NodeAddressCache` is an in-memory singleton — not shared across workers/processes, but persists between requests in Octane. Stale cache can mask failovers in long-running processes.
 - `RedisSentinelServiceProvider` overrides Laravel's global `redis`/`redis.connection` bindings by default (`override_laravel_redis: true`). Disabling this breaks Horizon compatibility — Horizon resolves Redis through the global binding.
 - Read-only command allowlist is hardcoded in `RedisSentinelConnection::READ_ONLY_COMMAND` (not configurable).
