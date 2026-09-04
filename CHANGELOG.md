@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.7.1...1.8.0) (2026-09-04)
+
+
+### Features
+
+* isolate connection state per execution context for coroutine safety ([#94](https://github.com/Goopil/laravel-redis-sentinel/issues/94)) ([3048f2c](https://github.com/Goopil/laravel-redis-sentinel/commit/3048f2c083f43b6b2a8fefc164aa0674ec98dd99))
+
 ## [1.7.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.7.0...1.7.1) (2026-09-03)
 
 
