@@ -329,6 +329,10 @@ layer applies to every command, so a non-idempotent write (`INCR`, `LPUSH`, `RPU
 up to `retry.redis.attempts + 1` times on a flapping connection — duplicated queue jobs, doubled counters (Laravel
 does not deduplicate jobs by content).
 
+Only phpredis transport failures (`RedisException`) are candidates for a retry. Any other exception — including one
+thrown by your `transaction()`/`pipeline()` callback (a database error, a domain exception) — propagates immediately
+and its callback is never replayed, even when its message coincidentally matches a configured retry fragment.
+
 Make write paths resilient to re-execution:
 
 - prefer idempotent commands where the semantics allow it (`SET` over `INCR`, `SET ... NX`, ...);

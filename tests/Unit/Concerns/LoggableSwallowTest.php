@@ -5,6 +5,7 @@ namespace Goopil\LaravelRedisSentinel\Tests\Unit\Concerns;
 use Goopil\LaravelRedisSentinel\Concerns\Loggable;
 use Goopil\LaravelRedisSentinel\Concerns\Retryable;
 use Illuminate\Support\Facades\Log;
+use RedisException;
 use ReflectionProperty;
 use RuntimeException;
 
@@ -90,7 +91,7 @@ test('a logging outage cannot break the retry loop', function () {
                 $this->log('attempt '.$this->callCount);
 
                 if ($this->callCount <= 2) {
-                    throw new RuntimeException('connection lost');
+                    throw new RedisException('connection lost');
                 }
 
                 return 'success';
