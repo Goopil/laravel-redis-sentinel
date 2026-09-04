@@ -35,3 +35,13 @@ test('persistent is forced to zero for coroutine-created clients', function () {
 
     expect($result['persistent'])->toBe(0);
 });
+
+test('sentinel.persistent fallback is preserved for workers and forced to zero in coroutines', function () {
+    $config = ['sentinel' => ['persistent' => 30]];
+
+    expect(clientConfigConnector()->testBuildClientConfig($config, '127.0.0.1', 6380)['persistent'])->toBe(30);
+
+    RedisSentinelConnector::$forceCoroutineDetection = true;
+
+    expect(clientConfigConnector()->testBuildClientConfig($config, '127.0.0.1', 6380)['persistent'])->toBe(0);
+});
