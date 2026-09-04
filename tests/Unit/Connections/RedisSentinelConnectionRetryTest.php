@@ -2,6 +2,7 @@
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionFailed;
+use Goopil\LaravelRedisSentinel\Tests\Support\FakeContext;
 use Illuminate\Support\Facades\Event;
 
 test('a failing dynamic command is retried exactly retryLimit + 1 times', function () {
@@ -100,6 +101,28 @@ test('parent command() cannot reconnect or nest retries on Laravel 13', function
         expect($exception->getMessage())->toBe('went away')
             ->and($reconnects)->toBe(3);
     }
+});
+
+test('a split connection without a master connector falls back to the constructor client', function () {
+    Event::fake();
+
+    $master = Mockery::mock(Redis::class);
+    $replica = Mockery::mock(Redis::class);
+    $context = new FakeContext;
+
+    $master->expects('set')->with('foo', 'bar', null)->twice()->andReturnUsing(
+        fn () => throw new RedisException('broken pipe'),
+        fn () => true,
+    );
+    $replica->shouldNotReceive('set');
+
+    $connection = new RedisSentinelConnection($master, null, [], fn () => $replica, $context);
+    $connection->setRetryLimit(1);
+    $connection->setRetryDelay(1);
+    $connection->setRetryMessages(['broken pipe']);
+
+    $context->use('fresh');
+    expect($connection->set('foo', 'bar'))->toBeTrue();
 });
 
 test('a retried scan restarts its cursor on the refreshed client', function () {

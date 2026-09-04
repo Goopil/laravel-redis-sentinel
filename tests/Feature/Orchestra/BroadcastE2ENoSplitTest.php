@@ -267,12 +267,9 @@ describe('Broadcast E2E Tests WITHOUT Read/Write Splitting - Master Only', funct
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        $reflection = new ReflectionClass($connection);
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-
         // In master-only mode, all operations go to master
         $connection->publish('test-channel', 'test-message');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue();
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue();
     });
 
     test('broadcast handles concurrent events in master-only mode', function () {

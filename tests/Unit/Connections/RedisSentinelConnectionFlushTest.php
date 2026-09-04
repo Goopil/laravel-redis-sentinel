@@ -28,11 +28,10 @@ test('flush methods reset master stickiness even when the command fails', functi
     $connection = Mockery::mock(RedisSentinelConnection::class)->makePartial();
     $connection->shouldReceive('command')->once()->with('flushall', [])->andThrow(new RuntimeException('boom'));
 
-    $stickiness = new ReflectionProperty(RedisSentinelConnection::class, 'wroteToMaster');
-    $stickiness->setValue($connection, true);
+    connectionState($connection)->wroteToMaster = true;
 
     expect(fn () => $connection->flushall())->toThrow(RuntimeException::class)
-        ->and($stickiness->getValue($connection))->toBeFalse();
+        ->and(connectionState($connection)->wroteToMaster)->toBeFalse();
 });
 
 /**

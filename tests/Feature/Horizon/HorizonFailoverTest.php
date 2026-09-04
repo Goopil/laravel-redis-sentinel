@@ -331,12 +331,9 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        $reflection = new ReflectionClass($connection);
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-
         // Perform writes
         $connection->set('failover:rw:test1', 'value1');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('Write should activate stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('Write should activate stickiness');
 
         // Simulate failover
         try {
@@ -354,7 +351,7 @@ describe('Horizon Failover Tests - Redis Sentinel Master Failover', function () 
 
         // Perform another write after failover
         $connection->set('failover:rw:test2', 'value2');
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('Write should reactivate stickiness after failover');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('Write should reactivate stickiness after failover');
 
         // Verify data integrity
         expect($connection->get('failover:rw:test1'))->toBe('value1')

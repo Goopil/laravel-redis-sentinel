@@ -39,18 +39,14 @@ describe('Read/Write', function () {
 
     function getInternalState($connection)
     {
-        $reflection = new ReflectionClass($connection);
+        $state = connectionState($connection);
 
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-
-        $readClientProp = $reflection->getProperty('readClient');
-
-        $readConnectorProp = $reflection->getProperty('readConnector');
+        $readConnector = (new ReflectionClass($connection))->getProperty('readConnector')->getValue($connection);
 
         return [
-            'wroteToMaster' => $wroteToMasterProp->getValue($connection),
-            'hasReadClient' => ! is_null($readClientProp->getValue($connection)),
-            'hasReadConnector' => ! is_null($readConnectorProp->getValue($connection)),
+            'wroteToMaster' => $state->wroteToMaster,
+            'hasReadClient' => $state->read !== null,
+            'hasReadConnector' => $readConnector !== null,
         ];
     }
 

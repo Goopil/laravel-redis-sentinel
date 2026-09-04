@@ -6,6 +6,7 @@ use Closure;
 use Goopil\LaravelRedisSentinel\Concerns\Loggable;
 use Goopil\LaravelRedisSentinel\Concerns\Retryable;
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
+use Goopil\LaravelRedisSentinel\Context\ExecutionContext;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelMasterReconnected;
@@ -44,6 +45,12 @@ class RedisSentinelConnector extends PhpRedisConnector
     private static ?float $breakerOpenedAt = null;
 
     private static ?Throwable $breakerLastException = null;
+
+    /**
+     * Test-only seam: forces the coroutine branch of buildClientConfig() without
+     * a running Swoole/OpenSwoole runtime. Must remain false in production.
+     */
+    public static bool $forceCoroutineDetection = false;
 
     public function __construct(NodeAddressCache $masterCache, ConfigRepository $config)
     {
@@ -150,7 +157,27 @@ class RedisSentinelConnector extends PhpRedisConnector
             ? $this->getReplicaAddress($config, $refresh)
             : $this->getMasterAddress($config, $refresh);
 
-        $clientConfig = array_merge(
+        return parent::createClient($this->buildClientConfig($config, $ip, $port));
+    }
+
+    /**
+     * Build the PhpRedis client options for a resolved node address.
+     *
+     * Clients created inside a coroutine must not use phpredis persistent
+     * sockets: the persistent connection table is process-wide, so such a
+     * client would share its socket with other coroutines and reintroduce
+     * response interleaving.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
+    protected function buildClientConfig(array $config, string $ip, int $port): array
+    {
+        $persistent = self::$forceCoroutineDetection || ExecutionContext::inCoroutine()
+            ? 0
+            : Arr::get($config, 'persistent') ?? Arr::get($config, 'sentinel.persistent', 0);
+
+        return array_merge(
             Arr::get($config, 'options', []),
             [
                 'host' => $ip,
@@ -159,12 +186,10 @@ class RedisSentinelConnector extends PhpRedisConnector
                 'timeout' => Arr::get($config, 'timeout', 5.0),
                 'read_timeout' => Arr::get($config, 'read_timeout', 60.0),
                 'retry_interval' => Arr::get($config, 'retry_interval') ?? Arr::get($config, 'sentinel.retry_interval', 0),
-                'persistent' => Arr::get($config, 'persistent') ?? Arr::get($config, 'sentinel.persistent', 0),
+                'persistent' => $persistent,
                 'database' => Arr::get($config, 'database') ?? Arr::get($config, 'sentinel.database', 0),
             ]
         );
-
-        return parent::createClient($clientConfig);
     }
 
     /**

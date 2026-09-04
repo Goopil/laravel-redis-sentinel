@@ -5,6 +5,9 @@ namespace Goopil\LaravelRedisSentinel\Connections;
 use Closure;
 use Goopil\LaravelRedisSentinel\Concerns\Loggable;
 use Goopil\LaravelRedisSentinel\Concerns\Retryable;
+use Goopil\LaravelRedisSentinel\Context\ConnectionContext;
+use Goopil\LaravelRedisSentinel\Context\ConnectionState;
+use Goopil\LaravelRedisSentinel\Context\ExecutionContext;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionReconnected;
@@ -22,6 +25,10 @@ use Throwable;
  * (scan-family, pipeline, transaction, subscribe-family). __call is deliberately NOT
  * overridden: the framework's __call routes dynamic commands through $this->command(),
  * so overriding it here would create nested retries (up to (limit+1)^2 attempts).
+ *
+ * NOTE: PacksPhpRedisValues::pack() (used by RedisStore/PhpRedisLock) reads $this->client
+ * outside the swap — benign because all context clients share the same connection
+ * options/serializer.
  *
  * @method mixed get(string $key) Get the value of a key
  * @method bool set(string $key, mixed $value, mixed $expireResolution = null, mixed $expireTTL = null, mixed $flag = null) Set the string value of a key
@@ -84,15 +91,11 @@ class RedisSentinelConnection extends PhpRedisConnection
     protected ?array $readOnlyCommands = null;
 
     /**
-     * The master client instance (always writes to master).
-     * This reference is kept separate to guarantee writes always go to master.
+     * The master client instance provided at construction time. Non-split
+     * connections always use it; split connections use it as the worker/fallback
+     * state master so FPM never creates extra connections.
      */
-    protected \Redis $masterClient;
-
-    /**
-     * The read-only replica client instance.
-     */
-    protected ?\Redis $readClient = null;
+    protected \Redis $initialMaster;
 
     /**
      * The master connection creation callback.
@@ -109,14 +112,12 @@ class RedisSentinelConnection extends PhpRedisConnection
     protected $readConnector;
 
     /**
-     * Indicates if a write operation has been performed.
+     * Per-execution-unit storage (process slot for FPM/CLI, coroutine slot for
+     * Swoole/OpenSwoole). Lazily created on first state access. It is only an
+     * ArrayObject holder: non-split connections short-circuit per-context
+     * client creation elsewhere, so routing never builds clients from it.
      */
-    protected bool $wroteToMaster = false;
-
-    /**
-     * The number of active transactions/pipelines.
-     */
-    protected int $transactionLevel = 0;
+    private ?ConnectionContext $context = null;
 
     /**
      * Create a new Redis Sentinel connection.
@@ -125,19 +126,61 @@ class RedisSentinelConnection extends PhpRedisConnection
      * @param  callable|null  $connector  Callback to create a new master connection
      * @param  array  $config  Connection configuration
      * @param  callable|null  $readConnector  Callback to create a new read-only connection
+     * @param  ConnectionContext|null  $context  Execution context store; defaults to a process/coroutine-aware one
      */
-    public function __construct($client, ?callable $connector = null, array $config = [], ?callable $readConnector = null)
+    public function __construct($client, ?callable $connector = null, array $config = [], ?callable $readConnector = null, ?ConnectionContext $context = null)
     {
         parent::__construct($client, $connector, $config);
 
-        $this->masterClient = $client;
+        $this->initialMaster = $client;
         $this->masterConnector = $connector;
         $this->readConnector = $readConnector;
+        $this->context = $context;
+
+        // Seed the current (worker) slot with the constructor client: the FPM/CLI
+        // fallback keeps using it and creates no extra connection.
+        $this->state()->master = $client;
 
         $this->readOnlyCommands = array_unique(array_merge(
             self::READ_ONLY_COMMAND,
             array_map('strtolower', $config['read_commands'] ?? []),
         ));
+    }
+
+    /**
+     * The state of the current execution unit: stickiness, transaction level and
+     * its lazily created master/replica clients.
+     */
+    private function state(): ConnectionState
+    {
+        // Lazy fallback for partially mocked instances (no constructor ran).
+        $context = $this->context ??= new ExecutionContext;
+
+        return $context->storage()['state'] ??= new ConnectionState;
+    }
+
+    /**
+     * The current execution unit's master client: the constructor client in
+     * non-split mode, the context's lazily created one in split mode.
+     */
+    private function contextMaster(): \Redis
+    {
+        $state = $this->state();
+
+        return $state->master ??= $this->masterConnector
+            ? ($this->masterConnector)(false)
+            : $this->initialMaster;
+    }
+
+    /**
+     * Get the underlying Redis client: the current execution unit's master.
+     *
+     * Laravel's own pipeline()/transaction() call this method, which routes them
+     * to the right per-context master.
+     */
+    public function client(): \Redis
+    {
+        return $this->readConnector === null ? $this->initialMaster : $this->contextMaster();
     }
 
     /**
@@ -217,7 +260,7 @@ class RedisSentinelConnection extends PhpRedisConnection
             return $this->command('flushdb', $this->asyncFlushArguments((bool) $async));
         } finally {
             // Reset stickiness after flushing since all data is gone
-            $this->wroteToMaster = false;
+            $this->state()->wroteToMaster = false;
         }
     }
 
@@ -234,7 +277,7 @@ class RedisSentinelConnection extends PhpRedisConnection
             return $this->command('flushall', $sync === false ? $this->asyncFlushArguments(true) : []);
         } finally {
             // Reset stickiness after flushing since all data is gone
-            $this->wroteToMaster = false;
+            $this->state()->wroteToMaster = false;
         }
     }
 
@@ -262,7 +305,8 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function pipeline(?callable $callback = null): array|\Redis
     {
-        $this->transactionLevel++;
+        $state = $this->state();
+        $state->transactionLevel++;
 
         try {
             return $this->retry(
@@ -270,7 +314,7 @@ class RedisSentinelConnection extends PhpRedisConnection
                 __FUNCTION__
             );
         } finally {
-            $this->transactionLevel--;
+            $state->transactionLevel--;
         }
     }
 
@@ -279,7 +323,8 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function transaction(?callable $callback = null): array|\Redis
     {
-        $this->transactionLevel++;
+        $state = $this->state();
+        $state->transactionLevel++;
 
         try {
             return $this->retry(
@@ -287,7 +332,7 @@ class RedisSentinelConnection extends PhpRedisConnection
                 __FUNCTION__
             );
         } finally {
-            $this->transactionLevel--;
+            $state->transactionLevel--;
         }
     }
 
@@ -377,15 +422,19 @@ class RedisSentinelConnection extends PhpRedisConnection
                 $usedClient = $targetClient;
 
                 // CRITICAL: Temporarily swap $this->client to the target client
-                // This is necessary because parent class methods use $this->client
-                // We always restore to masterClient to ensure consistency
+                // This is necessary because parent class methods use $this->client.
+                // Routing never reads $this->client outside this swap window, which
+                // is what makes the swap safe under cooperative scheduling: with 3+
+                // interleaved coroutines the restores cascade and can leave $this->client
+                // pointing at a foreign context's master — harmless, since no command is
+                // ever dispatched through the stale value.
+                $previous = $this->client;
                 $this->client = $targetClient;
 
                 try {
                     return $callback();
                 } finally {
-                    // Always restore to master client to ensure $this->client is never corrupted
-                    $this->client = $this->masterClient;
+                    $this->client = $previous;
                 }
             },
             onFail: function ($exception, $attempts) use ($name, $isReadOnly, &$usedClient, $onFailExtra) {
@@ -393,17 +442,20 @@ class RedisSentinelConnection extends PhpRedisConnection
 
                 $onFailExtra?->__invoke();
 
-                if ($usedClient !== $this->masterClient && $this->readConnector) {
+                $state = $this->state();
+
+                if ($usedClient !== $state->master && $this->readConnector) {
                     // The failing attempt ran on the read replica - refresh it
-                    $this->readClient = call_user_func($this->readConnector, true);
+                    $state->read = call_user_func($this->readConnector, true);
                 } else {
                     // The failing attempt ran on the master (write or sticky/fallback read)
                     // - refresh it
                     $newMasterClient = $this->masterConnector
                         ? call_user_func($this->masterConnector, true)
-                        : $this->masterClient;
+                        : $this->initialMaster;
 
-                    $this->masterClient = $newMasterClient;
+                    $state->master = $newMasterClient;
+                    $this->initialMaster = $newMasterClient;
                     $this->client = $newMasterClient;
                 }
 
@@ -438,7 +490,7 @@ class RedisSentinelConnection extends PhpRedisConnection
 
         // Mark stickiness for write operations
         if (! $isReadOnly) {
-            $this->wroteToMaster = true;
+            $this->state()->wroteToMaster = true;
         }
 
         return $result;
@@ -448,34 +500,37 @@ class RedisSentinelConnection extends PhpRedisConnection
      * Resolve the client instance for the given command.
      *
      * This method implements the read/write splitting logic:
-     * - Write commands ALWAYS return master client (guaranteed)
-     * - Read commands return replica IF:
-     *   - Read connector is configured
+     * - Non-split connections always use the constructor client
+     * - Write commands ALWAYS return the context's master client (guaranteed)
+     * - Read commands return the context's replica IF:
      *   - Not in a transaction/pipeline
      *   - No write has been performed (sticky session)
      *   - Command is actually read-only
-     * - Otherwise, return master client
+     * - Otherwise, return the context's master client
      *
      * @return \Redis The Redis client instance to use for this command
      */
     protected function resolveClientForCommand(string $method): \Redis
     {
-        // CRITICAL: Write commands ALWAYS use master
-        if (! $this->isReadOnlyCommand($method)) {
-            return $this->masterClient;
+        // Non-split mode: everything keeps using the constructor-provided client
+        if ($this->readConnector === null) {
+            return $this->initialMaster;
         }
 
-        // Read command: check if we can use replica
-        $canUseReplica = $this->readConnector !== null  // Replica configured
-            && $this->transactionLevel === 0            // Not in transaction
-            && ! $this->wroteToMaster;                  // No write performed (sticky session)
+        // CRITICAL: Write commands ALWAYS use master
+        if (! $this->isReadOnlyCommand($method)) {
+            return $this->contextMaster();
+        }
 
-        if ($canUseReplica) {
+        $state = $this->state();
+
+        // Read command: check if we can use the context's replica
+        if ($state->transactionLevel === 0 && ! $state->wroteToMaster) {
             return $this->getReadClient();
         }
 
-        // Fallback to master for read commands if replica not available or sticky
-        return $this->masterClient;
+        // Fallback to the context's master for read commands if sticky
+        return $this->contextMaster();
     }
 
     /**
@@ -483,24 +538,50 @@ class RedisSentinelConnection extends PhpRedisConnection
      */
     public function resetStickiness(): void
     {
-        $this->wroteToMaster = false;
-        $this->transactionLevel = 0;
+        $state = $this->state();
+        $state->wroteToMaster = false;
+        $state->transactionLevel = 0;
     }
 
     /**
-     * Get the read-only client instance.
+     * Get the read-only client instance of the current execution unit.
      */
     public function getReadClient(): \Redis
     {
-        if ($this->readClient) {
-            return $this->readClient;
+        $state = $this->state();
+
+        if ($state->read) {
+            return $state->read;
         }
 
         if ($this->readConnector) {
-            return $this->readClient = call_user_func($this->readConnector);
+            return $state->read = call_user_func($this->readConnector);
         }
 
-        return $this->masterClient;
+        return $this->initialMaster;
+    }
+
+    /**
+     * Disconnect the current execution unit's clients. In non-split mode this
+     * closes the constructor client, exactly like the parent implementation.
+     */
+    public function disconnect(): void
+    {
+        if ($this->readConnector === null) {
+            parent::disconnect();
+
+            return;
+        }
+
+        $state = $this->state();
+
+        try {
+            $state->master?->close();
+        } finally {
+            $state->read?->close();
+            $state->master = null;
+            $state->read = null;
+        }
     }
 
     /**

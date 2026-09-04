@@ -19,11 +19,7 @@ describe('Octane Integration', function () {
         // 1. Perform a write to make it sticky
         $connection->set('sticky_test', 'value');
 
-        // Use reflection to check wroteToMaster
-        $reflection = new ReflectionClass($connection);
-        $property = $reflection->getProperty('wroteToMaster');
-
-        expect($property->getValue($connection))->toBeTrue();
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue();
 
         // 2. Fire the Octane event
         // Note: The event class might not exist if Octane is not installed,
@@ -50,6 +46,6 @@ describe('Octane Integration', function () {
         }
 
         // 3. Verify it's no longer sticky
-        expect($property->getValue($connection))->toBeFalse();
+        expect(connectionState($connection)->wroteToMaster)->toBeFalse();
     });
 });

@@ -4,6 +4,9 @@ use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 use Goopil\LaravelRedisSentinel\RedisSentinelManager;
+use Illuminate\Contracts\Redis\Connector;
+use Illuminate\Redis\Connections\Connection;
+use Illuminate\Redis\RedisManager;
 use Laravel\Horizon\Connectors\RedisConnector;
 
 test('resolveConnector throws InvalidArgumentException if clusters are defined', function () {
@@ -71,6 +74,21 @@ test('resolveConnector returns the correct connector', function () {
     expect($manager->resolveConnector('default'))->toBe($connector);
 });
 
+test('sentinel resolution throws ConfigurationException when no connector is registered for the driver', function () {
+    $config = [
+        'default' => [
+            'client' => 'phpredis-sentinel',
+            'sentinel' => [
+                'host' => '127.0.0.1',
+                'service' => 'master',
+            ],
+        ],
+    ];
+
+    $manager = new RedisSentinelManager(null, 'phpredis', $config);
+    $manager->resolveConnector('default');
+})->throws(ConfigurationException::class, 'No connector registered for the [phpredis-sentinel] driver.');
+
 test('resolveConnector does not mutate driver property', function () {
     $config = [
         'default' => [
@@ -98,6 +116,62 @@ test('resolveConnector does not mutate driver property', function () {
     $manager->resolveConnector('default');
 
     expect($driverProp->getValue($manager))->toBe($originalDriver);
+});
+
+test('resolving a sentinel connection does not mutate the manager driver', function () {
+    $manager = app(RedisSentinelManager::class);
+    $before = (new ReflectionProperty(RedisManager::class, 'driver'))->getValue($manager);
+
+    $manager->connection('phpredis-sentinel');
+
+    $after = (new ReflectionProperty(RedisManager::class, 'driver'))->getValue($manager);
+
+    expect($after)->toBe($before);
+});
+
+test('sentinel resolution never exposes a swapped driver to the registered creator', function () {
+    $config = [
+        'default' => [
+            'client' => 'phpredis-sentinel',
+            'sentinel' => [
+                'host' => '127.0.0.1',
+                'service' => 'master',
+            ],
+        ],
+    ];
+
+    $manager = new RedisSentinelManager(null, 'phpredis', $config);
+    $driverProp = new ReflectionProperty(RedisManager::class, 'driver');
+
+    $observed = [];
+    $connection = new class extends Connection
+    {
+        public function createSubscription($channels, Closure $callback, $method = 'subscribe') {}
+    };
+    $connector = new class($connection) implements Connector
+    {
+        public function __construct(private readonly Connection $connection) {}
+
+        public function connect(array $config, array $options)
+        {
+            return $this->connection;
+        }
+
+        public function connectToCluster(array $config, array $clusterOptions, array $options)
+        {
+            return $this->connection;
+        }
+    };
+
+    $manager->extend('phpredis-sentinel', function () use ($manager, $driverProp, &$observed, $connector) {
+        $observed[] = $driverProp->getValue($manager);
+
+        return $connector;
+    });
+
+    expect($manager->resolveConnector('default'))->toBe($connector)
+        ->and($manager->resolve('default'))->toBe($connection)
+        ->and($observed)->each->toBe('phpredis');
 });
 
 if (class_exists(RedisConnector::class)) {

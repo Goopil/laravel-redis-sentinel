@@ -1,0 +1,11 @@
+codecov:
+  require_ci_to_pass: false
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        # The merged matrix reports fluctuate by ~±0.2% between runs on
+        # timing-sensitive coverage; don't fail PRs on that noise.
+        threshold: 0.5%

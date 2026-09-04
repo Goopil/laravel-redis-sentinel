@@ -46,18 +46,15 @@ describe('Session E2E Failover Tests with Read/Write Mode', function () {
             $this->markTestSkipped('Not using RedisSentinelConnection');
         }
 
-        $reflection = new ReflectionClass($connection);
-        $wroteToMasterProp = $reflection->getProperty('wroteToMaster');
-
         // Session read should not trigger stickiness initially
         Session::get('test_key');
-        expect($wroteToMasterProp->getValue($connection))->toBeFalse('Session read should not trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeFalse('Session read should not trigger stickiness');
 
         // Session write should trigger stickiness
         Session::put('test_key', 'test_value');
         Session::save(); // Force write to Redis
 
-        expect($wroteToMasterProp->getValue($connection))->toBeTrue('Session write should trigger stickiness');
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue('Session write should trigger stickiness');
     });
 
     test('session stores and retrieves data with read/write mode', function () {

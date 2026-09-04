@@ -17,10 +17,7 @@ describe('Queue Stickiness', function () {
         // 1. Perform a write to make it sticky
         $connection->set('sticky_queue_test', 'value');
 
-        $reflection = new ReflectionClass($connection);
-        $property = $reflection->getProperty('wroteToMaster');
-
-        expect($property->getValue($connection))->toBeTrue();
+        expect(connectionState($connection)->wroteToMaster)->toBeTrue();
 
         // 2. Fire the JobProcessing event
         // The JobProcessing event constructor requires connection name and job instance.
@@ -30,6 +27,6 @@ describe('Queue Stickiness', function () {
         Event::dispatch(new JobProcessing('phpredis-sentinel', $job));
 
         // 3. Verify it's no longer sticky
-        expect($property->getValue($connection))->toBeFalse();
+        expect(connectionState($connection)->wroteToMaster)->toBeFalse();
     });
 });

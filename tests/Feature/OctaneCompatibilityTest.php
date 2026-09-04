@@ -14,34 +14,43 @@ test('wrote to master is reset with reset stickiness', function () {
 
     $connection = new RedisSentinelConnection($masterClient, $connector, [], $readConnector);
 
+    $masterClient->shouldReceive('set')->once()->with('foo', 'bar', null)->andReturn(true);
+    $masterClient->shouldReceive('get')->once()->with('foo')->andReturn('from-master');
+    $replicaClient->shouldReceive('get')->once()->with('foo')->andReturn('from-replica');
+
     // Simulate a write
-    $masterClient->expects('set')->once()->andReturn(true);
     $connection->set('foo', 'bar');
 
-    $reflection = new ReflectionClass($connection);
-    $property = $reflection->getProperty('wroteToMaster');
-
-    expect($property->getValue($connection))->toBeTrue();
+    // Reads stick to the master after a write
+    expect($connection->get('foo'))->toBe('from-master');
 
     // Call reset
     $connection->resetStickiness();
 
-    expect($property->getValue($connection))->toBeFalse();
+    // Reads go back to the replica
+    expect($connection->get('foo'))->toBe('from-replica');
 });
 
 test('resetStickiness also resets transaction level', function () {
     $masterClient = Mockery::mock(Redis::class);
+    $replicaClient = Mockery::mock(Redis::class);
 
-    $connection = new RedisSentinelConnection($masterClient, fn () => $masterClient, []);
+    $masterClient->shouldReceive('multi')->once()->andReturnSelf();
+    $masterClient->shouldReceive('exec')->once()->andReturn([]);
+    $masterClient->shouldReceive('get')->once()->with('in-tx')->andReturn('from-master');
+    $replicaClient->shouldReceive('get')->once()->with('in-tx')->andReturn('from-replica');
 
-    $reflection = new ReflectionClass($connection);
-    $transactionProp = $reflection->getProperty('transactionLevel');
-    $transactionProp->setAccessible(true);
-    $transactionProp->setValue($connection, 3);
+    $connection = new RedisSentinelConnection($masterClient, fn () => $masterClient, [], fn () => $replicaClient);
 
-    $connection->resetStickiness();
+    $connection->transaction(function () use ($connection): void {
+        // Inside an open transaction reads stay on the master
+        expect($connection->get('in-tx'))->toBe('from-master');
 
-    expect($transactionProp->getValue($connection))->toBe(0);
+        $connection->resetStickiness();
+
+        // The reset dropped the transaction level: reads reach the replica
+        expect($connection->get('in-tx'))->toBe('from-replica');
+    });
 });
 
 test('bootOctane listens to all Octane lifecycle events', function () {
@@ -78,8 +87,14 @@ test('octane lifecycle callback resets stickiness on all sentinel connections', 
     $replicaClient = Mockery::mock(Redis::class);
     $connection = new RedisSentinelConnection($masterClient, fn () => $masterClient, [], fn () => $replicaClient);
 
-    $masterClient->expects('set')->once()->andReturn(true);
+    $masterClient->shouldReceive('set')->once()->with('foo', 'bar', null)->andReturn(true);
+    $masterClient->shouldReceive('get')->once()->with('foo')->andReturn('from-master');
+    $replicaClient->shouldReceive('get')->once()->with('foo')->andReturn('from-replica');
+
     $connection->set('foo', 'bar');
+
+    // Reads stick to the master after the write
+    expect($connection->get('foo'))->toBe('from-master');
 
     $manager = app(RedisSentinelManager::class);
     $connectionsProp = new ReflectionProperty(RedisSentinelManager::class, 'connections');
@@ -101,7 +116,6 @@ test('octane lifecycle callback resets stickiness on all sentinel connections', 
 
     ($captured['Laravel\Octane\Events\TaskReceived'])();
 
-    $wroteProp = (new ReflectionClass($connection))->getProperty('wroteToMaster');
-
-    expect($wroteProp->getValue($connection))->toBeFalse();
+    // Reads go back to the replica: the lifecycle callback reset stickiness
+    expect($connection->get('foo'))->toBe('from-replica');
 });
