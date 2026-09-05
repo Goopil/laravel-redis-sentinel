@@ -1,3 +1,10 @@
+## [1.8.8](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.7...1.8.8) (2026-09-05)
+
+
+### Bug Fixes
+
+* read horizon liveness service from the documented config schema ([#109](https://github.com/Goopil/laravel-redis-sentinel/issues/109)) ([c6e2d24](https://github.com/Goopil/laravel-redis-sentinel/commit/c6e2d24ae5ec4f8383c0a1ca1324905cd85cb489))
+
 ## [1.8.7](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.6...1.8.7) (2026-09-05)
 
 
