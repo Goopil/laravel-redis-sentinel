@@ -1,3 +1,10 @@
+## [1.8.4](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.3...1.8.4) (2026-09-05)
+
+
+### Bug Fixes
+
+* keep the retry loop alive when the reconnect throws ([#98](https://github.com/Goopil/laravel-redis-sentinel/issues/98)) ([e372948](https://github.com/Goopil/laravel-redis-sentinel/commit/e37294896163e89d54df26442b8975835ebea876)), closes [#47](https://github.com/Goopil/laravel-redis-sentinel/issues/47)
+
 ## [1.8.3](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.2...1.8.3) (2026-09-04)
 
 
