@@ -39,6 +39,11 @@ class HorizonWorkerPreStop extends Command
 
     /**
      * Execute the console command.
+     *
+     * Contract under Redis faults (#49): the supervisor lookup may surface a
+     * transport failure; the artisan CLI renders it and exits 1, bounded by the
+     * connection retry settings. Kubernetes ignores preStop hook failures, so the
+     * contract is a bounded completion, never a hang.
      */
     public function handle(
         ConfigRepository $config,
