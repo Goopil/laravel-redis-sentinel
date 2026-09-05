@@ -19,6 +19,7 @@ managing Sentinel-specific logic.
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [TLS](#tls)
 - [Read/Write Splitting](#readwrite-splitting)
 - [Usage Examples](#usage-examples)
 - [Laravel Octane Support](#laravel-octane-support)
@@ -238,9 +239,68 @@ Per-connection settings in `config/database.php`:
 | `retry.redis.attempts` / `delay` / `messages` | package defaults | Per-connection retry override |
 | `read_commands` | `[]` | Additional commands routed to replicas when splitting is enabled; overrides the package-wide `read_commands` value (see [Replica-Safe Commands](#replica-safe-commands)) |
 | `options.prefix` | — | phpredis key prefix |
+| `sentinel.ssl` | `null` | SSL stream context options for the Sentinel connections — requires phpredis >= 6.0 (see [TLS](#tls)) |
+| `options.scheme` | — | Data connection scheme passed to phpredis (`tls`, `unix`, ...) |
+| `options.context` | — | Data connection stream context (see [TLS](#tls)) |
 
 Data-connection timeouts are isolated from Sentinel node timeouts: `sentinel.timeout`/`sentinel.read_timeout` only
 affect the Sentinel nodes.
+
+### TLS
+
+TLS is configured **independently** for the Sentinel connections and for the data connections — mixed setups
+(e.g. plaintext Sentinels on a private network, TLS-only Redis nodes) are supported.
+
+**Data connections** (master and read replicas) use the standard Laravel/PhpRedis options:
+
+```php
+'default' => [
+    // ...
+    'options' => [
+        'prefix' => env('REDIS_PREFIX', 'laravel_'),
+        'scheme' => 'tls',
+        'context' => [
+            'stream' => [
+                'cafile' => '/path/to/ca.crt',
+                // any PHP stream SSL option: verify_peer, local_cert, peer_name, ...
+            ],
+        ],
+    ],
+],
+```
+
+**Sentinel connections** use `sentinel.ssl` — an array of PHP SSL stream context options
+(**phpredis >= 6.0** required; a clear `ConfigurationException` is thrown on older versions):
+
+```php
+'default' => [
+    'sentinels' => [
+        ['host' => '10.0.0.1', 'port' => 26379],
+        ['host' => '10.0.0.2', 'port' => 26379],
+        ['host' => '10.0.0.3', 'port' => 26379],
+    ],
+    'sentinel' => [
+        'service' => env('REDIS_SENTINEL_SERVICE'),
+        'ssl' => ['cafile' => '/path/to/ca.crt'],
+        // ['stream' => [...]] and ['ssl' => [...]] wrappers are also accepted
+    ],
+],
+```
+
+Server-side requirements (outside this package's scope):
+
+- your Sentinel must itself listen on TLS (`tls-port`, plus `port 0` for TLS-only);
+- for a TLS-only master, set `tls-replication yes` in the **Sentinel** configuration — this is what makes
+  Sentinel speak TLS to the instances it monitors;
+- Redis validates the peer certificate chain against `tls-ca-cert-file` only (no hostname check by default);
+  issue a dedicated per-cluster CA.
+
+Local TLS test environment (used by `tests/Feature/TlsConnectionTest.php`, which skips when absent):
+
+```bash
+./tests/tls/generate-certs.sh
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+```
 
 ### Laravel Redis Binding Override
 
@@ -742,7 +802,7 @@ The default retry configuration is intentionally conservative. Tune it according
 - run Redis and Sentinel on a private network whenever possible;
 - use Redis ACLs or strong passwords for both Redis and Sentinel;
 - inject secrets through environment variables or your secret manager, not committed configuration files;
-- consider TLS, stunnel, sidecars, or a private service mesh if traffic can cross untrusted networks.
+- TLS is supported natively for both data and Sentinel connections — see [TLS](#tls); stunnel, sidecars, or a private service mesh remain options for links that cannot run TLS.
 
 ### What to Monitor
 
@@ -897,6 +957,15 @@ composer stan
 # Fix code style
 composer format
 ```
+
+Local TLS test environment for the TLS feature tests:
+
+```bash
+./tests/tls/generate-certs.sh
+docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+```
+
+`tests/Feature/TlsConnectionTest.php` is skipped automatically when the TLS stack is not running.
 
 ### Test Structure
 

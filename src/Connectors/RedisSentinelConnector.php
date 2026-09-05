@@ -352,6 +352,15 @@ class RedisSentinelConnector extends PhpRedisConnector
     protected function connectToSentinel(array $config): RedisSentinel
     {
         $sentinels = $this->getSentinels($config);
+        $ssl = $this->resolveSentinelSsl($config);
+
+        if ($ssl !== null && ! $this->needParamsAsArray()) {
+            throw new ConfigurationException(sprintf(
+                'Sentinel TLS (sentinel.ssl) requires the phpredis array-form constructor (phpredis >= 6.0); installed: %s.',
+                (string) phpversion('redis'),
+            ));
+        }
+
         $lastException = null;
 
         foreach ($sentinels as $sentinel) {
@@ -383,6 +392,10 @@ class RedisSentinelConnector extends PhpRedisConnector
 
             if (($password = $config['sentinel']['password'] ?? $config['password'] ?? '') !== '') {
                 $options['auth'] = $password;
+            }
+
+            if ($ssl !== null) {
+                $options['ssl'] = $ssl;
             }
 
             try {
@@ -503,6 +516,38 @@ class RedisSentinelConnector extends PhpRedisConnector
     }
 
     /**
+     * phpredis applies each top-level key of the RedisSentinel "ssl" option
+     * under the "ssl" stream context section and switches the connection to
+     * TLS; the Laravel-style wrappers are unwrapped so both documented forms
+     * behave identically on the data plane and the Sentinel plane.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>|null
+     */
+    protected function resolveSentinelSsl(array $config): ?array
+    {
+        $ssl = $config['sentinel']['ssl'] ?? null;
+
+        if ($ssl === null) {
+            return null;
+        }
+
+        if (! is_array($ssl)) {
+            throw new ConfigurationException('The sentinel.ssl option must be an array of SSL stream context options.');
+        }
+
+        if (isset($ssl['stream']) && is_array($ssl['stream'])) {
+            return $ssl['stream'];
+        }
+
+        if (isset($ssl['ssl']) && is_array($ssl['ssl'])) {
+            return $ssl['ssl'];
+        }
+
+        return $ssl;
+    }
+
+    /**
      * @param  array<string, mixed>  $config
      * @return array<int, array<string, int|string>>
      */
@@ -527,7 +572,7 @@ class RedisSentinelConnector extends PhpRedisConnector
      * bundled stubs only declare the positional form, so the array branch is
      * triaged here.
      *
-     * @param  array<string, int|string|null>  $options
+     * @param  array<string, mixed>  $options
      */
     protected function createSentinelInstance(array $options): RedisSentinel
     {

@@ -30,6 +30,13 @@ All Redis services use password `test`. Two compose files exist:
 - `docker-compose.yml` — local dev, hardcoded ports (use this for local testing)
 - `tests/ci/docker-compose.yml` — CI only, ports via env vars, do not call directly
 
+## TLS tests
+
+```bash
+./tests/tls/generate-certs.sh && docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+```
+Adds `tls-main` (Redis TLS :6393) and `tls-sentinel` (Sentinel TLS :26383, monitors `tls-master` over TLS, requires `tls-replication yes`). `tests/Feature/TlsConnectionTest.php` skips when the overlay is down.
+
 ## Chaos tests (toxiproxy)
 
 ```bash
