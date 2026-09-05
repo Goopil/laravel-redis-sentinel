@@ -184,6 +184,26 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * Reconnect a client after a failed attempt. A reconnect that throws must
+     * not short-circuit the retry loop: the next attempt rethrows the command
+     * failure and the max-retry bookkeeping can still run (#47).
+     */
+    private function reconnectClient(callable $connector, string $name): ?\Redis
+    {
+        try {
+            return call_user_func($connector, true);
+        } catch (Throwable $reconnectException) {
+            $this->log($name.' - reconnect failed', [
+                'method' => $name,
+                'reason' => $reconnectException->getMessage(),
+                'connection' => $this->name,
+            ], 'error');
+
+            return null;
+        }
+    }
+
+    /**
      * @throws Throwable
      */
     public function scan($cursor, $options = []): mixed
@@ -446,17 +466,21 @@ class RedisSentinelConnection extends PhpRedisConnection
 
                 if ($usedClient !== $state->master && $this->readConnector) {
                     // The failing attempt ran on the read replica - refresh it
-                    $state->read = call_user_func($this->readConnector, true);
-                } else {
+                    $refreshed = $this->reconnectClient($this->readConnector, $name);
+
+                    if ($refreshed !== null) {
+                        $state->read = $refreshed;
+                    }
+                } elseif ($this->masterConnector) {
                     // The failing attempt ran on the master (write or sticky/fallback read)
                     // - refresh it
-                    $newMasterClient = $this->masterConnector
-                        ? call_user_func($this->masterConnector, true)
-                        : $this->initialMaster;
+                    $refreshed = $this->reconnectClient($this->masterConnector, $name);
 
-                    $state->master = $newMasterClient;
-                    $this->initialMaster = $newMasterClient;
-                    $this->client = $newMasterClient;
+                    if ($refreshed !== null) {
+                        $state->master = $refreshed;
+                        $this->initialMaster = $refreshed;
+                        $this->client = $refreshed;
+                    }
                 }
 
                 $this->log($name.' - retry', [

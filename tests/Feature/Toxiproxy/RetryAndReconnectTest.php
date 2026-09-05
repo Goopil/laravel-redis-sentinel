@@ -1,6 +1,7 @@
 <?php
 
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionFailed;
+use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionMaxRetryFailed;
 use Illuminate\Support\Facades\Event;
 
 describe('Retries and reconnections under network faults', function () {
@@ -53,11 +54,10 @@ describe('Retries and reconnections under network faults', function () {
     });
 
     test('master outage surfaces the connection failure event and exception then recovers', function () {
-        // With the master proxy disabled, the mandatory reconnect inside the retry
-        // onFail hook throws before onMaxFail can run, so no MaxRetryFailed event
-        // can fire: the per-attempt failure event is the genuine proof that a retry
-        // was attempted during the outage
-        Event::fake([RedisSentinelConnectionFailed::class]);
+        // The mandatory reconnect inside the retry onFail hook is swallowed when
+        // the master stays unreachable, so the retry loop runs to exhaustion and
+        // both the per-attempt failure event and the max-retry event fire
+        Event::fake([RedisSentinelConnectionFailed::class, RedisSentinelConnectionMaxRetryFailed::class]);
 
         config()->set('phpredis-sentinel.retry.redis.attempts', 2);
         config()->set('phpredis-sentinel.retry.sentinel.attempts', 2);
@@ -96,6 +96,7 @@ describe('Retries and reconnections under network faults', function () {
 
         expect(fn () => $connection->set('chaos_max_retry', 'x'))->toThrow(RedisException::class);
         Event::assertDispatched(RedisSentinelConnectionFailed::class);
+        Event::assertDispatched(RedisSentinelConnectionMaxRetryFailed::class);
 
         $this->toxiproxy->enable($masterProxy);
         $this->waitForProxyReady($this->connectedMasterPort());
