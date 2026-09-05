@@ -1,3 +1,10 @@
+## [1.8.5](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.4...1.8.5) (2026-09-05)
+
+
+### Bug Fixes
+
+* make event dispatch best-effort so observability cannot break retries ([#99](https://github.com/Goopil/laravel-redis-sentinel/issues/99)) ([2602efb](https://github.com/Goopil/laravel-redis-sentinel/commit/2602efb1007036dfba156c481e9fae67358de5a8))
+
 ## [1.8.4](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.3...1.8.4) (2026-09-05)
 
 
