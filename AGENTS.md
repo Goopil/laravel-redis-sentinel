@@ -48,6 +48,8 @@ The overlay gives Sentinel a quorum of 1, a 5000 ms down-after and a 5000 ms fai
 
 `SoakTest.php` (group `soak`, ~20 s) asserts bounded memory/FD growth across 300 uncached `resolve()` calls and 2 forced failovers. It skips unless `SOAK=1` — run via `composer test:soak` or the chaos CI job, never in the default suite.
 
+`tests/Feature/Octane/SoakTest.php` (group `octane-soak`) boots a **real** Octane/Swoole server via `vendor/bin/testbench octane:start` and asserts bounded memory/FD growth on the live worker across 1000 requests (sequential + concurrent bursts). Requires `ext-swoole` + `laravel/octane` (installed on the fly by the dedicated CI job, never in require-dev — it would break the multi-version matrix). Config/endpoint come from `workbench/app/Providers/OctaneSoakProvider.php`, guarded by `OCTANE_WORKER=1` so the in-process suite is untouched. Skips unless `OCTANE_SOAK=1` — run via `composer test:octane`.
+
 ## Test wiring
 
 `tests/TestCase.php` defines two connections for comparison testing:

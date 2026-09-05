@@ -505,3 +505,82 @@ jobs:
         env:
           COMPOSE_PROJECT_NAME: redis_chaos
         run: docker compose -f tests/ci/docker-compose.yml -f docker-compose.chaos.yml down -v --remove-orphans || true
+
+  tests-octane:
+    needs: [lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    name: Octane soak - real Swoole server (PHP 8.4 - L12 - R7)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, readline, ldap, msgpack, igbinary, redis, sodium, swoole
+          tools: composer:v2
+          coverage: none
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-8.4-laravel-12-octane-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-8.4-laravel-12-
+            ${{ runner.os }}-php-8.4-
+
+      - name: Install dependencies
+        run: |
+          composer config policy.advisories.block false
+          composer require "laravel/framework:12.*" "orchestra/testbench:^10.0" --no-interaction --no-update
+          composer update --prefer-dist --no-interaction
+          composer require "laravel/octane:^2.0" --no-interaction
+
+      - name: Start Redis Sentinel cluster
+        env:
+          REDIS_VERSION: 7
+          REDIS_MAIN_PORT: 7660
+          REDIS_REPLICA1_PORT: 7661
+          REDIS_REPLICA2_PORT: 7662
+          REDIS_STANDALONE_PORT: 7663
+          REDIS_SENTINEL_PORT: 7664
+          COMPOSE_PROJECT_NAME: redis_octane
+        run: |
+          echo "Starting Redis cluster on ports: nodes=7660-7662, standalone=7663, sentinel=7664"
+          docker compose -f tests/ci/docker-compose.yml up -d
+
+      - name: Wait for Sentinel
+        env:
+          REDIS_VERSION: 7
+        run: |
+          until docker run --network host --rm redis:${REDIS_VERSION}-alpine redis-cli -p 7664 -a test ping | grep -q PONG; do
+            echo "Sentinel not ready yet..."; sleep 2
+          done
+
+      - name: Execute Octane soak test
+        run: vendor/bin/pest --group=octane-soak --testdox
+        env:
+          OCTANE_SOAK: '1'
+          REDIS_PASSWORD: test
+          REDIS_SENTINEL_PASSWORD: test
+          REDIS_PREFIX: gh_${{ github.run_id }}_octane_
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 7660
+          REDIS_STANDALONE_PORT: 7663
+          REDIS_SENTINEL_PORT: 7664
+          REDIS_SENTINEL_HOST: 127.0.0.1
+
+      - name: Cleanup Redis cluster
+        if: always()
+        env:
+          COMPOSE_PROJECT_NAME: redis_octane
+        run: docker compose -f tests/ci/docker-compose.yml down -v --remove-orphans || true

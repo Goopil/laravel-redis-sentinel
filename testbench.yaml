@@ -1,5 +1,6 @@
 providers:
   - Goopil\LaravelRedisSentinel\RedisSentinelServiceProvider
+  - Workbench\App\Providers\OctaneSoakProvider
 migrations:
   - workbench/database/migrations
 seeders:

@@ -589,6 +589,18 @@ a connection pool is the documented upgrade path (deliberately not implemented).
 The package listens to Octane's lifecycle events (`RequestReceived`, `TaskReceived`, `TickReceived`,
 `OperationTerminated`) and to queue `JobProcessing`, and resets stickiness automatically at each boundary.
 
+A soak test runs against a **real Octane/Swoole server** (not a simulation): it boots `octane:start`, fires
+1000 requests (sequential plus 50-way concurrent bursts) through the split-mode Sentinel connection, and asserts
+bounded memory and file-descriptor growth on the live worker. It skips unless `OCTANE_SOAK=1` and requires
+`ext-swoole` plus `laravel/octane` installed:
+
+```bash
+composer require laravel/octane
+composer test:octane
+```
+
+A dedicated `tests-octane` CI job runs it on every push.
+
 ## Horizon Integration
 
 The package provides Horizon commands that are useful for Kubernetes deployments:

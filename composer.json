@@ -67,6 +67,9 @@
         "test:soak": [
             "SOAK=1 @php vendor/bin/pest --group=soak"
         ],
+        "test:octane": [
+            "OCTANE_SOAK=1 @php vendor/bin/pest --group=octane-soak"
+        ],
         "lint": [
             "@php vendor/bin/pint -v --test"
         ],
