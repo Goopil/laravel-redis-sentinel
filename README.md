@@ -167,6 +167,10 @@ return [
         ],
     ],
 
+    // Global default for commands routed to replicas in read/write splitting
+    // mode (a connection's own read_commands key overrides this list)
+    'read_commands' => [],
+
     'retry' => [
         // Sentinel connection retries
         'sentinel' => [
@@ -210,6 +214,7 @@ return [
 | `log.channel` | Laravel default | Log channel used for retry/failover telemetry |
 | `log.notify_swallowed` | `false` | `error_log()` notice (once per consuming class) when a logging failure is swallowed |
 | `commands.events.emit_success` | `false` | Emit success events for Horizon probe commands; failure events are always emitted |
+| `read_commands` | `[]` | Global default for the replica-safe command list; a connection's own `read_commands` key overrides it |
 | `retry.sentinel.*` / `retry.redis.*` | see above | Retry attempts, delay and retryable error message fragments |
 
 Cache entries are namespaced per Sentinel cluster (service name + sentinel endpoints), so two connections sharing a
@@ -230,7 +235,7 @@ Per-connection settings in `config/database.php`:
 | `sentinel.timeout` | `1` | Sentinel node connect timeout (seconds) |
 | `sentinel.read_timeout` | `60` | Sentinel node read timeout (seconds) |
 | `retry.redis.attempts` / `delay` / `messages` | package defaults | Per-connection retry override |
-| `read_commands` | `[]` | Additional commands routed to replicas when splitting is enabled (see [Replica-Safe Commands](#replica-safe-commands)) |
+| `read_commands` | `[]` | Additional commands routed to replicas when splitting is enabled; overrides the package-wide `read_commands` value (see [Replica-Safe Commands](#replica-safe-commands)) |
 | `options.prefix` | — | phpredis key prefix |
 
 Data-connection timeouts are isolated from Sentinel node timeouts: `sentinel.timeout`/`sentinel.read_timeout` only
