@@ -14,3 +14,7 @@ composer.lock
 .superpowers/
 docs/
 .output.txt
+tests/tls/*.key
+tests/tls/*.crt
+tests/tls/*.csr
+tests/tls/*.srl

@@ -1,0 +1,32 @@
+services:
+  tls-main:
+    image: redis:6.2-alpine
+    network_mode: host
+    volumes:
+      - ./tests/tls:/tls:ro
+    command:
+      - redis-server
+      - --port
+      - "0"
+      - --tls-port
+      - "6393"
+      - --tls-cert-file
+      - /tls/server.crt
+      - --tls-key-file
+      - /tls/server.key
+      - --tls-ca-cert-file
+      - /tls/ca.crt
+      - --tls-auth-clients
+      - "no"
+
+  tls-sentinel:
+    image: redis:6.2-alpine
+    network_mode: host
+    depends_on:
+      - tls-main
+    volumes:
+      - ./tests/tls:/tls:ro
+    command:
+      - sh
+      - -c
+      - cp /tls/sentinel-tls.conf /tmp/sentinel.conf && exec redis-server /tmp/sentinel.conf --sentinel
