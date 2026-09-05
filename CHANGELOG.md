@@ -1,3 +1,10 @@
+## [1.8.6](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.5...1.8.6) (2026-09-05)
+
+
+### Bug Fixes
+
+* honor the global read_commands configuration ([#105](https://github.com/Goopil/laravel-redis-sentinel/issues/105)) ([30c7e45](https://github.com/Goopil/laravel-redis-sentinel/commit/30c7e4540775bd97f15cd0eefd7b6d8df6ad75e4))
+
 ## [1.8.5](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.4...1.8.5) (2026-09-05)
 
 
