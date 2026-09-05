@@ -32,6 +32,17 @@ class HorizonWorkerLiveness extends Command
 
     /**
      * Execute the console command.
+     *
+     * Contract under Redis/Sentinel faults (#49): every check swallows transport
+     * failures, so the command always terminates. Exit 0 only when Sentinel is
+     * reachable, the connection can write and Horizon reports one running master.
+     * During a master outage the write check fails fast (resolve() creates a fresh
+     * client, and creation itself throws when the reported master is unreachable),
+     * so the command exits 1; once Sentinel promotes, probes self-heal within the
+     * node_cache TTL. Runtime is bounded by the connection retry settings —
+     * roughly (attempts + 1) x read_timeout + backoff — so size the Kubernetes
+     * probe (timeoutSeconds, failureThreshold >= 3) above that bound and a
+     * promotion window shorter than the retry budget will not restart the pod.
      */
     public function handle(): int
     {

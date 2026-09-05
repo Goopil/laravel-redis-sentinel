@@ -31,6 +31,11 @@ class HorizonWorkerReadiness extends Command
 
     /**
      * Execute the console command.
+     *
+     * Contract under Redis faults (#49): the supervisor read surfaces transport
+     * failures as an uncaught RedisException, which the artisan CLI renders and
+     * turns into exit code 1 — bounded by the connection retry settings. Readiness
+     * gates traffic only, so a non-zero exit must never restart the pod.
      */
     public function handle(MasterSupervisorRepository $masters): int
     {
