@@ -21,6 +21,8 @@ return [
         ],
     ],
 
+    // Global default for commands routed to replicas in read/write splitting mode.
+    // A connection's own 'read_commands' key overrides this list.
     'read_commands' => [],
 
     'retry' => [
