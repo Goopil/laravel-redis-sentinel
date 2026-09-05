@@ -64,6 +64,9 @@
         "test:coverage": [
             "@php vendor/bin/pest --coverage --min=70"
         ],
+        "test:soak": [
+            "SOAK=1 @php vendor/bin/pest --group=soak"
+        ],
         "lint": [
             "@php vendor/bin/pint -v --test"
         ],

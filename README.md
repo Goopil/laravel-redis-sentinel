@@ -1008,6 +1008,16 @@ vendor/bin/pest --group=toxiproxy
 
 The chaos tests are skipped automatically when the chaos stack is not running.
 
+A soak test (group `soak`) additionally guards the long-running-runtimes failure surface: sustained connection
+churn plus forced failovers must stay within generous memory and file-descriptor growth thresholds, catching
+leaked references on replaced clients that per-command tests cannot see. It skips by default and activates with:
+
+```bash
+composer test:soak
+```
+
+It also runs inside the `tests-chaos` CI job.
+
 ## Local Development
 
 ### Docker Environment
