@@ -2,6 +2,7 @@
 
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionFailed;
+use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Tests\Support\FakeContext;
 use Illuminate\Support\Facades\Event;
 
@@ -138,6 +139,32 @@ test('a retried scan restarts its cursor on the refreshed client', function () {
     $connection->setRetryMessages(['broken pipe']);
 
     expect($connection->scan(5))->toBe([null, ['key1']]);
+});
+
+test('a failed reconnect does not short-circuit the max-retry bookkeeping', function () {
+    Event::fake();
+
+    $dead = Mockery::mock(Redis::class);
+    $dead->expects('get')->with('foo')->twice()->andThrow(new RedisException('connection lost'));
+
+    $connection = new RedisSentinelConnection(
+        $dead,
+        fn () => throw new RedisException('master is unreachable, cannot reconnect'),
+        [],
+    );
+    $connection->setRetryLimit(1);
+    $connection->setRetryDelay(1);
+    $connection->setRetryMessages(['connection lost']);
+
+    try {
+        $connection->get('foo');
+        $this->fail('RedisException was not thrown.');
+    } catch (RedisException $exception) {
+        expect($exception->getMessage())->toBe('connection lost');
+    }
+
+    Event::assertDispatchedTimes(RedisSentinelConnectionFailed::class, 2);
+    Event::assertDispatchedTimes(RedisSentinelConnectionMaxRetryFailed::class, 1);
 });
 
 test('a non-transport exception thrown inside transaction() is never replayed', function () {
