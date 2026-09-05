@@ -34,6 +34,10 @@ trait InteractsWithToxiproxy
         }
 
         $this->resetChaosTopology();
+
+        // Convergence barrier: a sibling test's failover or proxy bounce may still
+        // be settling; every test starts from a stable master + healthy replicas.
+        $this->waitForHealthyReplicas();
     }
 
     public function cleanupToxiproxy(): void
