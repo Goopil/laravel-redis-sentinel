@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.8...1.9.0) (2026-09-05)
+
+
+### Features
+
+* TLS support for Sentinel and data connections ([#108](https://github.com/Goopil/laravel-redis-sentinel/issues/108)) ([f26c200](https://github.com/Goopil/laravel-redis-sentinel/commit/f26c2008ada586f17ecc3a6992464a46c6a798c6))
+
 ## [1.8.8](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.7...1.8.8) (2026-09-05)
 
 
