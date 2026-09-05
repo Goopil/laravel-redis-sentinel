@@ -62,6 +62,28 @@ class TestCase extends Orchestra
                 ],
             ]);
 
+            $tlsCa = __DIR__.'/tls/ca.crt';
+
+            $config->set('database.redis.phpredis-sentinel-tls', [
+                'client' => 'phpredis-sentinel',
+                'sentinel' => [
+                    'host' => env('REDIS_SENTINEL_TLS_HOST', '127.0.0.1'),
+                    'port' => env('REDIS_SENTINEL_TLS_PORT', 26383),
+                    'service' => env('REDIS_SENTINEL_TLS_SERVICE', 'tls-master'),
+                    'ssl' => ['cafile' => $tlsCa],
+                    'timeout' => 1,
+                    'read_timeout' => 1,
+                ],
+                'password' => '',
+                'timeout' => 1,
+                'read_timeout' => 1,
+                'database' => 0,
+                'options' => [
+                    'scheme' => 'tls',
+                    'context' => ['stream' => ['cafile' => $tlsCa]],
+                ],
+            ]);
+
             $config->set('database.redis.redis', [
                 'host' => env('REDIS_HOST', '127.0.0.1'),
                 'password' => env('REDIS_PASSWORD', 'test'),
