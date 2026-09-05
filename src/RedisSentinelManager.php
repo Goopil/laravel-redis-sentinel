@@ -19,6 +19,13 @@ class RedisSentinelManager extends RedisManager
      */
     protected ?bool $isHorizonContext = null;
 
+    /**
+     * Initialized so connections() always returns an array — some Laravel
+     * versions leave RedisManager::$connections uninitialized, which makes
+     * consumers (e.g. the Octane stickiness reset) crash on fresh workers.
+     */
+    protected $connections = [];
+
     public function resolve($name = null)
     {
         $name = $name ?: 'default';

@@ -69,7 +69,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
             return;
         }
 
-        foreach ($app->make(RedisSentinelManager::class)->connections() as $connection) {
+        foreach ($app->make(RedisSentinelManager::class)->connections() ?? [] as $connection) {
             if ($connection instanceof RedisSentinelConnection) {
                 $connection->resetStickiness();
             }
