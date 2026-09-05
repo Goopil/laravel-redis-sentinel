@@ -68,9 +68,10 @@ Feature requests are welcome! Please:
    composer test
    ```
 
-7. **Run Code Style Checks**
+7. **Run Code Style Checks and Static Analysis**
    ```bash
    composer lint
+   composer stan
    ```
 
 8. **Commit Your Changes**
@@ -159,19 +160,22 @@ The cluster includes:
 - 2 Redis replicas (ports 6381, 6382)
 - 1 Redis Sentinel (port 26379)
 - 1 Standalone Redis for comparison tests (port 6379)
+- 1 Valkey 8 Sentinel cluster (ports 6385-6388, sentinel on 26380) for compatibility testing
 
 ### CI/CD
 
 All pull requests run through GitHub Actions with:
 - PHP versions: 8.2, 8.3, 8.4, 8.5
-- Laravel versions: 10, 11, 12
+- Laravel versions: 10, 11, 12, 13
 - Redis versions: 6, 7
+- Valkey 8 (dedicated job)
+- Lint and static analysis before the test matrix
 
-Tests run in parallel with isolated Redis clusters per job (342 tests total).
+Tests run in parallel with isolated Redis Sentinel clusters per job. A dedicated job runs the suite without
+Horizon installed, and a chaos job exercises real Sentinel failover over Toxiproxy.
 
 ## Areas Needing Help
 
-- Kubernetes deployment examples and best practices
 - Performance benchmarks and optimizations
 - Additional monitoring and health check integrations
 - Support for additional Laravel features
