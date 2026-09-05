@@ -46,6 +46,8 @@ vendor/bin/pest --group=toxiproxy                                        # run o
 
 The overlay gives Sentinel a quorum of 1, a 5000 ms down-after and a 5000 ms failover-timeout, so cutting the master proxy triggers a real promotion and the post-failover cool-down is only ~10 s (tests may trigger promotions back-to-back). The 5000 ms down-after gives 5x headroom over the worst Sentinel ping-reply jitter observed on Docker Desktop (~1 s); a lower value self-sustains sdown/odown flapping even when idle. Chaos tests skip automatically when the overlay is not running.
 
+`SoakTest.php` (group `soak`, ~20 s) asserts bounded memory/FD growth across 300 uncached `resolve()` calls and 2 forced failovers. It skips unless `SOAK=1` — run via `composer test:soak` or the chaos CI job, never in the default suite.
+
 ## Test wiring
 
 `tests/TestCase.php` defines two connections for comparison testing:

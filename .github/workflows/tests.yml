@@ -498,6 +498,7 @@ jobs:
           REDIS_MAIN_PROXY_PORT: 7655
           REDIS_REPLICA1_PROXY_PORT: 7656
           REDIS_REPLICA2_PROXY_PORT: 7657
+          SOAK: '1'
 
       - name: Cleanup chaos stack
         if: always()
