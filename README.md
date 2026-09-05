@@ -8,70 +8,12 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/goopil/laravel-redis-sentinel.svg)](https://packagist.org/packages/goopil/laravel-redis-sentinel)
 
 A Laravel package that adds Redis Sentinel support through the PhpRedis extension.
-It is intended for high-availability Redis setups and handles failover and read/write concerns transparently,
-allowing applications to interact with Redis without having to manage Sentinel-specific logic.
-
-## Why This Package?
-
-- **🧠 Approach**: Built around patterns and behaviors observed in long-running Redis Sentinel deployments
-- **🔄 Automatic Failover**: Detects master changes and reconnects automatically
-- **📊 Read/Write Splitting**: Routes reads to replicas and writes to the master
-- **🔁 Smart Retry Logic**: Configurable retry strategies with exponential backoff
-- **🧪 Test Coverage**: Covered by an extensive automated test suite
-- **⚡ Performance-Oriented**: Designed with performance in mind and suitable for long-lived processes
-- **🎯 Sensible Defaults**: Works out of the box for most common setups
-- **🔍 Observability**: Built-in logging and event dispatching for monitoring
-
-## Stability & Maturity
-
-This package focuses on providing a reliable Redis Sentinel integration for Laravel applications.
-
-- **Failover handling** is considered stable and forms the core of the package.  
-  Master discovery, reconnection logic, and retry strategies are designed to behave predictably during Sentinel-driven
-  topology changes.
-
-- **Read/Write splitting** is functional and covered by tests, but is still evolving.  
-  It covers common Laravel read paths with a deliberately strict allowlist, while operational or expensive commands stay
-  on the master by default.
-
-Feedback from real-world usage is welcome to help further improve and harden these behaviors.
-
-## Roadmap
-
-The following items outline areas of ongoing and future improvement:
-
-- **Read/Write Splitting Refinement**: Further refinement of read/write routing behavior in high-concurrency and
-  edge-case scenarios.
-- **Observability Improvements**: Better visibility into Sentinel discovery, failover events, and routing decisions.
-- **Configuration & Extensibility**: Additional hooks and configuration options for advanced Redis Sentinel setups.
-
-## Governance & Project Direction
-
-This project is maintained with a focus on correctness, predictability, and long-term stability.
-
-Feature requests and contributions are welcome, but inclusion depends on their relevance to Redis Sentinel
-integration and their impact on overall complexity.
-
-## Versioning & Backward Compatibility
-
-This package follows [Semantic Versioning](https://semver.org/) and uses [Semantic Release](https://github.com/semantic-release/semantic-release) for automated versioning and package publishing.
-
-To ensure the automated release process works correctly, please follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for your commit messages.
-
-- **Patch releases** (0.0.x) are triggered by `fix:` commits.
-- **Minor releases** (0.x.0) are triggered by `feat:` commits.
-- **Major releases** (X.0.0) are triggered by commits with `BREAKING CHANGE` in the footer.
-
-Backward compatibility is a priority, but correctness and long-term maintainability take precedence when trade-offs are
-required.
+It is intended for high-availability Redis setups and handles failover and read/write splitting
+transparently, allowing applications to interact with Redis through Laravel's usual APIs without
+managing Sentinel-specific logic.
 
 ## Table of Contents
 
-- [Why This Package?](#why-this-package)
-- [Stability & Maturity](#stability--maturity)
-- [Roadmap](#roadmap)
-- [Governance & Project Direction](#governance--project-direction)
-- [Versioning & Backward Compatibility](#versioning--backward-compatibility)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -81,37 +23,28 @@ required.
 - [Laravel Octane Support](#laravel-octane-support)
 - [Horizon Integration](#horizon-integration)
 - [Kubernetes Deployment](#kubernetes-deployment)
-- [Production Operations](#production-operations)
+- [Operations](#operations)
+- [Scope and Limitations](#scope-and-limitations)
 - [Events](#events)
 - [Testing](#testing)
-- [Limitations & Non-Goals](#limitations--non-goals)
-- [When NOT to Use This Package](#when-not-to-use-this-package)
-- [Performance Tips](#performance-tips)
+- [Local Development](#local-development)
+- [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
-- [Inspiration & alternatives](#inspiration--alternatives)
+- [Inspiration & Alternatives](#inspiration--alternatives)
 - [Credits](#credits)
 - [License](#license)
 - [Support](#support)
 
 ## Features
 
-### Core Features
-
-- ✅ Connect to Redis via Sentinel using PhpRedis extension
-- ✅ Automatic master discovery and failover handling
-- ✅ Configurable retry logic for both Sentinel and Redis connections
-- ✅ Full support for Laravel Cache, Queue, Session, Broadcasting
-- ✅ Native Laravel Horizon integration
-- ✅ Laravel Octane compatible (concurrent coroutines safe in split mode — see [Laravel Octane Support](#laravel-octane-support) for the safe/unsafe matrix)
-
-### Advanced Features
-
-- ✅ **Read/Write Splitting**: Routes reads to replicas while directing writes to the master
-- ✅ **Sticky Sessions**: Automatic consistency guarantees after writes
-- ✅ **Health Checks**: Built-in commands for Kubernetes readiness/liveness probes
-- ✅ **Node Discovery**: Avoids repeated Sentinel queries by caching resolved node addresses during execution
-- ✅ **Multi-Sentinel Support**: Automatic failover between Sentinel nodes
-- ✅ **Event System**: Monitor all connection events for observability
+- Connect to Redis via Sentinel using the PhpRedis extension, with automatic master discovery and failover handling
+- Configurable retry logic for both Sentinel and data connections (exponential backoff with jitter, circuit breaker on Sentinel resolution)
+- Read/write splitting: reads routed to replicas, writes to the master, with sticky read-after-write consistency
+- Full support for Laravel Cache, Queue, Session and Broadcasting
+- Native Laravel Horizon integration, including Kubernetes probe commands
+- Laravel Octane compatible — per-coroutine connection state in split mode (see [Laravel Octane Support](#laravel-octane-support))
+- Node address caching to avoid querying Sentinel on every command
+- Multi-Sentinel support and event dispatching for observability
 
 ## Requirements
 
@@ -204,15 +137,34 @@ REDIS_READ_REPLICAS=true
 
 ## Configuration
 
+### Package Options
+
 The `config/phpredis-sentinel.php` file allows fine-tuning:
 
 ```php
 return [
-    'override_laravel_redis' => true,
+    // Replace Laravel's global redis bindings (recommended, see below)
+    'override_laravel_redis' => env('REDIS_SENTINEL_OVERRIDE_LARAVEL_REDIS', true),
+
+    // Seconds a resolved master/replica address may stay cached in this process.
+    // 0 disables expiry (discouraged: stale topology delays failover detection
+    // in long-lived workers).
+    'node_cache' => [
+        'ttl' => env('REDIS_SENTINEL_NODE_CACHE_TTL', 15),
+    ],
 
     'log' => [
-        'channel' => null, // Use Laravel's default log channel
-        'notify_swallowed' => false, // error_log() notice (once per consuming class) when logging failures are swallowed
+        'channel' => env('REDIS_SENTINEL_LOG_CHANNEL', env('LOG_CHANNEL')),
+        // Once per consuming class, error_log() a notice when a logging failure
+        // is swallowed (opt-in: retry/failover telemetry is being lost otherwise).
+        'notify_swallowed' => env('REDIS_SENTINEL_LOG_NOTIFY_SWALLOWED', false),
+    ],
+
+    'commands' => [
+        'events' => [
+            // Emit success events for Horizon probe commands (failure events are always emitted)
+            'emit_success' => env('REDIS_SENTINEL_EMIT_SUCCESS_EVENTS', false),
+        ],
     ],
 
     'retry' => [
@@ -222,6 +174,7 @@ return [
             'delay' => 1000, // milliseconds
             'messages' => [
                 'No master found for service',
+                'No reachable Redis Sentinel host found',
                 // Add custom error messages to retry on
             ],
         ],
@@ -233,78 +186,85 @@ return [
             'messages' => [
                 'broken pipe',
                 'connection closed',
-                'connection lost',
                 'connection refused',
+                'connection lost',
+                'failed while reconnecting',
+                'is loading the dataset in memory',
+                'php_network_getaddresses',
+                'read error on connection',
+                'socket error',
                 'went away',
                 'Connection reset by peer',
                 "can't write against a read only replica",
-                // ...more in default config
+                'Temporary failure in name resolution',
             ],
         ],
     ],
 ];
 ```
 
-- `log.notify_swallowed` (default `false`): when the configured log channel throws, the
-  package swallows the failure so retries never break. Set `REDIS_SENTINEL_LOG_NOTIFY_SWALLOWED=true`
-  to emit an `error_log()` notice when telemetry is being dropped this way — once per
-  consuming class, so a process sees at most a handful of notices.
+| Key | Default | Description |
+|---|---|---|
+| `override_laravel_redis` | `true` | Replace Laravel's global `redis`/`redis.connection` bindings with the Sentinel-aware manager (see [below](#laravel-redis-binding-override)) |
+| `node_cache.ttl` | `15` | Seconds a resolved master/replica address stays cached in-process; `0` disables expiry |
+| `log.channel` | Laravel default | Log channel used for retry/failover telemetry |
+| `log.notify_swallowed` | `false` | `error_log()` notice (once per consuming class) when a logging failure is swallowed |
+| `commands.events.emit_success` | `false` | Emit success events for Horizon probe commands; failure events are always emitted |
+| `retry.sentinel.*` / `retry.redis.*` | see above | Retry attempts, delay and retryable error message fragments |
 
-### Data connection defaults (v1.3+)
+Cache entries are namespaced per Sentinel cluster (service name + sentinel endpoints), so two connections sharing a
+service name across different clusters never exchange cached addresses.
 
-- `timeout` for the data connection defaults to **5 seconds** and is no longer derived from `sentinel.timeout`.
-- Sentinel node timeouts are isolated from the data connection: `connectTimeout` comes from
-  `sentinel.timeout` only (default `1` s) and Sentinel `readTimeout` from `sentinel.read_timeout`
-  only (default `60` s). Raising the data `timeout`/`read_timeout` no longer affects Sentinel nodes.
-- The data client uses strictly `password`; `sentinel.password` only authenticates against Sentinel nodes.
-- `retry.redis.messages` can be overridden **per connection** (`retry.redis.messages` inside the connection config), like `attempts`/`delay`. See the [Retry contract](#retry-contract) for the at-least-once implications.
-- Resolved master/replica addresses are cached with a TTL: `phpredis-sentinel.node_cache.ttl` (seconds, default `15`; `0`
-  disables expiry and negative values behave like `0` — discouraged, it delays failover detection in long-lived workers).
-  Cache entries are namespaced per Sentinel cluster (service name + sentinel endpoints), so two connections sharing a
-  service name across different clusters never exchange cached addresses.
+### Connection Options
 
-> If you previously published the config file, your copy still defaults to `env('REDIS_SENTINEL_NODE_CACHE_TTL', 0)` — set the env var or update your copy to get the new 15 s default.
+Per-connection settings in `config/database.php`:
 
-> If you previously published the config file, add `'No reachable Redis Sentinel host found'` to `retry.sentinel.messages` to retry total Sentinel outages.
+| Option | Default | Description |
+|---|---|---|
+| `sentinels` / `sentinel` | — | Sentinel node(s); `sentinel.service` is the monitored master name |
+| `password` | `null` | Authentication for the data Redis nodes |
+| `sentinel.password` | `null` | Authentication for the Sentinel nodes only (never used for the data connection) |
+| `read_only_replicas` | `false` | Enable read/write splitting (see [Read/Write Splitting](#readwrite-splitting)) |
+| `timeout` | `5` | Data connection connect timeout (seconds) |
+| `read_timeout` | `60` | Data connection read timeout (seconds); keep above your longest blocking command (`BLPOP`, `WAIT`, ...) or set `0` for unbounded blocking reads |
+| `sentinel.timeout` | `1` | Sentinel node connect timeout (seconds) |
+| `sentinel.read_timeout` | `60` | Sentinel node read timeout (seconds) |
+| `retry.redis.attempts` / `delay` / `messages` | package defaults | Per-connection retry override |
+| `read_commands` | `[]` | Additional commands routed to replicas when splitting is enabled (see [Replica-Safe Commands](#replica-safe-commands)) |
+| `options.prefix` | — | phpredis key prefix |
 
-> If you previously published the config file, the default `retry.redis.messages` list was tightened: the overly broad `'socket'`, `'loading'` and `'readonly'` entries were replaced by `'socket error'` and `'Connection reset by peer'` (the canonical `"can't write against a read only replica"` and `'is loading the dataset in memory'` messages were already present). Published copies keep the old broad list — remove those entries or re-publish to adopt the new defaults.
+Data-connection timeouts are isolated from Sentinel node timeouts: `sentinel.timeout`/`sentinel.read_timeout` only
+affect the Sentinel nodes.
 
 ### Laravel Redis Binding Override
 
-By default, the package replaces Laravel's global `redis` and `redis.connection` container bindings with the Sentinel-aware manager. This is the recommended mode and the one the package is primarily designed for: it preserves plug-and-play compatibility with Laravel services, facades, queues, cache, sessions, broadcasting, Horizon, and third-party packages that resolve Redis through Laravel's default bindings.
+By default, the package replaces Laravel's global `redis` and `redis.connection` container bindings with the
+Sentinel-aware manager. This preserves plug-and-play compatibility with Laravel services, facades, queues, cache,
+sessions, broadcasting, Horizon, and third-party packages that resolve Redis through Laravel's default bindings.
 
 ```env
 REDIS_SENTINEL_OVERRIDE_LARAVEL_REDIS=true
 ```
 
-If your application needs to keep Laravel's native Redis manager as the global binding and use Sentinel only through explicit `phpredis-sentinel` connections, disable the override:
+If your application needs to keep Laravel's native Redis manager as the global binding and use Sentinel only through
+explicit `phpredis-sentinel` connections, disable the override:
 
 ```env
 REDIS_SENTINEL_OVERRIDE_LARAVEL_REDIS=false
 ```
 
-This is an advanced opt-out mode. With this setting disabled, the package still registers its dedicated `phpredis-sentinel` manager and `redis.sentinel` connector, but it does not replace the global `redis` or `redis.connection` bindings.
-
-Use this mode only when every Sentinel-backed integration is configured explicitly with the `phpredis-sentinel` driver/connection. Code or packages using Laravel's global Redis binding will keep using Laravel's native Redis manager instead:
-
-```php
-use Illuminate\Support\Facades\Redis;
-
-Redis::connection('default'); // Uses Laravel's native Redis manager when the override is disabled.
-app('redis');                 // Also resolves Laravel's native Redis manager.
-```
-
-Important limitations when `REDIS_SENTINEL_OVERRIDE_LARAVEL_REDIS=false`:
+Important limitations when the override is disabled:
 
 - `Redis::connection()` and `app('redis')` are not Sentinel-aware.
-- Laravel Horizon is not compatible with this opt-out mode, because Horizon resolves Redis through Laravel's global Redis bindings.
-- Third-party packages that call `app('redis')`, `app('redis.connection')`, or the `Redis` facade will not use Sentinel unless they support an explicit custom Redis manager/connection.
-- Do not set Laravel's global `database.redis.client` to `phpredis-sentinel` while also disabling the override; the native Laravel Redis manager does not own this package's Sentinel connector.
-- A custom `phpredis-sentinel` connection falls back to a regular Laravel Redis connection when its configuration does not contain the Sentinel-specific options required to open a Sentinel-managed connection.
+- **Laravel Horizon is not compatible with this opt-out mode**, because Horizon resolves Redis through Laravel's
+  global Redis bindings.
+- Third-party packages calling `app('redis')`, `app('redis.connection')`, or the `Redis` facade will not use Sentinel.
+- Do not set Laravel's global `database.redis.client` to `phpredis-sentinel` while also disabling the override.
+- A `phpredis-sentinel` connection falls back to a regular Laravel Redis connection when its configuration lacks the
+  Sentinel-specific options required to open a Sentinel-managed connection.
 
-For most applications, keep the override enabled. Disable it only for advanced mixed setups where Laravel's native Redis manager must remain global and Sentinel is used through explicitly configured package integrations.
-
-Resolving a `phpredis-sentinel` connection when the package's connector creator is not registered throws a `ConfigurationException` instead of failing with a fatal PHP error.
+For most applications, keep the override enabled. Resolving a `phpredis-sentinel` connection when the package's
+connector is not registered throws a `ConfigurationException` instead of failing with a fatal PHP error.
 
 ### Retry Strategy
 
@@ -321,7 +281,7 @@ paying the full retry/backoff cost (~30s) on every command. A successful resolut
 the breaker. The command that opens the breaker still completes its own retry cycle, so expect the first failing
 command to take up to ~30s; the following ones fail fast until the breaker re-opens a resolution window.
 
-### Retry contract
+### Retry Contract
 
 Connection errors matched by the retry messages (`went away`, `read error on connection`, `connection lost`, ...) are
 ambiguous: the server may not have executed the command, or may have executed it while the reply was lost. The retry
@@ -338,8 +298,7 @@ Make write paths resilient to re-execution:
 - prefer idempotent commands where the semantics allow it (`SET` over `INCR`, `SET ... NX`, ...);
 - carry a unique job/command ID and deduplicate on the consumer side;
 - wrap multi-step side effects in a Lua script with a side-effect guard (check a marker key before applying);
-- treat `pipeline()`/`transaction()` callbacks as re-executable units (see the at-least-once caveat under
-  [Production Operations](#production-operations)).
+- treat `pipeline()`/`transaction()` callbacks as re-executable units.
 
 ## Read/Write Splitting
 
@@ -393,15 +352,25 @@ on each Octane lifecycle event and queue `JobProcessing` event as belt-and-suspe
 
 ### Replica-Safe Commands
 
-When `read_only_replicas` is enabled and the connection is not sticky, the following command families are considered
+When `read_only_replicas` is enabled and the connection is not sticky, the following commands are considered
 replica-safe and can be routed to replicas:
 
-- **Strings**: `get`, `mget`, `strlen`, `getrange`
-- **Hashes**: `hget`, `hgetall`, `hmget`, `hkeys`, `hvals`, `hexists`
+- **Strings**: `get`, `mget`, `strlen`, `getrange`, `getbit`, `bitcount`, `bitpos`
+- **Hashes**: `hget`, `hgetall`, `hmget`, `hkeys`, `hvals`, `hexists`, `hlen`, `hstrlen`, `hscan`
 - **Lists**: `lindex`, `llen`, `lrange`
-- **Sets**: `scard`, `sismember`, `smembers`, `srandmember`
-- **Sorted Sets**: `zcard`, `zcount`, `zrange`, `zrank`, `zscore`
-- **Keys**: `exists`, `scan`, `type`, `ttl`, `pttl`
+- **Sets**: `scard`, `sismember`, `smismember`, `smembers`, `srandmember`, `sscan`
+- **Sorted Sets**: `zcard`, `zcount`, `zlexcount`, `zrange`, `zrank`, `zrevrange`, `zrevrank`, `zscore`, `zscan`, `zrangebyscore`, `zrevrangebyscore`, `zrangebylex`, `zrevrangebylex`
+- **Keys**: `exists`, `scan`, `type`, `ttl`, `pttl`, `object`
+
+You can extend this allowlist per connection with the `read_commands` option:
+
+```php
+'default' => [
+    // ...
+    'read_only_replicas' => true,
+    'read_commands' => ['georadius_ro', 'getrange'],
+],
+```
 
 All other commands are routed to the master. Operational or potentially expensive commands such as `KEYS`, `INFO`,
 `MEMORY`, and `PUBSUB` are intentionally not routed to replicas by default.
@@ -515,24 +484,12 @@ $redis->pipeline(function ($pipe) {
 
 ## Laravel Octane Support
 
-The package is compatible with Laravel Octane and supports long-lived processes:
-
-### Automatic State Management
-
-```php
-// The package automatically handles:
-// ✅ Connection reuse across requests (FPM/CLI and non-split mode; split-mode coroutines create a fresh pair per request — see below)
-// ✅ Sticky session reset between requests
-// ✅ Graceful reconnection on failures
-```
-
-### Coroutine runtimes (Swoole) and R/W splitting
-
-Connection state (master/replica clients, stickiness, transaction level) lives in an execution context: the
-worker process on sequential runtimes, the coroutine's own storage under Swoole/OpenSwoole. Concurrent coroutines
-sharing one worker therefore no longer race on shared routing state. Runtime detection is extension-based
-(`class_exists` + coroutine id), not server-based: a Swoole/OpenSwoole extension loaded under any server — including
-RoadRunner or FrankenPHP workers — automatically switches connections to the coroutine-safe path.
+The package is compatible with Laravel Octane and supports long-lived processes. Connection state (master/replica
+clients, stickiness, transaction level) lives in an execution context: the worker process on sequential runtimes, the
+coroutine's own storage under Swoole/OpenSwoole. Concurrent coroutines sharing one worker therefore do not race on
+shared routing state. Runtime detection is extension-based (`class_exists` + coroutine id), not server-based: a
+Swoole/OpenSwoole extension loaded under any server — including RoadRunner or FrankenPHP workers — automatically
+switches connections to the coroutine-safe path.
 
 - **Split mode (`read_only_replicas: true`)**: each request coroutine lazily builds its own master/replica client
   pair — the same one-pair-per-request connection cost as FPM. Laravel's `pipeline()`/`transaction()` route to the
@@ -563,20 +520,6 @@ Safe/unsafe summary:
 Per-context clients are created lazily per request. If connection churn ever becomes measurable in your workload,
 a connection pool is the documented upgrade path (deliberately not implemented).
 
-The sequential contract is pinned by the hermetic `InterleavedRoutingTest` (unit), and context isolation by
-`ContextIsolationTest`, which uses a switchable fake context to stand in for coroutine interleaving — real-Swoole
-interleaving tests are still out of scope without ext-swoole in CI (issue #65).
-
-### No Configuration Needed
-
-Simply use Octane as normal:
-
-```bash
-php artisan octane:start --server=swoole
-# or
-php artisan octane:start --server=roadrunner
-```
-
 The package listens to Octane's lifecycle events (`RequestReceived`, `TaskReceived`, `TickReceived`,
 `OperationTerminated`) and to queue `JobProcessing`, and resets stickiness automatically at each boundary.
 
@@ -584,22 +527,32 @@ The package listens to Octane's lifecycle events (`RequestReceived`, `TaskReceiv
 
 The package provides Horizon commands that are useful for Kubernetes deployments:
 
-### Available Commands
-
 ```bash
-# Readiness probe - checks if worker is ready to handle jobs
+# Readiness probe - checks if the worker has a running master supervisor
 php artisan horizon:ready
 
-# Liveness probe - checks if worker is still alive
+# Liveness probe - checks Sentinel reachability, connection write access and Horizon supervision
 php artisan horizon:alive
 
-# Pre-stop hook - graceful shutdown
+# Pre-stop hook - sends a TERM signal to the Horizon master supervisor for graceful shutdown
 php artisan horizon:pre-stop
 ```
 
-### Kubernetes Readiness/Liveness Probes
+### Probe Failure Contract
 
-See [Kubernetes Deployment](#kubernetes-deployment) section below.
+The probes are designed to fail fast and self-heal during Sentinel failovers, so a temporary master outage does not
+restart healthy pods:
+
+- Every check swallows transport failures, so the command always terminates (never hangs).
+- Exit code `0` only when Sentinel is reachable, the connection can write, and Horizon reports a running master.
+- During a master outage the write check fails fast (a fresh client is resolved and creation itself throws when the
+  reported master is unreachable), so the probe exits `1`.
+- Once Sentinel promotes a new master, probes self-heal within the node cache TTL (`phpredis-sentinel.node_cache.ttl`,
+  default 15 s).
+- Worst-case runtime is bounded by the retry settings: roughly `(attempts + 1) × read_timeout + backoff`.
+
+Size the Kubernetes probe (`timeoutSeconds` above that bound, `failureThreshold` ≥ 3) so a promotion window shorter
+than the retry budget never restarts the pod. See [Kubernetes Deployment](#kubernetes-deployment) for a full example.
 
 ### Horizon Configuration
 
@@ -730,49 +683,41 @@ spec:
     app: redis-sentinel
 ```
 
-## Production Operations
-
-Redis Sentinel is an infrastructure component. Before using this package in production, validate the following points with
-your own Redis topology, workload, and deployment model.
+## Operations
 
 ### Runtime Behaviour
 
-- **Failover is not instant**: Redis Sentinel needs time to detect a master failure, elect a new master, and expose the new
-  topology. During this window, commands may be retried and application latency can temporarily increase.
-- **Resolved node addresses are cached during execution**: the package avoids querying Sentinel for every command. When a
-  connection error, read-only error, or failover-related error is detected, the connection is refreshed and Sentinel is
-  queried again.
-- **Read/write splitting is eventually consistent**: reads can be sent to replicas. If your workload requires read-after-write
-  consistency, keep sticky reads enabled — sticky reads stay on the master until the next request/job boundary (Octane
-  `RequestReceived`, queue `JobProcessing`) — there is no time-based sticky TTL; re-reads in a long-running process without
-  those events remain on the master.
+- **Failover is not instant**: Redis Sentinel needs time to detect a master failure, elect a new master, and expose the
+  new topology. During this window, commands may be retried and application latency can temporarily increase.
+- **Resolved node addresses are cached during execution** (`node_cache.ttl`, default 15 s): the package avoids querying
+  Sentinel for every command. When a connection error, read-only error, or failover-related error is detected, the
+  connection is refreshed and Sentinel is queried again.
+- **Read/write splitting is eventually consistent**: reads can be sent to replicas. If your workload requires
+  read-after-write consistency, keep sticky reads enabled — sticky reads stay on the master until the next
+  request/job boundary (Octane `RequestReceived`, queue `JobProcessing`); there is no time-based sticky TTL.
 - **Commands classified as read-only still run on Redis**: avoid expensive production commands such as `KEYS`; prefer
   cursor-based alternatives like `SCAN` when possible.
-- **Pipeline/transaction retries are at-least-once**: if a `pipeline()` or `transaction()` fails mid-flight, the whole callback
-  is re-executed after reconnection. Only use idempotent operations inside, or handle duplicates in your callback.
-- **Scan-family commands reset their cursor** on retry after a reconnection, so iteration restarts on the new node (SCAN
-  semantics allow duplicates).
-- **`read_timeout` defaults to 60 seconds** for the data Redis client (a blocking command on a half-open
-  socket now fails after 60s instead of hanging the worker forever). Set `read_timeout: 0` for unbounded blocking reads, and
-  always keep it above your longest blocking command (`BLPOP`, `WAIT`, ...). The Sentinel node read timeout is
-  configured separately via `sentinel.read_timeout` (default `60` s).
-- **`flushdb($async)` / `flushall($sync)` flush semantics are normalized**: `flushdb(async: true)` and `flushall(sync: false)`
-  request a non-blocking flush. The package sends the argument that selects ASYNC on the installed phpredis major (`false` on
-  phpredis 6.x, the literal `'ASYNC'` on 5.x); any other value (including the defaults) performs a blocking flush.
-  Blocking-vs-async remains best-effort: do not rely on the flag for strict ordering guarantees.
-- **Laravel's built-in command retry is disabled for this connection**: Laravel 13+ wraps `command()` with an internal single
-  retry whose connector is not Sentinel-aware and dispatches no events. This connection overrides `isRetryable()` to turn it
-  off, so the package's `retry()` layer stays the single retry path and `RedisSentinelConnectionFailed` /
-  `RedisSentinelConnectionReconnected` fire on the first failure.
+- **Pipeline/transaction retries are at-least-once**: if a `pipeline()` or `transaction()` fails mid-flight, the whole
+  callback is re-executed after reconnection (see [Retry Contract](#retry-contract)).
+- **Scan-family commands reset their cursor** on retry after a reconnection, so iteration restarts on the new node
+  (SCAN semantics allow duplicates).
+- **`flushdb($async)` / `flushall($sync)` flush semantics are normalized**: `flushdb(async: true)` and
+  `flushall(sync: false)` request a non-blocking flush; any other value performs a blocking flush. Blocking-vs-async
+  remains best-effort: do not rely on the flag for strict ordering guarantees.
+- **Laravel's built-in command retry is disabled for this connection**: Laravel 13+ wraps `command()` with an internal
+  single retry whose connector is not Sentinel-aware and dispatches no events. This connection overrides `isRetryable()`
+  to turn it off, so the package's `retry()` layer stays the single retry path and
+  `RedisSentinelConnectionFailed` / `RedisSentinelConnectionReconnected` fire on the first failure.
 
 ### Long-Running Workers
 
-Laravel workers, Horizon workers, Octane workers, daemons, and batch processes keep PHP state alive longer than a regular
-HTTP request. For these runtimes:
+Laravel workers, Horizon workers, Octane workers, daemons, and batch processes keep PHP state alive longer than a
+regular HTTP request. For these runtimes:
 
 - reset sticky read/write state at job or request boundaries when using custom workers;
 - restart workers during deploys or after Redis/Sentinel topology changes if they keep stale state;
-- configure graceful shutdown hooks for Horizon and Kubernetes so workers stop accepting work before the pod is terminated;
+- configure graceful shutdown hooks for Horizon and Kubernetes so workers stop accepting work before the pod is
+  terminated;
 - monitor retry events to detect workers repeatedly reconnecting to stale Redis nodes.
 
 ### Timeouts and Retries
@@ -783,29 +728,37 @@ The default retry configuration is intentionally conservative. Tune it according
 - account for the worst-case retry duration during failover;
 - avoid very high retry counts on latency-sensitive paths;
 - prefer observability-driven tuning using the package events rather than blindly increasing retry attempts;
-- remember the [Retry contract](#retry-contract): connection-loss retries re-execute commands, so keep write paths
-  idempotent or deduplicate on the consumer side;
+- remember the [Retry Contract](#retry-contract): connection-loss retries re-execute commands, so keep write paths
+  idempotent or deduplicate on the consumer side.
 
-### Security Checklist
+### Security
 
 - run Redis and Sentinel on a private network whenever possible;
 - use Redis ACLs or strong passwords for both Redis and Sentinel;
-- avoid logging DSNs, passwords, complete connection URLs, or raw configuration payloads;
 - inject secrets through environment variables or your secret manager, not committed configuration files;
-- consider TLS, stunnel, sidecars, or a private service mesh if traffic can cross untrusted networks;
-- grant Sentinel only the permissions required by your Redis deployment model.
+- consider TLS, stunnel, sidecars, or a private service mesh if traffic can cross untrusted networks.
 
-### Failure Modes to Monitor
+### What to Monitor
 
-Monitor and alert on these operational symptoms:
-
-- repeated `RedisSentinelReplicaFallback` events, which mean read/write splitting is disabled and every read lands on the master;
+- repeated `RedisSentinelReplicaFallback` events (splitting disabled, every read lands on the master);
 - repeated `RedisSentinelConnectionFailed` or `RedisSentinelConnectionMaxRetryFailed` events;
 - repeated Sentinel discovery failures;
-- `READONLY` errors after failover, which usually indicate a stale master connection;
-- sudden increases in command latency during Sentinel elections;
-- replica lag when read/write splitting is enabled;
+- `READONLY` errors after failover (usually a stale master connection);
+- latency spikes during Sentinel elections and replica lag when splitting is enabled;
 - Horizon workers failing readiness/liveness checks.
+
+## Scope and Limitations
+
+This package focuses on Redis Sentinel integration for Laravel. It may not be the right choice if:
+
+- You are using **Redis Cluster** and require native sharding support — this package does not replace Redis Cluster
+  or provide cluster-level sharding.
+- Your workload requires **client-side sharding or partitioning**.
+- You need **ultra-low-latency** Redis access with minimal routing logic.
+- You prefer to manage Redis failover and topology changes entirely outside of the application layer.
+
+It assumes Sentinel is correctly configured and healthy, and read/write splitting prioritizes correctness and
+consistency over aggressive load balancing.
 
 ## Events
 
@@ -932,6 +885,9 @@ composer test:coverage
 # Lint code
 composer lint
 
+# Static analysis
+composer stan
+
 # Fix code style
 composer format
 ```
@@ -940,25 +896,29 @@ composer format
 
 ```
 tests/
-├── Feature/           # Integration tests
-│   ├── Orchestra/     # Full E2E tests with real Redis
-│   └── *.php          # Feature tests with mocks
+├── Feature/           # Integration tests against a real Redis Sentinel cluster
+│   ├── Horizon/       # Horizon integration tests (skipped when Horizon is not installed)
+│   ├── Orchestra/     # Full E2E tests through Laravel's stack (Orchestra Testbench)
+│   ├── Toxiproxy/     # Chaos tests: failover, READONLY retries, network toxics
+│   └── *.php
 ├── Unit/              # Unit tests
-└── ci/                # CI-specific configs
+├── Support/           # Test helpers (Toxiproxy manager, fake execution context)
+└── ci/                # CI-specific compose files
 ```
 
 ### CI/CD
 
 The package includes a comprehensive GitHub Actions workflow that tests:
 
-- ✅ PHP 8.2, 8.3, 8.4, 8.5
-- ✅ Laravel 10, 11, 12, 13
-- ✅ Redis 6, 7
-- ✅ Valkey 8 (dedicated `tests-valkey` job)
-- ✅ Linting before the test matrix
-- ✅ **Matrix test jobs** across isolated Redis Sentinel clusters
-- ✅ A dedicated PHP 8.4 / Laravel 12 job without Horizon installed
-- ✅ Coverage reporting with a minimum coverage threshold
+- PHP 8.2, 8.3, 8.4, 8.5
+- Laravel 10, 11, 12, 13
+- Redis 6, 7
+- Valkey 8 (dedicated `tests-valkey` job)
+- Linting and static analysis before the test matrix
+- Matrix test jobs across isolated Redis Sentinel clusters
+- A dedicated PHP 8.4 / Laravel 12 job without Horizon installed
+- A `tests-chaos` job exercising real Sentinel failover over Toxiproxy
+- Coverage reporting with a minimum coverage threshold
 
 ### Resilience Testing
 
@@ -980,7 +940,7 @@ The chaos tests are skipped automatically when the chaos stack is not running.
 Start a complete Redis Sentinel cluster locally:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 This starts:
@@ -1060,48 +1020,16 @@ redis-cli -h <sentinel-host> -p 26379 -a <password> sentinel replicas master
 **"Connection lost"**: Network issues or Redis restart (auto-retry will handle)
 **"Auth failed"**: Check `REDIS_PASSWORD` and `REDIS_SENTINEL_PASSWORD`
 
-## Limitations & Non-Goals
-
-This package intentionally focuses on Redis Sentinel integration and does not aim to cover every Redis deployment model.
-
-- It does **not** replace Redis Cluster or provide cluster-level sharding.
-- It does **not** attempt to abstract Redis behavior beyond what Sentinel exposes.
-- It assumes Sentinel is correctly configured and healthy; misconfigured Sentinel setups may lead to connection
-  failures.
-- Read/Write splitting prioritizes correctness and consistency over aggressive load balancing.
-- Extremely low-latency or ultra-high-throughput use cases may require custom tuning or alternative approaches.
-
-The goal of the package is to offer predictable behavior and seamless integration within Laravel’s ecosystem, rather
-than introducing complex Redis abstractions.
-
-## When NOT to Use This Package
-
-This package is a good fit for applications relying on Redis Sentinel for high availability, but it may not be
-the right choice in all situations.
-
-Consider alternatives if:
-
-- You are using **Redis Cluster** and require native sharding support.
-- Your workload requires **client-side sharding or partitioning**.
-- You need **ultra-low-latency** Redis access with minimal routing logic.
-- You rely on Redis features or deployment models that are not compatible with Sentinel.
-- You prefer to manage Redis failover and topology changes entirely outside of the application layer.
-
-In these cases, a simpler Redis client or a different Redis deployment model may be more appropriate.
-
-## Performance Tips
-
-1. **Enable read_only_replicas**: Distribute read load across replicas
-2. **Use pipelining**: Batch multiple commands for better throughput
-3. **Reuse connections** in long-lived runtimes: Avoid unnecessary reconnects in Octane or Horizon
-4. **Monitor replica lag**: Ensure replicas are in sync
-5. **Tune retry delays**: Adjust based on your infrastructure
-
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-## Inspiration & alternatives
+Releases follow [Semantic Versioning](https://semver.org/) and are automated with
+[semantic-release](https://github.com/semantic-release/semantic-release): `fix:` commits cut patch releases, `feat:`
+commits cut minor releases, and `BREAKING CHANGE` footers trigger major releases. Please follow
+[Conventional Commits](https://www.conventionalcommits.org/).
+
+## Inspiration & Alternatives
 
 This project is inspired by earlier Redis Sentinel integrations in the Laravel ecosystem.
 
@@ -1118,27 +1046,12 @@ community:
 
 ## License
 
-This package is licensed under the **GNU Lesser General Public License v3.0 (LGPL-3.0)**.
-
-You are free to:
-
-- ✅ Use this package in commercial and non-commercial projects
-- ✅ Modify the package for your needs
-- ✅ Distribute your modifications
-
-Under the conditions that:
-
-- 📄 You include the license and copyright notice
-- 🔗 You state changes made to the code
-- 📖 You make your modifications available under LGPL-3.0 if distributed
-
+This package is licensed under the **GNU Lesser General Public License v3.0 (LGPL-3.0)**. You are free to use it in
+commercial and non-commercial projects, modify it, and distribute your modifications, under the LGPL-3.0 conditions
+(license notice, statement of changes, and re-licensing of modifications under LGPL-3.0 when distributed).
 See [LICENSE](LICENSE) for full details.
 
 ## Support
 
-- 🐛 [Issue Tracker](https://github.com/goopil/laravel-redis-sentinel/issues)
-- 💬 [Discussions](https://github.com/goopil/laravel-redis-sentinel/discussions)
-
----
-
-**Built with ❤️ for the Laravel community**
+- [Issue Tracker](https://github.com/goopil/laravel-redis-sentinel/issues)
+- [Discussions](https://github.com/goopil/laravel-redis-sentinel/discussions)
