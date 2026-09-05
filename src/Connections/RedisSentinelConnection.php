@@ -458,7 +458,7 @@ class RedisSentinelConnection extends PhpRedisConnection
                 }
             },
             onFail: function ($exception, $attempts) use ($name, $isReadOnly, &$usedClient, $onFailExtra) {
-                RedisSentinelConnectionFailed::dispatch($this, $exception, $name, $attempts);
+                $this->dispatchSafely(new RedisSentinelConnectionFailed($this, $exception, $name, $attempts));
 
                 $onFailExtra?->__invoke();
 
@@ -492,7 +492,7 @@ class RedisSentinelConnection extends PhpRedisConnection
                 ], 'error');
             },
             onReconnect: function ($attempts) use ($name) {
-                RedisSentinelConnectionReconnected::dispatch($this, $name, $attempts);
+                $this->dispatchSafely(new RedisSentinelConnectionReconnected($this, $name, $attempts));
 
                 $this->log($name.' - reconnected', [
                     'method' => $name,
@@ -501,7 +501,7 @@ class RedisSentinelConnection extends PhpRedisConnection
                 ]);
             },
             onMaxFail: function ($exception, $attempts) use ($name) {
-                RedisSentinelConnectionMaxRetryFailed::dispatch($this, $exception, $name, $attempts);
+                $this->dispatchSafely(new RedisSentinelConnectionMaxRetryFailed($this, $exception, $name, $attempts));
 
                 $this->log($name.' - max fail', [
                     'method' => $name,

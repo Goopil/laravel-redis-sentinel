@@ -5,6 +5,7 @@ namespace Goopil\LaravelRedisSentinel\Tests\Unit\Concerns;
 use Goopil\LaravelRedisSentinel\Concerns\Loggable;
 use Goopil\LaravelRedisSentinel\Concerns\Retryable;
 use Illuminate\Support\Facades\Log;
+use Mockery;
 use RedisException;
 use ReflectionProperty;
 use RuntimeException;
@@ -26,7 +27,8 @@ test('a swallowed logging failure emits exactly one error_log notice when enable
             'phpredis-sentinel.log.notify_swallowed' => true,
         ]);
 
-        Log::shouldReceive('channel')->twice()->andThrow(new RuntimeException('log backend down'));
+        Log::shouldReceive('channel')->with('stack')->twice()->andThrow(new RuntimeException('log backend down'));
+        Log::shouldReceive('channel')->with('stderr')->twice()->andThrow(new RuntimeException('stderr backend down'));
 
         $obj = new LoggableTestObject;
         $obj->testLog('test message');
@@ -54,7 +56,8 @@ test('swallowed logging failures stay silent when the notice is disabled', funct
             'phpredis-sentinel.log.notify_swallowed' => false,
         ]);
 
-        Log::shouldReceive('channel')->twice()->andThrow(new RuntimeException('log backend down'));
+        Log::shouldReceive('channel')->with('stack')->twice()->andThrow(new RuntimeException('log backend down'));
+        Log::shouldReceive('channel')->with('stderr')->twice()->andThrow(new RuntimeException('stderr backend down'));
 
         $obj = new LoggableTestObject;
         $obj->testLog('test message');
@@ -75,7 +78,50 @@ test('a logging outage cannot break the retry loop', function () {
         'phpredis-sentinel.log.notify_swallowed' => true,
     ]);
 
-    Log::shouldReceive('channel')->andThrow(new RuntimeException('log backend down'));
+    Log::shouldReceive('channel')->with('stack')->andThrow(new RuntimeException('log backend down'));
+
+    // When the configured channel is down, the safe-channel retry must deliver
+    // the entry to the 'stderr' channel instead of dropping it.
+    $stderr = Mockery::mock();
+    $stderr->shouldReceive('info')->atLeast()->once()->with(Mockery::pattern('/attempt/'), []);
+
+    Log::shouldReceive('channel')->with('stderr')->andReturn($stderr);
+
+    $obj = new class
+    {
+        use Loggable;
+        use Retryable;
+
+        public int $callCount = 0;
+
+        public function run(): string
+        {
+            return $this->retryOnFailure(function () {
+                $this->callCount++;
+                $this->log('attempt '.$this->callCount);
+
+                if ($this->callCount <= 2) {
+                    throw new RedisException('connection lost');
+                }
+
+                return 'success';
+            });
+        }
+
+        protected function sleepWithBackoff(int $attempt): void {}
+    };
+
+    $obj->setRetryMessages(['connection lost']);
+
+    expect($obj->run())->toBe('success')
+        ->and($obj->callCount)->toBe(3);
+});
+
+test('even the stderr fallback failing cannot break the retry loop', function () {
+    config(['phpredis-sentinel.log.channel' => 'stack']);
+
+    Log::shouldReceive('channel')->with('stack')->andThrow(new RuntimeException('log backend down'));
+    Log::shouldReceive('channel')->with('stderr')->andThrow(new RuntimeException('stderr down too'));
 
     $obj = new class
     {
