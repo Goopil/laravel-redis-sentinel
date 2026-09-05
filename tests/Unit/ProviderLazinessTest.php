@@ -1,6 +1,15 @@
 <?php
 
+use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Cache\RedisStore;
+
+test('connections() returns an array on a fresh manager, before any connection is resolved', function () {
+    // Fresh Octane workers fire RequestReceived before any Redis connection is
+    // resolved, and the stickiness reset iterates connections(). Upstream
+    // RedisManager leaves the underlying property uninitialized, which made
+    // connections() return null and the foreach crash.
+    expect(app(RedisSentinelManager::class)->connections())->toBeArray();
+});
 
 test('the provider does not eagerly resolve the cache, queue and session managers', function () {
     // Laravel 10's Testbench skeleton resolves `cache` during boot, independently of this
