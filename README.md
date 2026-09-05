@@ -6,6 +6,7 @@
 [![PHP Version](https://img.shields.io/badge/PHP-8.2%20%7C%208.3%20%7C%208.4%20%7C%208.5-blue)](https://www.php.net/)
 [![Laravel](https://img.shields.io/badge/Laravel-10%20%7C%2011%20%7C%2012%20%7C%2013-red)](https://laravel.com/)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/goopil/laravel-redis-sentinel.svg)](https://packagist.org/packages/goopil/laravel-redis-sentinel)
+[![Total Downloads](https://img.shields.io/packagist/dt/goopil/laravel-redis-sentinel.svg)](https://packagist.org/packages/goopil/laravel-redis-sentinel)
 
 A Laravel package that adds Redis Sentinel support through the PhpRedis extension.
 It is intended for high-availability Redis setups and handles failover and read/write splitting
@@ -912,7 +913,7 @@ The package includes a comprehensive GitHub Actions workflow that tests:
 
 - PHP 8.2, 8.3, 8.4, 8.5
 - Laravel 10, 11, 12, 13
-- Redis 6, 7
+- Redis 6, 7, 8
 - Valkey 8 (dedicated `tests-valkey` job)
 - Linting and static analysis before the test matrix
 - Matrix test jobs across isolated Redis Sentinel clusters
