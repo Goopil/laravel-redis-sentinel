@@ -68,6 +68,9 @@ class RedisSentinelConnector extends PhpRedisConnector
     /**
      * {@inheritdoc}
      *
+     * @param  array<string, mixed>  $config
+     * @param  array<string, mixed>  $options
+     *
      * @throws RedisException|Throwable
      */
     public function connect(array $config, array $options): RedisSentinelConnection
@@ -99,6 +102,10 @@ class RedisSentinelConnector extends PhpRedisConnector
 
     /**
      * {@inheritdoc}
+     *
+     * @param  array<string, mixed>  $config
+     * @param  array<string, mixed>  $clusterOptions
+     * @param  array<string, mixed>  $options
      */
     public function connectToCluster(array $config, array $clusterOptions, array $options): PhpRedisClusterConnection
     {
@@ -147,6 +154,9 @@ class RedisSentinelConnector extends PhpRedisConnector
 
     /**
      * Create the PhpRedis client instance which connects to Redis Sentinel.
+     *
+     *
+     * @param  array<string, mixed>  $config
      *
      * @throws ConfigurationException
      * @throws RedisException
@@ -200,6 +210,9 @@ class RedisSentinelConnector extends PhpRedisConnector
     /**
      * Get the master address from Sentinel.
      *
+     * @param  array<string, mixed>  $config
+     * @return array{ip: string, port: int}
+     *
      * @throws Throwable
      */
     protected function getMasterAddress(array $config, bool $refresh = false): array
@@ -248,6 +261,9 @@ class RedisSentinelConnector extends PhpRedisConnector
 
     /**
      * Get a replica address from Sentinel.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array{ip: string, port: int}
      *
      * @throws Throwable
      */
@@ -325,6 +341,9 @@ class RedisSentinelConnector extends PhpRedisConnector
      * When no Sentinel host is reachable the reported cause is the LAST failure
      * observed across the node loop (most recent, most specific). Earlier failures
      * are not preserved — the ConfigurationException carries only this one.
+     *
+     *
+     * @param  array<string, mixed>  $config
      *
      * @throws ConfigurationException
      */
@@ -473,11 +492,18 @@ class RedisSentinelConnector extends PhpRedisConnector
         return $service.'-'.sha1(implode(',', $endpoints));
     }
 
+    /**
+     * @param  array<string, mixed>  $config
+     */
     protected function getService(array $config): ?string
     {
         return $config['sentinel']['service'] ?? $config['service'] ?? null;
     }
 
+    /**
+     * @param  array<string, mixed>  $config
+     * @return array<int, array<string, int|string>>
+     */
     protected function getSentinels(array $config): array
     {
         $sentinels = $config['sentinels'] ?? $config['sentinel']['sentinels'] ?? null;
@@ -494,13 +520,26 @@ class RedisSentinelConnector extends PhpRedisConnector
         ];
     }
 
+    /**
+     * The phpredis >= 6 array-form constructor is valid at runtime but the
+     * bundled stubs only declare the positional form, so the array branch is
+     * triaged here.
+     *
+     * @param  array<string, int|string|null>  $options
+     */
     protected function createSentinelInstance(array $options): RedisSentinel
     {
         return $this->needParamsAsArray()
+            /** @phpstan-ignore argument.type, arguments.count (array-form ctor is valid on phpredis >= 6, stubs lag) */
             ? new RedisSentinel($options)
             : new RedisSentinel(...array_values($options));
     }
 
+    /**
+     * @param  array<string, mixed>  $config
+     * @param  array<string, mixed>  $options
+     * @return array<string, mixed>
+     */
     protected function mergeConnectionOptions(array $config, array $options): array
     {
         $configOptions = Arr::get($config, 'options', []);

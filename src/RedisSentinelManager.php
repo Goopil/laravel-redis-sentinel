@@ -54,6 +54,9 @@ class RedisSentinelManager extends RedisManager
         return $this->sentinelConnector()->connect($config, $options);
     }
 
+    /**
+     * @param  string|null  $name
+     */
     public function resolveConnector($name = null): Connector|PhpRedisConnector|PredisConnector|RedisSentinelConnector
     {
         $normalizedName = $this->patchHorizonConnectionName($name);
@@ -129,6 +132,10 @@ class RedisSentinelManager extends RedisManager
         return $name;
     }
 
+    /**
+     * @param  array<string, mixed>  $clientConfig
+     * @return array<string, mixed>
+     */
     protected function patchHorizonPrefix(string $name, array $clientConfig): array
     {
         if ($name === 'horizon' && $this->isHorizonContext()) {

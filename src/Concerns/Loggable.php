@@ -21,6 +21,8 @@ trait Loggable
      * If 'phpredis-sentinel.log.channel' is null, Log::channel(null) returns
      * the default logging channel. This is intentional and allows falling back
      * to the application's default log channel when no specific channel is configured.
+     *
+     * @param  array<string, mixed>  $context
      */
     protected function log(string $message, array $context = [], string $level = 'info'): void
     {
