@@ -45,3 +45,17 @@ test('sentinel.persistent fallback is preserved for workers and forced to zero i
 
     expect(clientConfigConnector()->testBuildClientConfig($config, '127.0.0.1', 6380)['persistent'])->toBe(0);
 });
+
+test('TLS scheme and stream context from options survive the client config merge', function () {
+    $built = clientConfigConnector()->testBuildClientConfig([
+        'options' => [
+            'scheme' => 'tls',
+            'context' => ['stream' => ['cafile' => '/tmp/ca.crt']],
+        ],
+    ], '10.0.0.1', 6380);
+
+    expect($built['scheme'])->toBe('tls')
+        ->and($built['context'])->toBe(['stream' => ['cafile' => '/tmp/ca.crt']])
+        ->and($built['host'])->toBe('10.0.0.1')
+        ->and($built['port'])->toBe(6380);
+});
