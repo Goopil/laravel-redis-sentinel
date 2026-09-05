@@ -53,6 +53,7 @@ jobs:
 
   security-audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -335,6 +336,7 @@ jobs:
   tests-valkey:
     needs: [lint]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     name: PHP 8.4 - L12 - Valkey
 
@@ -414,6 +416,7 @@ jobs:
   tests-chaos:
     needs: [lint]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     name: Chaos - real failover via toxiproxy (PHP 8.4 - L12 - R7)
 

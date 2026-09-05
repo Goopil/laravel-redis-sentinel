@@ -17,10 +17,8 @@ describe('Network degradation toxics', function () {
         }
 
         // The beforeEach resetAll severs Sentinel's monitoring links to the replicas
-        // (they are announced through the proxies), and while Sentinel still flags
-        // them disconnected the connector silently falls back to the master
-        $this->waitForHealthyReplicas();
-
+        // (they are announced through the proxies); bootToxiproxy's convergence
+        // barrier absorbs that before the test body starts
         config()->set('database.redis.phpredis-sentinel.read_only_replicas', true);
         $this->purgeSentinelConnection();
 
