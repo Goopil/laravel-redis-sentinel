@@ -13,6 +13,90 @@ beforeEach(function () {
     config(['horizon.use' => 'phpredis-sentinel']);
 });
 
+test('horizon:alive resolves the service from the documented connection-level config', function () {
+    config([
+        'database.redis.phpredis-sentinel' => [
+            'client' => 'phpredis-sentinel',
+            'service' => 'mymaster',
+            'sentinel' => [
+                'host' => HORIZON_LIVENESS_TEST_HOST,
+                'port' => 26379,
+            ],
+        ],
+    ]);
+
+    $connector = Mockery::mock(RedisSentinelConnector::class);
+    $sentinel = Mockery::mock(RedisSentinel::class);
+    $sentinel->expects('getMasterAddrByName')
+        ->with('mymaster')
+        ->andReturns(['ip' => HORIZON_LIVENESS_TEST_HOST, 'port' => 26379]);
+    $connector->expects('createSentinel')->andReturns($sentinel);
+
+    $manager = Mockery::mock(RedisSentinelManager::class);
+    $manager->allows('resolveConnector')
+        ->with('phpredis-sentinel')
+        ->andReturns($connector);
+
+    $connection = Mockery::mock(Connection::class);
+    $connection->allows('setex')->andReturns(true);
+    $manager->allows('resolve')->with('phpredis-sentinel')->andReturns($connection);
+
+    app()->instance(RedisSentinelManager::class, $manager);
+
+    $master = new stdClass;
+    $master->name = MasterSupervisor::basename().'-tst1';
+    $master->status = 'running';
+    $repository = Mockery::mock(MasterSupervisorRepository::class);
+    $repository->allows('all')->andReturns([$master]);
+    app()->instance(MasterSupervisorRepository::class, $repository);
+
+    $status = Artisan::call('horizon:alive');
+
+    expect($status)->toBe(0);
+});
+
+test('horizon:alive still resolves the service from the nested sentinel config', function () {
+    config([
+        'database.redis.phpredis-sentinel' => [
+            'client' => 'phpredis-sentinel',
+            'sentinel' => [
+                'host' => HORIZON_LIVENESS_TEST_HOST,
+                'port' => 26379,
+                'service' => 'nestedmaster',
+            ],
+        ],
+    ]);
+
+    $connector = Mockery::mock(RedisSentinelConnector::class);
+    $sentinel = Mockery::mock(RedisSentinel::class);
+    $sentinel->expects('getMasterAddrByName')
+        ->with('nestedmaster')
+        ->andReturns(['ip' => HORIZON_LIVENESS_TEST_HOST, 'port' => 26379]);
+    $connector->expects('createSentinel')->andReturns($sentinel);
+
+    $manager = Mockery::mock(RedisSentinelManager::class);
+    $manager->allows('resolveConnector')
+        ->with('phpredis-sentinel')
+        ->andReturns($connector);
+
+    $connection = Mockery::mock(Connection::class);
+    $connection->allows('setex')->andReturns(true);
+    $manager->allows('resolve')->with('phpredis-sentinel')->andReturns($connection);
+
+    app()->instance(RedisSentinelManager::class, $manager);
+
+    $master = new stdClass;
+    $master->name = MasterSupervisor::basename().'-tst1';
+    $master->status = 'running';
+    $repository = Mockery::mock(MasterSupervisorRepository::class);
+    $repository->allows('all')->andReturns([$master]);
+    app()->instance(MasterSupervisorRepository::class, $repository);
+
+    $status = Artisan::call('horizon:alive');
+
+    expect($status)->toBe(0);
+});
+
 test('horizon:alive returns 0 when all checks pass', function () {
     // 1. Mock Sentinel check (returns 1 on success)
     $connector = Mockery::mock(RedisSentinelConnector::class);
