@@ -572,7 +572,7 @@ class RedisSentinelConnector extends PhpRedisConnector
      * bundled stubs only declare the positional form, so the array branch is
      * triaged here.
      *
-     * @param  array<string, int|string|null>  $options
+     * @param  array<string, mixed>  $options
      */
     protected function createSentinelInstance(array $options): RedisSentinel
     {
