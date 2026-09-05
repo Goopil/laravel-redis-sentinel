@@ -1,3 +1,10 @@
+## [1.8.7](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.6...1.8.7) (2026-09-05)
+
+
+### Bug Fixes
+
+* initialize connections array so fresh workers never hit null foreach ([#107](https://github.com/Goopil/laravel-redis-sentinel/issues/107)) ([0166173](https://github.com/Goopil/laravel-redis-sentinel/commit/0166173a189f93d38acc9045e0ac1790624b1a38))
+
 ## [1.8.6](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.5...1.8.6) (2026-09-05)
 
 
