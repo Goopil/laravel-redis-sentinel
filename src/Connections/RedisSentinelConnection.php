@@ -32,12 +32,12 @@ use Throwable;
  *
  * @method mixed get(string $key) Get the value of a key
  * @method bool set(string $key, mixed $value, mixed $expireResolution = null, mixed $expireTTL = null, mixed $flag = null) Set the string value of a key
- * @method int|false del(string|array $key, ...$other_keys) Delete one or more keys
- * @method bool exists(string|array $key) Determine if a key exists
+ * @method int|false del(array<int, string>|string $key, ...$other_keys) Delete one or more keys
+ * @method bool exists(array<int, string>|string $key) Determine if a key exists
  * @method int expire(string $key, int $seconds) Set a key's time to live in seconds
  * @method int ttl(string $key) Get the time to live for a key in seconds
- * @method array mget(array $keys) Get the values of all the given keys
- * @method bool mset(array $array) Set multiple keys to multiple values
+ * @method array<int, string|false> mget(array<int, string> $keys) Get the values of all the given keys
+ * @method bool mset(array<string, mixed> $array) Set multiple keys to multiple values
  * @method int|false incr(string $key) Increment the integer value of a key by one
  * @method int|false decr(string $key) Decrement the integer value of a key by one
  * @method int|false incrBy(string $key, int $value) Increment the integer value of a key by the given amount
@@ -46,25 +46,25 @@ use Throwable;
  * @method bool hSet(string $key, string $field, mixed $value) Set the string value of a hash field
  * @method int|false hDel(string $key, string $field, ...$other_fields) Delete one or more hash fields
  * @method bool hExists(string $key, string $field) Determine if a hash field exists
- * @method array hGetAll(string $key) Get all the fields and values in a hash
- * @method array hKeys(string $key) Get all the fields in a hash
- * @method array hVals(string $key) Get all the values in a hash
+ * @method array<string, string> hGetAll(string $key) Get all the fields and values in a hash
+ * @method array<int, string> hKeys(string $key) Get all the fields in a hash
+ * @method array<int, string> hVals(string $key) Get all the values in a hash
  * @method int hLen(string $key) Get the number of fields in a hash
  * @method int|false lPush(string $key, ...$values) Prepend one or multiple values to a list
  * @method int|false rPush(string $key, ...$values) Append one or multiple values to a list
  * @method mixed lPop(string $key) Remove and get the first element in a list
  * @method mixed rPop(string $key) Remove and get the last element in a list
  * @method int lLen(string $key) Get the length of a list
- * @method array lRange(string $key, int $start, int $stop) Get a range of elements from a list
+ * @method array<int, string> lRange(string $key, int $start, int $stop) Get a range of elements from a list
  * @method int|false sAdd(string $key, ...$values) Add one or more members to a set
  * @method int|false sRem(string $key, ...$values) Remove one or more members from a set
- * @method array sMembers(string $key) Get all the members in a set
+ * @method array<int, string> sMembers(string $key) Get all the members in a set
  * @method bool sIsMember(string $key, mixed $value) Determine if a given value is a member of a set
  * @method int sCard(string $key) Get the number of members in a set
  * @method int|false zAdd(string $key, mixed $options, mixed $score1, mixed $value1 = null, mixed $score2 = null, mixed $value2 = null) Add one or more members to a sorted set, or update its score if it already exists
  * @method int|false zRem(string $key, ...$values) Remove one or more members from a sorted set
- * @method array zRange(string $key, int $start, int $stop, bool $withScores = false) Return a range of members in a sorted set, by index
- * @method array zRevRange(string $key, int $start, int $stop, bool $withScores = false) Return a range of members in a sorted set, by index, with scores ordered from high to low
+ * @method array<int|string, mixed> zRange(string $key, int $start, int $stop, bool $withScores = false) Return a range of members in a sorted set, by index
+ * @method array<int|string, mixed> zRevRange(string $key, int $start, int $stop, bool $withScores = false) Return a range of members in a sorted set, by index, with scores ordered from high to low
  * @method int zCard(string $key) Get the number of members in a sorted set
  * @method float|false zScore(string $key, mixed $member) Get the score associated with the given member in a sorted set
  */
@@ -124,7 +124,7 @@ class RedisSentinelConnection extends PhpRedisConnection
      *
      * @param  \Redis  $client  The master client instance
      * @param  callable|null  $connector  Callback to create a new master connection
-     * @param  array  $config  Connection configuration
+     * @param  array<string, mixed>  $config  Connection configuration
      * @param  callable|null  $readConnector  Callback to create a new read-only connection
      * @param  ConnectionContext|null  $context  Execution context store; defaults to a process/coroutine-aware one
      */
@@ -204,6 +204,8 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * @param  array<int|string, mixed>|null  $options
+     *
      * @throws Throwable
      */
     public function scan($cursor, $options = []): mixed
@@ -220,6 +222,8 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * @param  array<int|string, mixed>|null  $options
+     *
      * @throws Throwable
      */
     public function zscan($key, $cursor, $options = []): mixed
@@ -236,6 +240,8 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * @param  array<int|string, mixed>|null  $options
+     *
      * @throws Throwable
      */
     public function hscan($key, $cursor, $options = []): mixed
@@ -252,6 +258,8 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * @param  array<int|string, mixed>|null  $options
+     *
      * @throws Throwable
      */
     public function sscan($key, $cursor, $options = []): mixed
@@ -321,6 +329,8 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * @return array<int, mixed>|\Redis
+     *
      * @throws Throwable
      */
     public function pipeline(?callable $callback = null): array|\Redis
@@ -339,6 +349,8 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * @return array<int, mixed>|\Redis
+     *
      * @throws Throwable
      */
     public function transaction(?callable $callback = null): array|\Redis
@@ -357,6 +369,8 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * @param  array<int, string>|string  $channels
+     *
      * @throws Throwable
      */
     public function subscribe($channels, Closure $callback): void
@@ -368,6 +382,8 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * @param  array<int, string>|string  $channels
+     *
      * @throws Throwable
      */
     public function psubscribe($channels, Closure $callback): void
@@ -379,6 +395,8 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
+     * @param  array<int|string, mixed>  $parameters
+     *
      * @throws Throwable
      * @throws RedisException
      */
@@ -387,6 +405,10 @@ class RedisSentinelConnection extends PhpRedisConnection
         return $this->retry(
             function () use ($method, $parameters) {
                 $connector = $this->connector;
+
+                // Transiently inert connector: parent::command()'s catch-block
+                // reconnect must not fire, this connection owns the retry path.
+                /** @phpstan-ignore assign.propertyType (intentional null swap, restored in finally) */
                 $this->connector = null;
 
                 try {

@@ -23,6 +23,8 @@ trait Retryable
 
     /**
      * The exception message triggering a retry.
+     *
+     * @var array<int, string>
      */
     protected array $retryMessages = [];
 
@@ -40,9 +42,12 @@ trait Retryable
         return $this;
     }
 
+    /**
+     * @param  array<int, string>  $retryMessages
+     */
     public function setRetryMessages(array $retryMessages): static
     {
-        $this->retryMessages = $retryMessages;
+        $this->retryMessages = array_values(array_filter($retryMessages, 'is_string'));
 
         return $this;
     }
@@ -58,6 +63,8 @@ trait Retryable
     }
 
     /**
+     * @return mixed the callback's result
+     *
      * @throws Throwable
      */
     protected function retryOnFailure(

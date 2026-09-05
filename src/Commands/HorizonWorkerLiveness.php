@@ -5,6 +5,7 @@ namespace Goopil\LaravelRedisSentinel\Commands;
 use Carbon\Carbon;
 use Goopil\LaravelRedisSentinel\Concerns\EmitsWorkerEvents;
 use Goopil\LaravelRedisSentinel\Concerns\Loggable;
+use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\Events\HorizonWorkerAlive;
 use Goopil\LaravelRedisSentinel\Events\HorizonWorkerNotAlive;
 use Goopil\LaravelRedisSentinel\RedisSentinelManager;
@@ -77,8 +78,10 @@ class HorizonWorkerLiveness extends Command
         );
 
         try {
-            $data = $manager
-                ->resolveConnector($connectionName)
+            /** @var RedisSentinelConnector $connector */
+            $connector = $manager->resolveConnector($connectionName);
+
+            $data = $connector
                 ->createSentinel($connectionName)
                 ->getMasterAddrByName($service);
 

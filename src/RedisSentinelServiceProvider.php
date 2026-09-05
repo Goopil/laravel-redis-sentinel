@@ -124,6 +124,9 @@ class RedisSentinelServiceProvider extends ServiceProvider
             return;
         }
 
+        // The deferred-services contract only exists on the concrete foundation
+        // Application; the contracts interface lags behind.
+        /** @phpstan-ignore method.notFound (deferred-services API lives on the concrete Application, not the contract) */
         $deferredServices = $this->app->getDeferredServices();
 
         unset(
@@ -131,6 +134,7 @@ class RedisSentinelServiceProvider extends ServiceProvider
             $deferredServices['redis.connection']
         );
 
+        /** @phpstan-ignore method.notFound (see above) */
         $this->app->setDeferredServices($deferredServices);
 
         $this->app->singleton(
