@@ -763,6 +763,28 @@ spec:
 
 ## Operations
 
+### sentinel:status
+
+An ops-facing console command that inspects every Sentinel-backed connection through the same resolution path the
+runtime uses (connector retries, breaker, and TLS included — what you see is what your application sees):
+
+```bash
+php artisan sentinel:status                          # all sentinel connections
+php artisan sentinel:status --connection=default     # one connection only
+php artisan sentinel:status --json                   # machine-readable output (CI checks, alerts)
+```
+
+It prints the resolved master (address, flags, quorum, down-after, failover-timeout), each replica with its
+`master-link-status`, and the peer Sentinels. Exit code is `0` when every inspected connection answered, `1` when at
+least one Sentinel is unreachable or the configuration has no service name — usable as a quick CI/deploy gate.
+
+`--watch` streams Sentinel pub/sub events (`+switch-master`, `+failover-end`, `+sdown`, `+odown`, `+convert-to-slave`,
+`+promoted-slave`) for a single connection and blocks until interrupted (Ctrl+C); it does not support TLS Sentinels.
+
+```bash
+php artisan sentinel:status --watch --connection=default
+```
+
 ### Runtime Behaviour
 
 - **Failover is not instant**: Redis Sentinel needs time to detect a master failure, elect a new master, and expose the
