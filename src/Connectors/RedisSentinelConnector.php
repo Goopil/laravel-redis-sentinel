@@ -122,7 +122,7 @@ class RedisSentinelConnector extends PhpRedisConnector
             throw new RedisException(sprintf('No sentinel config'));
         }
 
-        $service = $this->getService($config);
+        $service = static::serviceFromConfig($config);
 
         if (empty($service)) {
             throw new ConfigurationException(sprintf("No service name has been specified for the Redis Sentinel connection '%s'.", $name));
@@ -219,7 +219,7 @@ class RedisSentinelConnector extends PhpRedisConnector
      */
     protected function getMasterAddress(array $config, bool $refresh = false): array
     {
-        $service = $this->getService($config);
+        $service = static::serviceFromConfig($config);
 
         if ($refresh) {
             $this->masterCache->forgetMaster($this->getNodeCacheKey($config));
@@ -271,7 +271,7 @@ class RedisSentinelConnector extends PhpRedisConnector
      */
     protected function getReplicaAddress(array $config, bool $refresh = false): array
     {
-        $service = $this->getService($config);
+        $service = static::serviceFromConfig($config);
 
         if ($refresh) {
             $this->masterCache->forgetReplicas($this->getNodeCacheKey($config));
@@ -487,7 +487,7 @@ class RedisSentinelConnector extends PhpRedisConnector
      */
     public function getNodeCacheKey(array $config): string
     {
-        $service = $this->getService($config) ?? '';
+        $service = static::serviceFromConfig($config) ?? '';
 
         $endpoints = [];
 
@@ -510,7 +510,15 @@ class RedisSentinelConnector extends PhpRedisConnector
     /**
      * @param  array<string, mixed>  $config
      */
-    protected function getService(array $config): ?string
+    /**
+     * Single source of truth for the monitored master name. Nested
+     * `sentinel.service` wins over the connection-level `service` key; both
+     * readers in this package (connector, liveness probe) must route through
+     * this resolver so the schema contract cannot drift again (see 1.9.0).
+     *
+     * @param  array<string, mixed>  $config
+     */
+    public static function serviceFromConfig(array $config): ?string
     {
         return $config['sentinel']['service'] ?? $config['service'] ?? null;
     }
