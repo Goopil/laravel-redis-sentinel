@@ -5,6 +5,7 @@ namespace Goopil\LaravelRedisSentinel;
 use Goopil\LaravelRedisSentinel\Commands\HorizonWorkerLiveness;
 use Goopil\LaravelRedisSentinel\Commands\HorizonWorkerPreStop;
 use Goopil\LaravelRedisSentinel\Commands\HorizonWorkerReadiness;
+use Goopil\LaravelRedisSentinel\Commands\SentinelStatus;
 use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
@@ -45,6 +46,8 @@ class RedisSentinelServiceProvider extends ServiceProvider
         $this->bootQueue();
         $this->bootQueueEvents();
         $this->bootCommands();
+        // Ops-facing, available regardless of Horizon's presence.
+        $this->commands([SentinelStatus::class]);
         $this->bootOctane();
     }
 
