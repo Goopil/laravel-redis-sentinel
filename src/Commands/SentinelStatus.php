@@ -103,10 +103,14 @@ class SentinelStatus extends Command
      */
     private function sentinelConnectionNames(): array
     {
+        // Laravel's precedence: a per-connection `client` key overrides the
+        // global `database.redis.client` — the manager and the Horizon
+        // liveness command resolve the driver the same way.
+        $globalClient = config('database.redis.client');
         $names = [];
 
         foreach ((array) config('database.redis') as $name => $config) {
-            if (! is_array($config) || ($config['client'] ?? null) !== 'phpredis-sentinel') {
+            if (! is_array($config) || ($config['client'] ?? $globalClient) !== 'phpredis-sentinel') {
                 continue;
             }
 

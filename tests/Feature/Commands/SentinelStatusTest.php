@@ -72,6 +72,53 @@ test('sentinel:status errors when no sentinel connection is configured', functio
         ->and($output)->toContain('No Redis Sentinel connection defined');
 });
 
+test('sentinel:status detects connections via the global database.redis.client', function () {
+    // The documented shape: the client driver is set globally and sentinel
+    // connections do not re-declare it. Detection must honor the same
+    // precedence as the manager and the liveness command.
+    config([
+        'database.redis' => [
+            'client' => 'phpredis-sentinel',
+            'phpredis-sentinel' => [
+                'sentinel' => [
+                    'host' => env('REDIS_SENTINEL_HOST', '127.0.0.1'),
+                    'port' => env('REDIS_SENTINEL_PORT', 26379),
+                    'service' => env('REDIS_SENTINEL_SERVICE', 'master'),
+                    'password' => env('REDIS_SENTINEL_PASSWORD', 'test'),
+                ],
+                'password' => env('REDIS_PASSWORD', 'test'),
+                'timeout' => 1,
+                'read_timeout' => 1,
+            ],
+        ],
+    ]);
+
+    $status = Artisan::call('sentinel:status', ['--connection' => ['phpredis-sentinel']]);
+    $output = Artisan::output();
+
+    expect($status)->toBe(0)
+        ->and($output)->toContain('phpredis-sentinel')
+        ->and($output)->toContain('master');
+});
+
+test('sentinel:status lets a per-connection client override exclude a connection', function () {
+    config([
+        'database.redis' => [
+            'client' => 'phpredis-sentinel',
+            'phpredis-sentinel' => [
+                'client' => 'phpredis',
+                'sentinel' => ['host' => '127.0.0.1', 'port' => 26379, 'service' => 'master'],
+            ],
+        ],
+    ]);
+
+    $status = Artisan::call('sentinel:status');
+    $output = Artisan::output();
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('No Redis Sentinel connection defined');
+});
+
 test('sentinel:status --watch refuses to guess between multiple connections', function () {
     // TestCase defines two sentinel connections; without a filter the command
     // must ask the operator to pick one instead of watching silently.
