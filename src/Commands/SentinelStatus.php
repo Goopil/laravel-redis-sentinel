@@ -198,8 +198,7 @@ class SentinelStatus extends Command
     /**
      * Stream Sentinel events over a plain pub/sub subscribe. This blocks until
      * the process is terminated (Ctrl+C); no timeout applies while subscribed.
-     */
-    /**
+     *
      * @param  array<string, mixed>  $config
      */
     private function watch(array $config): int
@@ -224,19 +223,25 @@ class SentinelStatus extends Command
             $redis = new Redis;
             $connected = $redis->connect($host, $port, 3.0);
 
+            // @codeCoverageIgnoreStart
+            // Defensive: phpredis 5.x returns false instead of throwing.
             if ($connected === false) {
                 throw new RedisException('connection refused');
             }
-
-            $password = (string) ($sentinelConfig['password'] ?? $config['password'] ?? '');
-
-            if ($password !== '') {
-                $redis->auth($password);
-            }
+            // @codeCoverageIgnoreEnd
         } catch (RedisException $exception) {
             $this->error(sprintf('Could not connect to sentinel %s:%d: %s', $host, $port, $exception->getMessage()));
 
             return 1;
+        }
+
+        // @codeCoverageIgnoreStart
+        // Blocking pub/sub: manually smoke-tested against a live Sentinel; not
+        // exercisable in-suite because subscribe() never returns until disconnect.
+        $password = (string) ($sentinelConfig['password'] ?? $config['password'] ?? '');
+
+        if ($password !== '') {
+            $redis->auth($password);
         }
 
         $this->info(sprintf('Watching sentinel events on %s:%d (Ctrl+C to stop).', $host, $port));
@@ -246,5 +251,6 @@ class SentinelStatus extends Command
         });
 
         return 0;
+        // @codeCoverageIgnoreEnd
     }
 }

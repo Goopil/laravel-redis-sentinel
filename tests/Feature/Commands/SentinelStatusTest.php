@@ -111,6 +111,39 @@ test('sentinel:status --watch reports unreachable sentinels', function () {
         ->and($output)->toContain('Could not connect to sentinel 127.0.0.1:59999');
 });
 
+test('sentinel:status --watch reports a missing sentinel host', function () {
+    config([
+        'database.redis.phpredis-sentinel' => [
+            'client' => 'phpredis-sentinel',
+            'sentinel' => ['port' => 26379, 'service' => 'master'],
+        ],
+    ]);
+
+    $status = Artisan::call('sentinel:status', [
+        '--connection' => ['phpredis-sentinel'],
+        '--watch' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('No sentinel host configured.');
+});
+
+test('sentinel:status skips sentinel-driver connections without sentinel endpoints', function () {
+    config([
+        'database.redis.phpredis-sentinel' => [
+            'client' => 'phpredis-sentinel',
+            'password' => 'test',
+        ],
+    ]);
+
+    $status = Artisan::call('sentinel:status', ['--connection' => ['phpredis-sentinel']]);
+    $output = Artisan::output();
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('Unknown or non-Sentinel connection(s): phpredis-sentinel');
+});
+
 test('formatEvent renders switch-master events with a promotion arrow', function () {
     $line = SentinelStatus::formatEvent('+switch-master', 'master 127.0.0.1 6380 127.0.0.1 6381');
     $other = SentinelStatus::formatEvent('+sdown', 'master master 127.0.0.1 6380');
