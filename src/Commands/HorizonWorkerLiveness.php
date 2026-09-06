@@ -71,10 +71,11 @@ class HorizonWorkerLiveness extends Command
     public function checkSentinel(RedisSentinelManager $manager): int
     {
         $connectionName = config('horizon.use');
-        // Same resolution order as RedisSentinelConnector::getService():
-        // nested sentinel.service first, then the connection-level key.
-        $service = config(sprintf('database.redis.%s.sentinel.service', $connectionName))
-            ?? config(sprintf('database.redis.%s.service', $connectionName));
+        // Same resolver as the connector: nested sentinel.service first, then
+        // the connection-level key (single source of truth, contract-tested).
+        $service = RedisSentinelConnector::serviceFromConfig(
+            (array) config(sprintf('database.redis.%s', $connectionName))
+        );
         $client = config(
             sprintf('database.redis.%s.client', $connectionName),
             config('database.redis.client')
