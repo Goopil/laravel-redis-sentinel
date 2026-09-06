@@ -1,3 +1,10 @@
+## [1.10.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.10.0...1.10.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* sentinel:status honors global database.redis.client in detection ([1673cb4](https://github.com/Goopil/laravel-redis-sentinel/commit/1673cb468deb3fcd4112e3d7a772f6dc95ef46b4))
+
 # [1.10.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.9.0...1.10.0) (2026-09-06)
 
 
