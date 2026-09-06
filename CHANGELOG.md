@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.9.0...1.10.0) (2026-09-06)
+
+
+### Features
+
+* sentinel:status command (fleet topology + --watch event feed) ([#113](https://github.com/Goopil/laravel-redis-sentinel/issues/113)) ([7de3d36](https://github.com/Goopil/laravel-redis-sentinel/commit/7de3d3657a96a2a34133192d85d0103055aaefb7))
+
 # [1.9.0](https://github.com/Goopil/laravel-redis-sentinel/compare/1.8.8...1.9.0) (2026-09-05)
 
 
