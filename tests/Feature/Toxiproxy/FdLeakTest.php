@@ -42,10 +42,10 @@ test('repeated sentinel failovers do not leak file descriptors on a shared conne
     $monotonicGrowth = array_filter($deltas, fn (int $delta): bool => $delta >= 1) === $deltas;
 
     if ($monotonicGrowth) {
-        $this->markTestSkipped(sprintf(
-            'Descriptor leak across sentinel failovers confirmed: fd counts [%s], per-cycle deltas [%s], total growth %d over 3 cycles (~%.1f fds/cycle).'
+        $this->fail(sprintf(
+            'Descriptor leak across sentinel failovers: fd counts [%s], per-cycle deltas [%s], total growth %d over 3 cycles (~%.1f fds/cycle).'
             .' Each retry-triggered client refresh replaces the master/replica client without closing the old one.'
-            .' Fix candidate: close replaced clients in RedisSentinelConnection::retry() onFail - behavior change deserving its own PR.',
+            .' Fix candidate: close replaced clients in RedisSentinelConnection::retry() onFail.',
             implode(', ', $counts),
             implode(', ', $deltas),
             $total,
