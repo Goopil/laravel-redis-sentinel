@@ -474,7 +474,28 @@ class RedisSentinelConnection extends PhpRedisConnection
                 $this->client = $targetClient;
 
                 try {
-                    return $callback();
+                    // phpredis >= 6 reports EVAL/EVALSHA server errors (e.g. -READONLY
+                    // from a node demoted by a failover) only through getLastError(),
+                    // returning false instead of throwing, so the retry below would
+                    // never see the failure and a queue push would be silently dropped.
+                    // A script legitimately returning nil also yields false, so the
+                    // stored error is the only discriminator; clear it first so a stale
+                    // error from a previous command cannot false-positive.
+                    if ($this->isScriptCommand($name)) {
+                        $targetClient->clearLastError();
+                    }
+
+                    $result = $callback();
+
+                    if ($result === false && $this->isScriptCommand($name)) {
+                        $error = $targetClient->getLastError();
+
+                        if ($error !== null) {
+                            throw new RedisException($error);
+                        }
+                    }
+
+                    return $result;
                 } finally {
                     $this->client = $previous;
                 }
@@ -636,5 +657,14 @@ class RedisSentinelConnection extends PhpRedisConnection
     protected function isReadOnlyCommand(string $method): bool
     {
         return in_array(strtolower($method), $this->readOnlyCommands ?? self::READ_ONLY_COMMAND);
+    }
+
+    /**
+     * phpredis >= 6 reports EVAL/EVALSHA server errors only through
+     * Redis::getLastError(), returning false instead of throwing.
+     */
+    private function isScriptCommand(string $method): bool
+    {
+        return in_array(strtolower($method), ['eval', 'evalsha'], true);
     }
 }
