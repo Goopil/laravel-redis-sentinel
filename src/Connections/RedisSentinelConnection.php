@@ -660,11 +660,11 @@ class RedisSentinelConnection extends PhpRedisConnection
     }
 
     /**
-     * phpredis >= 6 reports EVAL/EVALSHA server errors only through
+     * phpredis >= 6 reports script-invocation server errors only through
      * Redis::getLastError(), returning false instead of throwing.
      */
     private function isScriptCommand(string $method): bool
     {
-        return in_array(strtolower($method), ['eval', 'evalsha'], true);
+        return in_array(strtolower($method), ['eval', 'evalsha', 'fcall', 'fcall_ro'], true);
     }
 }
