@@ -313,10 +313,13 @@ class RedisSentinelConnector extends PhpRedisConnector
             $replicas = array_values(array_filter($slaves, static function ($s) {
                 $flags = $s['flags'] ?? $s['role-reported'] ?? '';
 
+                // Sentinel only ever reports master-link-status ok|err: an errored link
+                // means the replica is disconnected from its master (typical right after
+                // a failover) and would serve stale reads
                 return ! str_contains($flags, 's_down') &&
                        ! str_contains($flags, 'o_down') &&
                        ! str_contains($flags, 'disconnected') &&
-                       ($s['master-link-status'] ?? 'ok') !== 'disconnect';
+                       ($s['master-link-status'] ?? 'ok') === 'ok';
             }));
 
             if (empty($replicas)) {

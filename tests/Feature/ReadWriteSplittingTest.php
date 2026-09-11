@@ -403,13 +403,14 @@ test('it filters out unhealthy replicas', function () {
     expect($connection->getReadClient()->getHost())->toBe(HOST_3);
 });
 
-test('it filters out replicas with a disconnected master link', function () {
+test('it filters out replicas with an errored master link', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->shouldReceive('ping')->andReturn(true);
     $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => HOST_1, 'port' => 6379]);
 
+    // Sentinel only ever reports master-link-status ok|err
     $sentinelMock->shouldReceive('slaves')->with('mymaster')->andReturn([
-        ['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave', 'master-link-status' => 'disconnect'],
+        ['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave', 'master-link-status' => 'err'],
         ['ip' => HOST_3, 'port' => 6379, 'flags' => 'slave', 'master-link-status' => 'ok'],
     ]);
 
@@ -446,14 +447,14 @@ test('it filters out replicas with a disconnected master link', function () {
     expect($connection->getReadClient()->getHost())->toBe(HOST_3);
 });
 
-test('it falls back to master when all replicas have a disconnected master link', function () {
+test('it falls back to master when all replicas have an errored master link', function () {
     $sentinelMock = Mockery::mock(RedisSentinel::class);
     $sentinelMock->shouldReceive('ping')->andReturn(true);
     $sentinelMock->shouldReceive('master')->with('mymaster')->andReturn(['ip' => HOST_1, 'port' => 6379]);
 
     $sentinelMock->shouldReceive('slaves')->with('mymaster')->andReturn([
-        ['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave', 'master-link-status' => 'disconnect'],
-        ['ip' => HOST_3, 'port' => 6379, 'flags' => 'slave', 'master-link-status' => 'disconnect'],
+        ['ip' => HOST_2, 'port' => 6379, 'flags' => 'slave', 'master-link-status' => 'err'],
+        ['ip' => HOST_3, 'port' => 6379, 'flags' => 'slave', 'master-link-status' => 'err'],
     ]);
 
     $connector = new class($sentinelMock) extends RedisSentinelConnector
