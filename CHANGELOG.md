@@ -1,3 +1,10 @@
+## [1.10.2](https://github.com/Goopil/laravel-redis-sentinel/compare/1.10.1...1.10.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* surface phpredis 6 silent EVAL errors to the retry layer ([#114](https://github.com/Goopil/laravel-redis-sentinel/issues/114)) ([a399e83](https://github.com/Goopil/laravel-redis-sentinel/commit/a399e83b639bb3619d5a6630106dcaec394e532c))
+
 ## [1.10.1](https://github.com/Goopil/laravel-redis-sentinel/compare/1.10.0...1.10.1) (2026-09-06)
 
 
