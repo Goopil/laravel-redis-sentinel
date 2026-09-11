@@ -3,6 +3,7 @@
 use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionReconnected;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
 
 describe('Real Sentinel failover through toxiproxy', function () {
@@ -95,6 +96,44 @@ describe('Real Sentinel failover through toxiproxy', function () {
             ->and($stale->get('chaos_readonly'))->toBe('v2');
 
         Event::assertDispatched(RedisSentinelConnectionReconnected::class);
+
+        $cached = app(NodeAddressCache::class)->get(sentinelNodeCacheKey());
+        expect($cached['port'])->toBe($newAddress['port'], 'Cache must be refreshed to the promoted master');
+    });
+
+    test('queue push on a connection still pointing at the demoted master retries through Sentinel instead of surfacing READONLY', function () {
+        config()->set('queue.connections.redis.connection', 'phpredis-sentinel');
+
+        $oldAddress = $this->sentinelMasterAddress();
+
+        // Recreate the roast R1 state: failover completes AND the old master is back
+        // online as a replica, so writes against it raise -READONLY (not a transport error)
+        $this->toxiproxy->disable($this->proxyNameForPort($oldAddress['port']));
+        $newAddress = $this->waitForMasterChange($oldAddress);
+        $this->toxiproxy->enable($this->proxyNameForPort($oldAddress['port']));
+        expect($this->waitForReplicaRole($this->nodePortForProxyPort($oldAddress['port']), 'slave', 30))
+            ->toBeTrue('Old master should be demoted to replica');
+
+        // Mimic a long-running queue worker whose resolved master address survived the
+        // failover, then force a fresh connection that reads the stale cache
+        app(NodeAddressCache::class)->set(sentinelNodeCacheKey(), $oldAddress['ip'], $oldAddress['port']);
+        $this->purgeSentinelConnection();
+
+        // The push's eval targets the demoted node: phpredis 6 reports the -READONLY
+        // script error only through getLastError() (no exception), so the retry must
+        // surface it, re-resolve the promoted master through Sentinel and replay the
+        // push instead of silently dropping the job
+        $payload = json_encode(['id' => 'chaos-queue-'.uniqid(), 'job' => 'chaos', 'data' => []]);
+        expect(Queue::connection('redis')->pushRaw($payload))->not->toBeNull();
+
+        $probe = new \Redis;
+        $probe->connect($newAddress['ip'], $newAddress['port']);
+        $probe->auth(getenv('REDIS_PASSWORD') ?: 'test');
+        $keys = $probe->keys('*queues*');
+        $probe->close();
+
+        expect($keys)->toBeArray()->not->toBeEmpty('Push must land the job on the promoted master')
+            ->and(Redis::connection('phpredis-sentinel')->lLen('queues:default'))->toBeGreaterThanOrEqual(1);
 
         $cached = app(NodeAddressCache::class)->get(sentinelNodeCacheKey());
         expect($cached['port'])->toBe($newAddress['port'], 'Cache must be refreshed to the promoted master');

@@ -4,6 +4,7 @@ use Goopil\LaravelRedisSentinel\Connections\RedisSentinelConnection;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionFailed;
 use Goopil\LaravelRedisSentinel\Events\RedisSentinelConnectionMaxRetryFailed;
 use Goopil\LaravelRedisSentinel\Tests\Support\FakeContext;
+use Goopil\LaravelRedisSentinel\Tests\Unit\Stubs\ScriptFakeRedis;
 use Illuminate\Support\Facades\Event;
 
 test('a failing dynamic command is retried exactly retryLimit + 1 times', function () {
@@ -215,4 +216,78 @@ test('a non-transport exception thrown inside transaction() is never replayed', 
 
     expect($calls)->toBe(1)
         ->and(Event::assertDispatchedTimes(RedisSentinelConnectionFailed::class, 0))->toBeNull();
+});
+
+test('a phpredis 6 silent eval error surfaces through getLastError and is retried via Sentinel', function () {
+    Event::fake();
+
+    // Mockery cannot override eval() (reserved word falls through to the real
+    // client), so the phpredis >= 6 silent-error contract is simulated by a stub
+    $readonlyError = "ERR Error running script (call to f_abc): @user_script:1: -READONLY You can't write against a read only replica.";
+
+    $demotedMaster = new ScriptFakeRedis;
+    $demotedMaster->nextError = $readonlyError;
+
+    $promotedMaster = new ScriptFakeRedis;
+
+    $refreshes = 0;
+    $connection = new RedisSentinelConnection(
+        $demotedMaster,
+        function () use (&$refreshes, $promotedMaster) {
+            $refreshes++;
+
+            return $promotedMaster;
+        },
+        [],
+    );
+    $connection->setRetryLimit(2);
+    $connection->setRetryDelay(1);
+    $connection->setRetryMessages(["can't write against a read only replica"]);
+
+    // Laravel's queue push script returns nil: a successful eval is also a false
+    // result, so only the stored error can tell failure from success
+    expect($connection->eval("redis.call('rpush', KEYS[1], ARGV[1])", 2, 'queues:default', 'queues:default:notify'))->toBeFalse()
+        ->and($refreshes)->toBe(1);
+});
+
+test('an eval returning false without a stored error is returned as-is with no retry', function () {
+    Event::fake();
+
+    $master = new ScriptFakeRedis;
+
+    $connection = new RedisSentinelConnection($master, fn () => throw new RuntimeException('must not refresh'), []);
+    $connection->setRetryLimit(2);
+    $connection->setRetryDelay(1);
+    $connection->setRetryMessages(["can't write against a read only replica"]);
+
+    expect($connection->eval('return nil', 0))->toBeFalse();
+});
+
+test('a phpredis 6 eval error that stays on the same node exhausts the retry budget and surfaces the stored error', function () {
+    Event::fake();
+
+    $readonlyError = "ERR Error running script: -READONLY You can't write against a read only replica.";
+
+    $demotedMaster = new ScriptFakeRedis;
+    $demotedMaster->nextError = $readonlyError;
+
+    $connection = new RedisSentinelConnection(
+        $demotedMaster,
+        function () use ($demotedMaster) {
+            // Sentinel still reports the demoted node: refresh hands back the same client
+            return $demotedMaster;
+        },
+        [],
+    );
+    $connection->setRetryLimit(2);
+    $connection->setRetryDelay(1);
+    $connection->setRetryMessages(["can't write against a read only replica"]);
+
+    try {
+        $connection->eval("redis.call('rpush', KEYS[1], ARGV[1])", 2, 'queues:default');
+        $this->fail('RedisException was not thrown.');
+    } catch (RedisException $exception) {
+        expect($exception->getMessage())->toContain('-READONLY')
+            ->and(Event::assertDispatchedTimes(RedisSentinelConnectionMaxRetryFailed::class, 1))->toBeNull();
+    }
 });
