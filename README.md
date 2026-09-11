@@ -789,6 +789,10 @@ php artisan sentinel:status --watch --connection=default
 
 - **Failover is not instant**: Redis Sentinel needs time to detect a master failure, elect a new master, and expose the
   new topology. During this window, commands may be retried and application latency can temporarily increase.
+- **The failover window is also a data-loss window**: replication is asynchronous, so a Sentinel failover promotes the
+  replica with the most complete — not necessarily complete — dataset. Anything written in the last replication lag
+  before the old master died is lost, and the old master rejoins as a replica and re-syncs. This is standard
+  Redis/Valkey Sentinel behavior, not something the driver can prevent; only `WAIT`-confirmed writes are safe from it.
 - **Resolved node addresses are cached during execution** (`node_cache.ttl`, default 15 s): the package avoids querying
   Sentinel for every command. When a connection error, read-only error, or failover-related error is detected, the
   connection is refreshed and Sentinel is queried again.
