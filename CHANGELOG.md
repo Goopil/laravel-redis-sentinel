@@ -1,3 +1,10 @@
+## [1.10.3](https://github.com/Goopil/laravel-redis-sentinel/compare/1.10.2...1.10.3) (2026-09-12)
+
+
+### Bug Fixes
+
+* roast follow-ups — stale replica filter, silent fcall errors, leak guard ([#115](https://github.com/Goopil/laravel-redis-sentinel/issues/115)) ([c6d97f5](https://github.com/Goopil/laravel-redis-sentinel/commit/c6d97f5e1e7909d4d8560ebf7088c7edf0c33729))
+
 ## [1.10.2](https://github.com/Goopil/laravel-redis-sentinel/compare/1.10.1...1.10.2) (2026-09-11)
 
 
