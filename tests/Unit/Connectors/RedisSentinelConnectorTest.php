@@ -394,3 +394,16 @@ test('Sentinel readTimeout is pinned to its own sentinel.read_timeout and ignore
 
     expect($connector->capturedOptions['readTimeout'])->toBe(2);
 });
+
+test('getSentinels rejects a non-array sentinels option', function () {
+    RedisSentinelConnector::getSentinels(['sentinels' => '127.0.0.1:26379']);
+})->throws(ConfigurationException::class, 'The sentinels option must be an array of host/port pairs.');
+
+test('getSentinels rejects sentinels entries that are not host/port pairs', function () {
+    RedisSentinelConnector::getSentinels([
+        'sentinels' => [
+            ['host' => '127.0.0.1', 'port' => 26379],
+            'oops',
+        ],
+    ]);
+})->throws(ConfigurationException::class, 'Each configured sentinel must be a host/port pair, string given.');
