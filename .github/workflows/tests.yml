@@ -631,10 +631,18 @@ jobs:
       - name: Start Redis cluster with TLS overlay
         run: docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
 
-      - name: Wait for TLS Sentinel
+      - name: Wait for TLS Sentinel and master
         run: |
-          until openssl s_client -connect 127.0.0.1:26383 -CAfile tests/tls/ca.crt </dev/null 2>/dev/null | grep -q "Verify return code: 0"; do
-            echo "TLS Sentinel not ready yet..."; sleep 2
+          deadline=$((SECONDS+60))
+          for port in 26383 6393; do
+            until openssl s_client -connect 127.0.0.1:$port -CAfile tests/tls/ca.crt </dev/null 2>/dev/null | grep -q "Verify return code: 0"; do
+              if [ $SECONDS -gt $deadline ]; then
+                echo "TLS port $port never became ready, dumping container logs:"
+                docker compose -f docker-compose.yml -f docker-compose.tls.yml logs --tail=50 tls-main tls-sentinel
+                exit 1
+              fi
+              echo "TLS port $port not ready yet..."; sleep 2
+            done
           done
 
       - name: Execute TLS tests
