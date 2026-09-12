@@ -893,6 +893,11 @@ Events\RedisSentinelConnectionMaxRetryFailed::class
 Events\RedisSentinelReplicaFallback::class
 ```
 
+> Listeners for these events MUST be synchronous: the connection events carry the live
+> `RedisSentinelConnection` (and the thrown exception), which is not serializable. A
+> queued (`ShouldQueue`) listener crashes during event serialization and the failure is
+> only logged — the listener job never runs.
+
 ### Horizon Worker Events
 
 The Kubernetes probe commands also dispatch worker lifecycle events:
