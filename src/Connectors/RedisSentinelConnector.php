@@ -559,14 +559,31 @@ class RedisSentinelConnector extends PhpRedisConnector
     }
 
     /**
+     * Resolve the configured Sentinel endpoints across all documented config
+     * shapes (sentinels list, sentinel.sentinels, single sentinel host).
+     * Public static so diagnostic readers (sentinel:status --watch) cannot
+     * drift from the shapes the connector accepts.
+     *
      * @param  array<string, mixed>  $config
      * @return array<int, array<string, int|string>>
      */
-    protected function getSentinels(array $config): array
+    public static function getSentinels(array $config): array
     {
         $sentinels = $config['sentinels'] ?? $config['sentinel']['sentinels'] ?? null;
 
         if ($sentinels) {
+            if (! is_array($sentinels)) {
+                throw new ConfigurationException('The sentinels option must be an array of host/port pairs.');
+            }
+
+            foreach ($sentinels as $sentinel) {
+                if (! is_array($sentinel)) {
+                    throw new ConfigurationException(
+                        'Each configured sentinel must be a host/port pair, '.get_debug_type($sentinel).' given.'
+                    );
+                }
+            }
+
             return $sentinels;
         }
 
@@ -711,6 +728,12 @@ class RedisSentinelConnector extends PhpRedisConnector
 
         if ($host === '') {
             return null;
+        }
+
+        // Docker container and service names legally contain underscores, which
+        // FILTER_FLAG_HOSTNAME rejects; accept them as a relaxed hostname form
+        if (str_contains($host, '_')) {
+            return preg_match('/^[A-Za-z0-9_][A-Za-z0-9._-]*[A-Za-z0-9_]$/', $host) === 1 ? $host : null;
         }
 
         if (filter_var($host, FILTER_VALIDATE_IP) !== false
