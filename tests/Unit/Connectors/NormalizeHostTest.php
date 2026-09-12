@@ -73,3 +73,18 @@ test('normalizeHost rejects invalid formats', function () {
     expect($connector->testNormalizeHost('-invalid-host'))->toBeNull()
         ->and($connector->testNormalizeHost('host with spaces'))->toBeNull();
 });
+
+test('normalizeHost accepts underscore hostnames (Docker service names)', function () {
+    $connector = normalizeHostConnector();
+
+    expect($connector->testNormalizeHost('redis_main'))->toBe('redis_main')
+        ->and($connector->testNormalizeHost('my_service.staging.internal'))->toBe('my_service.staging.internal')
+        ->and($connector->testNormalizeHost('node_1'))->toBe('node_1');
+});
+
+test('normalizeHost rejects malformed underscore hostnames', function () {
+    $connector = normalizeHostConnector();
+
+    expect($connector->testNormalizeHost('bad_host!'))->toBeNull()
+        ->and($connector->testNormalizeHost('host name_x'))->toBeNull();
+});

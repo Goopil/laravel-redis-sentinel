@@ -22,6 +22,15 @@ class ScriptFakeRedis extends \Redis
         return false;
     }
 
+    public function fcall(string $fn, array $keys_or_args = [], ?array $args = null): mixed
+    {
+        if ($this->nextError !== null) {
+            $this->lastError = $this->nextError;
+        }
+
+        return false;
+    }
+
     public function clearLastError(): bool
     {
         $this->lastError = null;

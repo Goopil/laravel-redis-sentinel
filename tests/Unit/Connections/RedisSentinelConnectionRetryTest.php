@@ -250,6 +250,33 @@ test('a phpredis 6 silent eval error surfaces through getLastError and is retrie
         ->and($refreshes)->toBe(1);
 });
 
+test('a phpredis 6 silent fcall error is retried like eval', function () {
+    Event::fake();
+
+    $demotedMaster = new ScriptFakeRedis;
+    $demotedMaster->nextError = "ERR Error running function: -READONLY You can't write against a read only replica.";
+
+    $promotedMaster = new ScriptFakeRedis;
+
+    $refreshes = 0;
+    $connection = new RedisSentinelConnection(
+        $demotedMaster,
+        function () use (&$refreshes, $promotedMaster) {
+            $refreshes++;
+
+            return $promotedMaster;
+        },
+        [],
+    );
+    $connection->setRetryLimit(2);
+    $connection->setRetryDelay(1);
+    $connection->setRetryMessages(["can't write against a read only replica"]);
+
+    // fcall routes through __call: the command name must land in the script-command list
+    expect($connection->fcall('mywrite', ['queues:default'], ['payload']))->toBeFalse()
+        ->and($refreshes)->toBe(1);
+});
+
 test('an eval returning false without a stored error is returned as-is with no retry', function () {
     Event::fake();
 

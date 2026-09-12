@@ -198,3 +198,21 @@ test('formatEvent renders switch-master events with a promotion arrow', function
     expect($line)->toBe('[+switch-master] master 127.0.0.1:6380 -> 127.0.0.1:6381')
         ->and($other)->toBe('[+sdown] master master 127.0.0.1 6380');
 });
+
+test('sentinel:status --watch rejects a malformed sentinels option', function () {
+    config([
+        'database.redis.phpredis-sentinel' => [
+            'client' => 'phpredis-sentinel',
+            'sentinels' => 'not-an-array',
+        ],
+    ]);
+
+    $status = Artisan::call('sentinel:status', [
+        '--connection' => ['phpredis-sentinel'],
+        '--watch' => true,
+    ]);
+    $output = Artisan::output();
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('The sentinels option must be an array of host/port pairs.');
+});

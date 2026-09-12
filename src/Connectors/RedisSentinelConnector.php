@@ -262,6 +262,24 @@ class RedisSentinelConnector extends PhpRedisConnector
     }
 
     /**
+     * Sentinel only ever reports master-link-status ok|err: an errored link means the
+     * replica is disconnected from its master (typical right after a failover or while
+     * links re-establish) and would serve stale reads. Public static so the chaos
+     * suite's convergence barrier waits for exactly the replicas this connector accepts.
+     *
+     * @param  array<string, mixed>  $replica
+     */
+    public static function isHealthyReplica(array $replica): bool
+    {
+        $flags = $replica['flags'] ?? $replica['role-reported'] ?? '';
+
+        return ! str_contains($flags, 's_down')
+            && ! str_contains($flags, 'o_down')
+            && ! str_contains($flags, 'disconnected')
+            && ($replica['master-link-status'] ?? 'ok') === 'ok';
+    }
+
+    /**
      * Get a replica address from Sentinel.
      *
      * @param  array<string, mixed>  $config
@@ -310,14 +328,7 @@ class RedisSentinelConnector extends PhpRedisConnector
             );
 
             // Filter healthy replicas
-            $replicas = array_values(array_filter($slaves, static function ($s) {
-                $flags = $s['flags'] ?? $s['role-reported'] ?? '';
-
-                return ! str_contains($flags, 's_down') &&
-                       ! str_contains($flags, 'o_down') &&
-                       ! str_contains($flags, 'disconnected') &&
-                       ($s['master-link-status'] ?? 'ok') !== 'disconnect';
-            }));
+            $replicas = array_values(array_filter($slaves, self::isHealthyReplica(...)));
 
             if (empty($replicas)) {
                 $this->log('No healthy replica, reads fall back to the master', ['service' => $service, 'replicas' => $slaves], 'warning');
@@ -556,14 +567,31 @@ class RedisSentinelConnector extends PhpRedisConnector
     }
 
     /**
+     * Resolve the configured Sentinel endpoints across all documented config
+     * shapes (sentinels list, sentinel.sentinels, single sentinel host).
+     * Public static so diagnostic readers (sentinel:status --watch) cannot
+     * drift from the shapes the connector accepts.
+     *
      * @param  array<string, mixed>  $config
      * @return array<int, array<string, int|string>>
      */
-    protected function getSentinels(array $config): array
+    public static function getSentinels(array $config): array
     {
         $sentinels = $config['sentinels'] ?? $config['sentinel']['sentinels'] ?? null;
 
         if ($sentinels) {
+            if (! is_array($sentinels)) {
+                throw new ConfigurationException('The sentinels option must be an array of host/port pairs.');
+            }
+
+            foreach ($sentinels as $sentinel) {
+                if (! is_array($sentinel)) {
+                    throw new ConfigurationException(
+                        'Each configured sentinel must be a host/port pair, '.get_debug_type($sentinel).' given.'
+                    );
+                }
+            }
+
             return $sentinels;
         }
 
@@ -708,6 +736,12 @@ class RedisSentinelConnector extends PhpRedisConnector
 
         if ($host === '') {
             return null;
+        }
+
+        // Docker container and service names legally contain underscores, which
+        // FILTER_FLAG_HOSTNAME rejects; accept them as a relaxed hostname form
+        if (str_contains($host, '_')) {
+            return preg_match('/^[A-Za-z0-9_][A-Za-z0-9._-]*[A-Za-z0-9_]$/', $host) === 1 ? $host : null;
         }
 
         if (filter_var($host, FILTER_VALIDATE_IP) !== false

@@ -18,6 +18,24 @@ final class NodeAddressCache
     public function __construct(protected float $ttlSeconds = 0.0, protected ?Closure $clock = null) {}
 
     /**
+     * Resolve the node_cache.ttl config value: any numeric value >= 0 wins (0 is
+     * the documented, discouraged expiry opt-out), while null (Laravel 10+
+     * offsetUnset sets null instead of removing the key), empty strings, garbage
+     * and negatives fall back to the 15 s default — a silent cast to 0.0 would
+     * otherwise disable expiry in long-lived workers and mask failovers.
+     */
+    public static function ttlFromConfig(mixed $value): float
+    {
+        if (is_numeric($value)) {
+            $ttl = (float) $value;
+
+            return $ttl >= 0 ? $ttl : 15.0;
+        }
+
+        return 15.0;
+    }
+
+    /**
      * Get the cached master address for a service.
      *
      * @return array{ip: string, port: int}|null

@@ -4,20 +4,20 @@ services:
     network_mode: host
     volumes:
       - ./tests/tls:/tls:ro
+    # The sh wrapper keeps redis-server running as root: the image entrypoint drops
+    # privileges to the redis user for direct redis-server invocations, which cannot
+    # read the mode-600 private key owned by the host user on a Linux CI runner.
     command:
-      - redis-server
-      - --port
-      - "0"
-      - --tls-port
-      - "6393"
-      - --tls-cert-file
-      - /tls/server.crt
-      - --tls-key-file
-      - /tls/server.key
-      - --tls-ca-cert-file
-      - /tls/ca.crt
-      - --tls-auth-clients
-      - "no"
+      - sh
+      - -c
+      - >-
+        exec redis-server
+        --port 0
+        --tls-port 6393
+        --tls-cert-file /tls/server.crt
+        --tls-key-file /tls/server.key
+        --tls-ca-cert-file /tls/ca.crt
+        --tls-auth-clients no
 
   tls-sentinel:
     image: redis:6.2-alpine

@@ -31,17 +31,13 @@ class RedisSentinelManager extends RedisManager
         $name = $name ?: 'default';
 
         $normalizedName = $this->patchHorizonConnectionName($name);
+
+        $this->assertConnectionConfigured($name, $normalizedName);
+
         $clientDriver = $this->config[$normalizedName]['client'] ?? $this->driver;
 
         if ($clientDriver !== 'phpredis-sentinel') {
-            $previousDriver = $this->driver;
-            $this->driver = $clientDriver;
-
-            try {
-                return parent::resolve($normalizedName);
-            } finally {
-                $this->driver = $previousDriver;
-            }
+            return $this->resolveNonSentinel($normalizedName, $clientDriver);
         }
 
         $config = $this->parseConnectionConfiguration($this->config[$normalizedName]);
@@ -84,13 +80,63 @@ class RedisSentinelManager extends RedisManager
             return $this->sentinelConnector();
         }
 
-        $previousDriver = $this->driver;
-        $this->driver = $this->config[$normalizedName]['client'] ?? $this->driver;
+        return $this->connectorFor($this->config[$normalizedName]['client'] ?? $this->driver);
+    }
 
-        try {
-            return $this->connector();
-        } finally {
-            $this->driver = $previousDriver;
+    /**
+     * Resolve a plain (non-Sentinel) connection with an explicit driver, so
+     * concurrent resolutions never observe a swapped shared $driver property
+     * (same coroutine race the sentinel path avoids via sentinelConnector()).
+     */
+    private function resolveNonSentinel(string $normalizedName, string $clientDriver): mixed
+    {
+        if (isset($this->config['clusters'][$normalizedName])) {
+            return $this->connectorFor($clientDriver)->connectToCluster(
+                array_map(fn ($config) => $this->parseConnectionConfiguration($config), $this->config['clusters'][$normalizedName]),
+                $this->config['clusters']['options'] ?? [],
+                $this->config['options'] ?? []
+            );
+        }
+
+        $options = $this->config['options'] ?? [];
+
+        return $this->connectorFor($clientDriver)->connect(
+            $this->parseConnectionConfiguration($this->config[$normalizedName]),
+            array_merge(Arr::except($options, 'parameters'), ['parameters' => Arr::get($options, 'parameters.'.$normalizedName, Arr::get($options, 'parameters', []))])
+        );
+    }
+
+    /**
+     * Build the connector for an explicit driver without consulting or mutating
+     * the shared $driver property.
+     */
+    private function connectorFor(string $driver): object
+    {
+        $customCreator = $this->customCreators[$driver] ?? null;
+
+        if ($customCreator !== null) {
+            return $customCreator();
+        }
+
+        return match ($driver) {
+            'predis' => new PredisConnector,
+            'phpredis' => new PhpRedisConnector,
+            default => throw new ConfigurationException(
+                sprintf('Redis client [%s] is not supported.', $driver)
+            ),
+        };
+    }
+
+    /**
+     * A typo'd connection name must fail with a configuration error, not with the
+     * URL parser's cryptic "Redis host must be a non-empty string" downstream.
+     */
+    private function assertConnectionConfigured(string $name, string $normalizedName): void
+    {
+        if (! isset($this->config[$normalizedName]) && ! isset($this->config['clusters'][$normalizedName])) {
+            throw new ConfigurationException(
+                sprintf('No connection defined with base name %s or overwritten name %s in `database.redis` config', $name, $normalizedName)
+            );
         }
     }
 

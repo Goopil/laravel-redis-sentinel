@@ -3,6 +3,7 @@
 namespace Goopil\LaravelRedisSentinel\Tests\Support\Toxiproxy;
 
 use Goopil\LaravelRedisSentinel\Connectors\NodeAddressCache;
+use Goopil\LaravelRedisSentinel\Connectors\RedisSentinelConnector;
 use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Redis\Connections\Connection;
 use Redis;
@@ -322,12 +323,13 @@ trait InteractsWithToxiproxy
     }
 
     /**
-     * Blocks until Sentinel reports two slaves without s_down/o_down/disconnected
-     * flags, because a read-split connection created while the links severed by the
-     * beforeEach proxy reset are still re-establishing would read from the master
+     * Blocks until Sentinel reports two replicas passing the connector's own health
+     * predicate (flags plus master-link-status), because a read-split connection
+     * created while the links severed by the beforeEach proxy reset are still
+     * re-establishing would read from the master
      * (RedisSentinelConnector falls back to the master when no healthy replica exists).
      */
-    public function waitForHealthyReplicas(int $timeoutSeconds = 20): void
+    public function waitForHealthyReplicas(int $timeoutSeconds = 60): void
     {
         $service = (string) config('database.redis.phpredis-sentinel.sentinel.service', 'master');
         $deadline = microtime(true) + $timeoutSeconds;
@@ -341,10 +343,7 @@ trait InteractsWithToxiproxy
                     'connectTimeout' => 0.2,
                 ]);
 
-                $healthy = array_filter((array) $sentinel->slaves($service), static fn ($slave): bool => ! str_contains(
-                    (string) ($slave['flags'] ?? ''),
-                    'disconnected'
-                ) && ! str_contains((string) ($slave['flags'] ?? ''), 's_down'));
+                $healthy = array_filter((array) $sentinel->slaves($service), RedisSentinelConnector::isHealthyReplica(...));
 
                 if (count($healthy) >= 2) {
                     return;

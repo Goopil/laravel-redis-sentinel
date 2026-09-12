@@ -634,8 +634,14 @@ than the retry budget never restarts the pod. See [Kubernetes Deployment](#kuber
 
 ### Horizon Configuration
 
+Horizon must run with this package as its driver: when `horizon.driver` is `phpredis-sentinel`, the manager wires
+Horizon's queue onto the Sentinel-aware connector (job events, prefix patching and probe integration). Without it,
+Horizon silently falls back to its base Redis connector and the integration does not apply:
+
 ```php
 // config/horizon.php
+'driver' => 'phpredis-sentinel', // Required: activates this package's Horizon integration
+
 'use' => 'phpredis-sentinel', // Use Sentinel for Horizon
 
 'environments' => [
@@ -886,6 +892,11 @@ Events\RedisSentinelConnectionMaxRetryFailed::class
 // Replica fallback event
 Events\RedisSentinelReplicaFallback::class
 ```
+
+> Listeners for these events MUST be synchronous: the connection events carry the live
+> `RedisSentinelConnection` (and the thrown exception), which is not serializable. A
+> queued (`ShouldQueue`) listener crashes during event serialization and the failure is
+> only logged — the listener job never runs.
 
 ### Horizon Worker Events
 

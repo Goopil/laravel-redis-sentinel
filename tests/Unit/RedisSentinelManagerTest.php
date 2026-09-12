@@ -6,6 +6,8 @@ use Goopil\LaravelRedisSentinel\Exceptions\ConfigurationException;
 use Goopil\LaravelRedisSentinel\RedisSentinelManager;
 use Illuminate\Contracts\Redis\Connector;
 use Illuminate\Redis\Connections\Connection;
+use Illuminate\Redis\Connectors\PhpRedisConnector;
+use Illuminate\Redis\Connectors\PredisConnector;
 use Illuminate\Redis\RedisManager;
 use Laravel\Horizon\Connectors\RedisConnector;
 
@@ -173,6 +175,86 @@ test('sentinel resolution never exposes a swapped driver to the registered creat
         ->and($manager->resolve('default'))->toBe($connection)
         ->and($observed)->each->toBe('phpredis');
 });
+
+test('resolveConnector returns the driver connector for non-sentinel connections', function () {
+    $config = [
+        'other' => [
+            'client' => 'phpredis',
+            'host' => '127.0.0.1',
+        ],
+    ];
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', $config);
+
+    expect($manager->resolveConnector('other'))->toBeInstanceOf(PhpRedisConnector::class);
+});
+
+test('resolveConnector returns the driver connector for predis connections', function () {
+    $manager = new RedisSentinelManager(app(), 'phpredis', [
+        'store' => ['client' => 'predis', 'host' => '127.0.0.1'],
+    ]);
+
+    expect($manager->resolveConnector('store'))->toBeInstanceOf(PredisConnector::class);
+});
+
+test('resolve resolves a non-sentinel cluster through the explicit driver', function () {
+    $config = [
+        'clusters' => [
+            'mycluster' => [
+                ['host' => '127.0.0.1', 'port' => 6379],
+                ['host' => '127.0.0.2', 'port' => 6379],
+            ],
+            'options' => [
+                'cluster' => 'redis',
+            ],
+        ],
+    ];
+
+    $manager = new RedisSentinelManager(app(), 'phpredis', $config);
+
+    $receivedClusterConfig = new ArrayObject;
+    $connection = new class extends Connection
+    {
+        public function createSubscription($channels, Closure $callback, $method = 'subscribe') {}
+    };
+    $connector = new class($connection, $receivedClusterConfig) implements Connector
+    {
+        public function __construct(private readonly Connection $connection, private readonly ArrayObject $receivedClusterConfig) {}
+
+        public function connect(array $config, array $options)
+        {
+            return $this->connection;
+        }
+
+        public function connectToCluster(array $config, array $clusterOptions, array $options)
+        {
+            $this->receivedClusterConfig->exchangeArray($config);
+
+            return $this->connection;
+        }
+    };
+
+    $manager->extend('phpredis', fn () => $connector);
+
+    expect($manager->resolve('mycluster'))->toBe($connection)
+        ->and($receivedClusterConfig)->toHaveCount(2);
+});
+
+test('resolve throws ConfigurationException for an unconfigured connection name', function () {
+    $manager = new RedisSentinelManager(app(), 'phpredis', [
+        'default' => ['host' => '127.0.0.1'],
+    ]);
+
+    $manager->resolve('typo-name');
+})->throws(ConfigurationException::class, 'No connection defined with base name typo-name or overwritten name typo-name in `database.redis` config');
+
+test('resolve fails with a configuration error for an unsupported client driver', function () {
+    $manager = new RedisSentinelManager(app(), 'phpredis', [
+        'other' => ['client' => 'extension-not-installed', 'host' => '127.0.0.1'],
+    ]);
+
+    $manager->resolve('other');
+})->throws(ConfigurationException::class, 'Redis client [extension-not-installed] is not supported.');
 
 if (class_exists(RedisConnector::class)) {
     test('resolve uses normalized name for non-sentinel connections in horizon context', function () {
