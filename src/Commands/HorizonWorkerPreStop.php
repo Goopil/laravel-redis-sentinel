@@ -76,10 +76,18 @@ class HorizonWorkerPreStop extends Command
 
             $process->run();
             $output = trim($process->getOutput());
-            $pids = array_filter(explode("\n", $output), fn ($line) => ctype_digit(trim($line)));
 
-            if (! empty($pids)) {
-                $pid = (int) trim($pids[0]);
+            // pgrep -f matches the pre-stop's own command line (it contains the
+            // start command); killing our own PID would abort the hook exactly
+            // when Horizon is already gone — the only case that runs this branch
+            $ownPid = (int) (getmypid() ?: 0);
+            $pids = array_values(array_filter(
+                array_map('trim', explode("\n", $output)),
+                fn (string $line): bool => ctype_digit($line) && (int) $line !== $ownPid
+            ));
+
+            if ($pids !== []) {
+                $pid = (int) $pids[0];
             }
         }
 
