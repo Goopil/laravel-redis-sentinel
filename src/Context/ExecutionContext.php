@@ -12,9 +12,17 @@ final class ExecutionContext implements ConnectionContext
     /** @var \ArrayObject<string, mixed> */
     private \ArrayObject $fallback;
 
+    /**
+     * Random per-instance key: spl_object_id() values are reused after GC, which
+     * would let a fresh connection inherit a dead one's ConnectionState (clients,
+     * stickiness) from the shared coroutine context.
+     */
+    private string $token;
+
     public function __construct()
     {
         $this->fallback = new \ArrayObject;
+        $this->token = bin2hex(random_bytes(8));
     }
 
     public static function inCoroutine(): bool
@@ -53,7 +61,7 @@ final class ExecutionContext implements ConnectionContext
 
         if ($context instanceof \ArrayObject) {
             // Keyed per connection: two connections may share one coroutine.
-            return $context['lrs-'.spl_object_id($this)] ??= new \ArrayObject;
+            return $context['lrs-'.$this->token] ??= new \ArrayObject;
         }
 
         // Silent fallback here would make every coroutine share the worker's
