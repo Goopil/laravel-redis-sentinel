@@ -262,6 +262,24 @@ class RedisSentinelConnector extends PhpRedisConnector
     }
 
     /**
+     * Sentinel only ever reports master-link-status ok|err: an errored link means the
+     * replica is disconnected from its master (typical right after a failover or while
+     * links re-establish) and would serve stale reads. Public static so the chaos
+     * suite's convergence barrier waits for exactly the replicas this connector accepts.
+     *
+     * @param  array<string, mixed>  $replica
+     */
+    public static function isHealthyReplica(array $replica): bool
+    {
+        $flags = $replica['flags'] ?? $replica['role-reported'] ?? '';
+
+        return ! str_contains($flags, 's_down')
+            && ! str_contains($flags, 'o_down')
+            && ! str_contains($flags, 'disconnected')
+            && ($replica['master-link-status'] ?? 'ok') === 'ok';
+    }
+
+    /**
      * Get a replica address from Sentinel.
      *
      * @param  array<string, mixed>  $config
@@ -310,17 +328,7 @@ class RedisSentinelConnector extends PhpRedisConnector
             );
 
             // Filter healthy replicas
-            $replicas = array_values(array_filter($slaves, static function ($s) {
-                $flags = $s['flags'] ?? $s['role-reported'] ?? '';
-
-                // Sentinel only ever reports master-link-status ok|err: an errored link
-                // means the replica is disconnected from its master (typical right after
-                // a failover) and would serve stale reads
-                return ! str_contains($flags, 's_down') &&
-                       ! str_contains($flags, 'o_down') &&
-                       ! str_contains($flags, 'disconnected') &&
-                       ($s['master-link-status'] ?? 'ok') === 'ok';
-            }));
+            $replicas = array_values(array_filter($slaves, self::isHealthyReplica(...)));
 
             if (empty($replicas)) {
                 $this->log('No healthy replica, reads fall back to the master', ['service' => $service, 'replicas' => $slaves], 'warning');
