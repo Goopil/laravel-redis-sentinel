@@ -18,9 +18,9 @@ trait Loggable
     /**
      * Log a message with context.
      *
-     * If 'phpredis-sentinel.log.channel' is null, Log::channel(null) returns
-     * the default logging channel. This is intentional and allows falling back
-     * to the application's default log channel when no specific channel is configured.
+     * If 'phpredis-sentinel.log.channel' is null, the PSR-3 logger behind the
+     * Log facade is used directly (Log::getLogger()); unlike Log::channel(null)
+     * it bypasses the LogManager channel stack and MessageLogged events.
      *
      * @param  array<string, mixed>  $context
      */
