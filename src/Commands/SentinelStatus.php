@@ -68,7 +68,11 @@ class SentinelStatus extends Command
                 $report[$name] = $this->inspect($manager, $name);
             } catch (Throwable $exception) {
                 $failures++;
-                $this->error(sprintf('%s: %s', $name, $exception->getMessage()));
+                $report[$name] = ['error' => $exception->getMessage()];
+
+                if (! $this->option('json')) {
+                    $this->error(sprintf('%s: %s', $name, $exception->getMessage()));
+                }
             }
         }
 
@@ -160,6 +164,11 @@ class SentinelStatus extends Command
     private function renderTables(array $report): void
     {
         foreach ($report as $name => $entry) {
+            // Failures are reported inline by handle() before the tables render
+            if (isset($entry['error'])) {
+                continue;
+            }
+
             $master = $entry['master'];
 
             $this->info(sprintf('%s · service "%s"', $name, $entry['service'] ?? '?'));
@@ -207,18 +216,38 @@ class SentinelStatus extends Command
      */
     private function watch(array $config): int
     {
-        $sentinelConfig = (array) ($config['sentinel'] ?? []);
-        $host = (string) ($sentinelConfig['host'] ?? '');
-        $port = (int) ($sentinelConfig['port'] ?? 26379);
-
-        if ($host === '') {
-            $this->error('No sentinel host configured.');
+        if (isset($config['sentinel']['ssl'])) {
+            $this->error('--watch does not support TLS sentinels.');
 
             return 1;
         }
 
-        if (isset($sentinelConfig['ssl'])) {
-            $this->error('--watch does not support TLS sentinels.');
+        // Same shape resolution the connector uses, so --watch accepts every
+        // documented sentinels form (list, sentinel.sentinels, single host)
+        try {
+            $candidates = RedisSentinelConnector::getSentinels($config);
+        } catch (Throwable $exception) {
+            $this->error($exception->getMessage());
+
+            return 1;
+        }
+
+        $host = '';
+        $port = 26379;
+
+        foreach ($candidates as $candidate) {
+            $candidateHost = trim((string) ($candidate['host'] ?? ''));
+
+            if ($candidateHost !== '') {
+                $host = $candidateHost;
+                $port = (int) ($candidate['port'] ?? 26379);
+
+                break;
+            }
+        }
+
+        if ($host === '') {
+            $this->error('No sentinel host configured.');
 
             return 1;
         }
@@ -242,7 +271,7 @@ class SentinelStatus extends Command
         // @codeCoverageIgnoreStart
         // Blocking pub/sub: manually smoke-tested against a live Sentinel; not
         // exercisable in-suite because subscribe() never returns until disconnect.
-        $password = (string) ($sentinelConfig['password'] ?? $config['password'] ?? '');
+        $password = (string) ($config['sentinel']['password'] ?? $config['password'] ?? '');
 
         if ($password !== '') {
             $redis->auth($password);
