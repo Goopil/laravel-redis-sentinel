@@ -110,7 +110,7 @@ class RedisSentinelManager extends RedisManager
      * Build the connector for an explicit driver without consulting or mutating
      * the shared $driver property.
      */
-    private function connectorFor(string $driver): ?object
+    private function connectorFor(string $driver): object
     {
         $customCreator = $this->customCreators[$driver] ?? null;
 
@@ -121,7 +121,9 @@ class RedisSentinelManager extends RedisManager
         return match ($driver) {
             'predis' => new PredisConnector,
             'phpredis' => new PhpRedisConnector,
-            default => null,
+            default => throw new ConfigurationException(
+                sprintf('Redis client [%s] is not supported.', $driver)
+            ),
         };
     }
 
