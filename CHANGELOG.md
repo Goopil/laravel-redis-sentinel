@@ -1,3 +1,10 @@
+## [1.10.4](https://github.com/Goopil/laravel-redis-sentinel/compare/1.10.3...1.10.4) (2026-10-22)
+
+
+### Bug Fixes
+
+* revive CI — phpstan 2.3 repairs, dependabot composer/actions, npm audit scoping ([#120](https://github.com/Goopil/laravel-redis-sentinel/issues/120)) ([77a01db](https://github.com/Goopil/laravel-redis-sentinel/commit/77a01dbacdcce308c751530c7111c374de329e03))
+
 ## [1.10.3](https://github.com/Goopil/laravel-redis-sentinel/compare/1.10.2...1.10.3) (2026-09-12)
 
 
