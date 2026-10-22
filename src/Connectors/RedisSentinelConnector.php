@@ -604,16 +604,14 @@ class RedisSentinelConnector extends PhpRedisConnector
     }
 
     /**
-     * The phpredis >= 6 array-form constructor is valid at runtime but the
-     * bundled stubs only declare the positional form, so the array branch is
-     * triaged here.
+     * phpredis >= 6 accepts the option-hash constructor; older versions only
+     * accept positional arguments, so the call is triaged by runtime version.
      *
      * @param  array<string, mixed>  $options
      */
     protected function createSentinelInstance(array $options): RedisSentinel
     {
         return $this->needParamsAsArray()
-            /** @phpstan-ignore argument.type, arguments.count (array-form ctor is valid on phpredis >= 6, stubs lag) */
             ? new RedisSentinel($options)
             : new RedisSentinel(...array_values($options));
     }

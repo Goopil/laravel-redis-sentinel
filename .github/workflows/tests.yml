@@ -68,7 +68,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
 
       - name: Install composer dependencies
@@ -81,7 +81,10 @@ jobs:
         run: npm ci
 
       - name: npm audit
-        run: npm audit --audit-level=high
+        # Dev-only tooling (semantic-release): production ships no npm deps.
+        # Dev-chain advisories without upstream fixes (e.g. braces) would
+        # otherwise block every release; Dependabot alerts still track them.
+        run: npm audit --omit=dev --audit-level=high
 
   tests:
     needs: [lint, security-audit]
